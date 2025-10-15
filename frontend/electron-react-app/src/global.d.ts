@@ -6,8 +6,6 @@ declare global {
     apiBaseUrl: string;
   }
 
-  type DesktopTaskEventName = 'queued' | 'started' | 'progress' | 'completed' | 'failed' | 'cancelled' | 'log';
-
   interface DesktopTaskResult {
     [key: string]: unknown;
   }
@@ -30,16 +28,88 @@ declare global {
     completedAt?: number;
     error?: DesktopTaskError | null;
     result?: DesktopTaskResult | null;
-    meta?: Record<string, unknown>;
+    meta?: Record<string, unknown> | null;
+  }
+
+  interface DesktopTelemetryCpuSample {
+    percent: number;
+    normalizedPercent: number;
+    user: number;
+    system: number;
+    totalMs: number;
+    elapsedMs: number;
+    cores: number;
+  }
+
+  interface DesktopTelemetryMemorySample {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external: number;
+    arrayBuffers: number;
+    details?: Record<string, number> | null;
+  }
+
+  interface DesktopTelemetryEventLoopSample {
+    mean: number;
+    max: number;
+    min: number;
+    stddev: number;
+    p50: number;
+    p90: number;
+    p99: number;
+  }
+
+  interface DesktopTelemetrySystemSample {
+    loadavg: number[];
+    totalMem: number | null;
+    freeMem: number | null;
+    uptime: number | null;
+  }
+
+  interface DesktopTelemetryWorkerSample {
+    jobId: string;
+    threadId: number | null;
+    type: string;
+    status: string;
+    progress: number;
+    runtimeMs: number;
+    eventLoopUtilization: number | null;
+  }
+
+  interface DesktopTelemetrySnapshot {
+    timestamp: number;
+    queueSize: number;
+    activeCount: number;
+    concurrency: number;
+    cpu: DesktopTelemetryCpuSample;
+    memory: DesktopTelemetryMemorySample;
+    eventLoop: DesktopTelemetryEventLoopSample | null;
+    system: DesktopTelemetrySystemSample;
+    workers: DesktopTelemetryWorkerSample[];
+    jobs: DesktopTaskSummary[];
   }
 
   interface DesktopTaskEventPayload {
     jobId: string;
-    job: DesktopTaskSummary;
+    job?: DesktopTaskSummary;
     level?: string;
     message?: string;
     [key: string]: unknown;
   }
+
+  interface DesktopTaskEventMap {
+    queued: DesktopTaskEventPayload;
+    started: DesktopTaskEventPayload;
+    progress: DesktopTaskEventPayload;
+    completed: DesktopTaskEventPayload;
+    failed: DesktopTaskEventPayload;
+    cancelled: DesktopTaskEventPayload;
+    log: DesktopTaskEventPayload;
+    telemetry: DesktopTelemetrySnapshot;
+  }
+
+  type DesktopTaskEventName = keyof DesktopTaskEventMap;
 
   interface DesktopTaskStartOptions {
     type: string;
@@ -58,7 +128,7 @@ declare global {
     cancel: (jobId: string, reason?: string) => Promise<{ ok: boolean }>;
     list: () => Promise<{ jobs: DesktopTaskSummary[] }>;
     get: (jobId: string) => Promise<{ job: DesktopTaskSummary | null }>;
-    on: (eventName: DesktopTaskEventName, listener: (payload: DesktopTaskEventPayload) => void) => () => void;
+    on: <T extends DesktopTaskEventName>(eventName: T, listener: (payload: DesktopTaskEventMap[T]) => void) => () => void;
   }
 
   interface DesktopApi {

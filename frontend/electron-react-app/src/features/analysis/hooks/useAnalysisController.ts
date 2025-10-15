@@ -118,13 +118,17 @@ export const useAnalysisController = () => {
       if (event.jobId !== activeDesktopJobIdRef.current) {
         return;
       }
+      const job = event.job;
+      if (!job) {
+        return;
+      }
       setDesktopState((prev) => ({
         ...prev,
         status: 'queued',
-        statusMessage: event.job.statusMessage ?? 'Queued for processing',
-        progress: clampProgress(event.job.progress, Math.max(prev.progress, 5)),
+        statusMessage: job.statusMessage ?? 'Queued for processing',
+        progress: clampProgress(job.progress, Math.max(prev.progress, 5)),
         isPolling: true,
-        meta: event.job.meta ?? prev.meta ?? null,
+        meta: job.meta ?? prev.meta ?? null,
       }));
     };
 
@@ -132,13 +136,17 @@ export const useAnalysisController = () => {
       if (event.jobId !== activeDesktopJobIdRef.current) {
         return;
       }
+      const job = event.job;
+      if (!job) {
+        return;
+      }
       setDesktopState((prev) => ({
         ...prev,
         status: 'running',
-        statusMessage: event.job.statusMessage ?? 'Running analysis',
-        progress: clampProgress(event.job.progress, Math.max(prev.progress, 20)),
+        statusMessage: job.statusMessage ?? 'Running analysis',
+        progress: clampProgress(job.progress, Math.max(prev.progress, 20)),
         isPolling: true,
-        meta: event.job.meta ?? prev.meta ?? null,
+        meta: job.meta ?? prev.meta ?? null,
       }));
     };
 
@@ -146,16 +154,20 @@ export const useAnalysisController = () => {
       if (event.jobId !== activeDesktopJobIdRef.current) {
         return;
       }
+      const job = event.job;
+      if (!job) {
+        return;
+      }
       setDesktopState((prev) => ({
         ...prev,
         status: 'running',
-        statusMessage: event.job.statusMessage ?? prev.statusMessage,
-        progress: clampProgress(event.job.progress, prev.progress),
+        statusMessage: job.statusMessage ?? prev.statusMessage,
+        progress: clampProgress(job.progress, prev.progress),
         isPolling: true,
-        meta: event.job.meta ?? prev.meta ?? null,
+        meta: job.meta ?? prev.meta ?? null,
       }));
 
-      const taskMeta = event.job.meta as { taskId?: string } | undefined;
+      const taskMeta = job.meta as { taskId?: string } | undefined;
       if (taskMeta?.taskId) {
         setTaskId((current) => current ?? taskMeta.taskId ?? null);
       }
@@ -165,20 +177,24 @@ export const useAnalysisController = () => {
       if (event.jobId !== activeDesktopJobIdRef.current) {
         return;
       }
+      const job = event.job;
+      if (!job) {
+        return;
+      }
       activeDesktopJobIdRef.current = null;
-      const result = event.job.result as AnalysisStatus | null;
-      const taskMeta = event.job.meta as { taskId?: string } | undefined;
+      const result = job.result as AnalysisStatus | null;
+      const taskMeta = job.meta as { taskId?: string } | undefined;
       if (taskMeta?.taskId) {
         setTaskId(taskMeta.taskId);
       }
       setDesktopState((prev) => ({
         ...prev,
         status: 'completed',
-        statusMessage: event.job.statusMessage ?? 'Analysis completed',
+        statusMessage: job.statusMessage ?? 'Analysis completed',
         progress: 100,
         result: result ?? prev.result,
         isPolling: false,
-        meta: event.job.meta ?? prev.meta ?? null,
+        meta: job.meta ?? prev.meta ?? null,
       }));
     };
 
@@ -186,17 +202,21 @@ export const useAnalysisController = () => {
       if (event.jobId !== activeDesktopJobIdRef.current) {
         return;
       }
+      const job = event.job;
+      if (!job) {
+        return;
+      }
       activeDesktopJobIdRef.current = null;
-      const errorMessage = event.job.error?.message ?? event.job.statusMessage ?? 'Analysis failed';
+      const errorMessage = job.error?.message ?? job.statusMessage ?? 'Analysis failed';
       const errorObject = toError(errorMessage);
       setDesktopState((prev) => ({
         ...prev,
         status: 'failed',
         statusMessage: errorMessage,
-        progress: clampProgress(event.job.progress, prev.progress),
+        progress: clampProgress(job.progress, prev.progress),
         error: errorObject,
         isPolling: false,
-        meta: event.job.meta ?? prev.meta ?? null,
+        meta: job.meta ?? prev.meta ?? null,
       }));
     };
 
@@ -204,14 +224,18 @@ export const useAnalysisController = () => {
       if (event.jobId !== activeDesktopJobIdRef.current) {
         return;
       }
+      const job = event.job;
+      if (!job) {
+        return;
+      }
       activeDesktopJobIdRef.current = null;
       setDesktopState((prev) => ({
         ...prev,
         status: 'cancelled',
-        statusMessage: event.job.statusMessage ?? 'Analysis cancelled',
-        progress: clampProgress(event.job.progress, prev.progress),
+        statusMessage: job.statusMessage ?? 'Analysis cancelled',
+        progress: clampProgress(job.progress, prev.progress),
         isPolling: false,
-        meta: event.job.meta ?? prev.meta ?? null,
+        meta: job.meta ?? prev.meta ?? null,
       }));
     };
 

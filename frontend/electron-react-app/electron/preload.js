@@ -8,6 +8,7 @@ const TASK_EVENT_CHANNELS = {
   failed: 'tasks:failed',
   cancelled: 'tasks:cancelled',
   log: 'tasks:log',
+  telemetry: 'tasks:telemetry',
 };
 
 const buildTaskEventHandler = (eventName, listener) => {

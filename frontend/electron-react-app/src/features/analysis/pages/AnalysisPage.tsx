@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/Button';
 import { StatusChip } from '../../../components/ui/StatusChip';
 import { fetchRubrics } from '../api';
 import { useAnalysisController } from '../hooks/useAnalysisController';
+import { useDesktopTelemetry } from '../../system/hooks/useDesktopTelemetry';
 
 import styles from './AnalysisPage.module.css';
 
@@ -38,6 +39,7 @@ export default function AnalysisPage() {
   const controller = useAnalysisController();
   const rubricsQuery = useQuery({ queryKey: ['rubrics'], queryFn: fetchRubrics });
   const rubricsData = rubricsQuery.data;
+  const telemetry = useDesktopTelemetry();
 
   const disciplineOptions = useMemo(() => {
     if (!rubricsData || rubricsData.length === 0) {
@@ -57,6 +59,17 @@ export default function AnalysisPage() {
   const complianceScore = controller.summary?.complianceScore ?? null;
   const analysisError = controller.error instanceof Error ? controller.error : null;
   const progressPercent = Math.max(0, Math.min(100, Math.round(controller.progress ?? 0)));
+  const telemetryCpu = telemetry.metrics.cpuPercent !== null ? `${telemetry.metrics.cpuPercent.toFixed(1)}%` : '--';
+  const telemetryMemory = telemetry.metrics.memoryMb !== null ? `${Math.round(telemetry.metrics.memoryMb)} MB` : '--';
+  const telemetryLoop = telemetry.metrics.eventLoopP99 !== null ? `${telemetry.metrics.eventLoopP99.toFixed(1)} ms` : '--';
+  const telemetryActiveSummary = telemetry.snapshot
+    ? `${telemetry.metrics.activeCount}/${typeof telemetry.snapshot.concurrency === 'number' ? telemetry.snapshot.concurrency : '--'}`
+    : `${telemetry.metrics.activeCount}/--`;
+  const telemetryQueueSummary = telemetry.metrics.queueSize;
+  const telemetryUpdatedLabel = telemetry.lastUpdatedAt
+    ? new Date(telemetry.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : 'Awaiting data';
+
   const statusLabel = controller.status ? controller.status.replace(/_/g, ' ') : controller.isPolling ? 'running' : 'idle';
 
   return (
@@ -91,6 +104,41 @@ export default function AnalysisPage() {
               </div>
             </div>
           </Card>
+          {controller.isDesktop && telemetry.isSupported && (
+            <Card variant="muted" title="Runtime Telemetry" subtitle="Main & worker health">
+              <div className={styles.telemetryGrid}>
+                <div>
+                  <span className={styles.metricLabel}>CPU</span>
+                  <span className={styles.metricValue}>{telemetryCpu}</span>
+                </div>
+                <div>
+                  <span className={styles.metricLabel}>Memory</span>
+                  <span className={styles.metricValue}>{telemetryMemory}</span>
+                </div>
+                <div>
+                  <span className={styles.metricLabel}>Loop p99</span>
+                  <span className={styles.metricValue}>{telemetryLoop}</span>
+                </div>
+              </div>
+              <div className={styles.telemetryMetaRow}>
+                <span>Active {telemetryActiveSummary}</span>
+                <span>Queue {telemetryQueueSummary}</span>
+                <span>{telemetryUpdatedLabel}</span>
+              </div>
+              {telemetry.snapshot?.workers.length ? (
+                <ul className={styles.telemetryWorkerList}>
+                  {telemetry.snapshot.workers.slice(0, 3).map((worker) => (
+                    <li key={worker.jobId}>
+                      <span>{worker.type}</span>
+                      <span>{Math.max(0, Math.round(worker.runtimeMs / 1000))}s</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.telemetryIdleText}>Workers idle</p>
+              )}
+            </Card>
+          )}
         </div>
       </section>
 

@@ -21,12 +21,12 @@ parentPort.on('message', (message) => {
       }
       await new Promise((resolve) => setTimeout(resolve, durationMs / steps));
       post('progress', {
-        progress: i / steps,
-        statusMessage: Mock heavy work step  of ,
+        progress: Math.round((i / steps) * 100),
+        statusMessage: `Mock heavy work step ${i}/${steps}`,
       });
     }
     post('result', {
-      progress: 1,
+      progress: 100,
       statusMessage: 'Mock task completed',
       result: { message: 'Mock heavy task finished', startedAt: Date.now() - durationMs },
     });

@@ -33,7 +33,10 @@
 
 .overviewStats {
   display: flex;
+  flex-direction: column;
   justify-content: flex-end;
+  align-items: stretch;
+  gap: var(--spacing-lg);
   min-width: 280px;
 }
 
@@ -56,6 +59,55 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-text-dark);
+}
+
+.telemetryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.telemetryMetaRow {
+  margin-top: var(--spacing-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.78);
+}
+
+.telemetryMetaRow span {
+  background: rgba(15, 23, 42, 0.45);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-md);
+}
+
+.telemetryWorkerList {
+  margin: var(--spacing-md) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.telemetryWorkerList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: rgba(203, 213, 225, 0.85);
+}
+
+.telemetryWorkerList li span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.telemetryIdleText {
+  margin: var(--spacing-md) 0 0;
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.75);
 }
 
 .columns {

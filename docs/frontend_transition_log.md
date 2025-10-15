@@ -1,3 +1,8 @@
+## 2025-10-15T12:45Z - Resource Telemetry & Stress Harness
+- Instrumented the Electron task manager with periodic CPU/memory/event loop telemetry and forwarded snapshots to renderer IPC.
+- Added desktop telemetry hook + UI card to surface live worker health in Analysis Mission Control.
+- Created worker-pool stress harness exercising cancellations, timeouts, and concurrency with the mock heavy worker.
+
 ## 2025-10-15T09:18Z - Desktop Task Orchestration\n- Added worker-thread task manager with IPC wiring to offload analysis uploads/polling from the renderer.\n- Exposed desktop task API via preload bridge for progress, cancellation, and error propagation.\n- Refreshed analysis UI for responsive layout, live progress bars, and dark-mode safe styling while keeping PySide parity.\n
 ## 2025-10-14T18:24Z - Scaffold Upgrade
 - Replaced CRA starter with TypeScript-ready structure and modular layout scaffolding.

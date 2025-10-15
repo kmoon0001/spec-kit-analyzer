@@ -3,18 +3,59 @@ const { Worker } = require('node:worker_threads');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const perfHooks = require('node:perf_hooks');
+
+const { performance } = perfHooks;
+const monitorEventLoopDelay = typeof perfHooks.monitorEventLoopDelay === 'function' ? perfHooks.monitorEventLoopDelay : null;
 
 const DEFAULT_TERMINATE_TIMEOUT_MS = 5_000;
+const DEFAULT_TELEMETRY_INTERVAL_MS = 1_000;
 
 class TaskManager extends EventEmitter {
+  #telemetryTimer = null;
+  #eventLoopDelayMonitor = null;
+  #lastCpuUsage = null;
+  #lastCpuTimestamp = null;
+  #emittingTelemetry = false;
+  #disposed = false;
+
   constructor(options = {}) {
     super();
     const cpuCount = os.cpus()?.length ?? 4;
     this.concurrency = Math.max(1, options.concurrency ?? Math.min(cpuCount - 1, 4));
+    this.telemetryIntervalMs = Math.max(250, options.telemetryIntervalMs ?? DEFAULT_TELEMETRY_INTERVAL_MS);
     this.workerRegistry = new Map();
     this.jobs = new Map();
     this.queue = [];
     this.active = new Map();
+    this.#initTelemetry();
+  }
+
+  #initTelemetry() {
+    this.#lastCpuUsage = process.cpuUsage();
+    this.#lastCpuTimestamp = performance.now();
+
+    if (monitorEventLoopDelay) {
+      try {
+        this.#eventLoopDelayMonitor = monitorEventLoopDelay({ resolution: 20 });
+        this.#eventLoopDelayMonitor.enable();
+      } catch (error) {
+        this.emit('log', {
+          level: 'warn',
+          message: 'Failed to initialize event loop delay monitor',
+          meta: { error: error?.message },
+        });
+        this.#eventLoopDelayMonitor = null;
+      }
+    }
+
+    this.#telemetryTimer = setInterval(() => {
+      void this.#emitTelemetry();
+    }, this.telemetryIntervalMs);
+
+    if (typeof this.#telemetryTimer.unref === 'function') {
+      this.#telemetryTimer.unref();
+    }
   }
 
   register(type, workerRelativePath) {
@@ -36,6 +77,7 @@ class TaskManager extends EventEmitter {
       completedAt: job.completedAt,
       error: job.error,
       result: job.result,
+      meta: job.meta,
     }));
   }
 
@@ -62,6 +104,7 @@ class TaskManager extends EventEmitter {
       statusMessage: 'Queued',
       createdAt: Date.now(),
       timeoutMs: timeoutMs ?? null,
+      meta: null,
     };
     this.jobs.set(jobId, job);
     this.queue.push(job);
@@ -99,12 +142,32 @@ class TaskManager extends EventEmitter {
       if (this.active.has(jobId)) {
         active.worker.terminate();
       }
-    }, DEFAULT_TERMINATE_TIMEOUT_MS).unref();
+    }, DEFAULT_TERMINATE_TIMEOUT_MS);
+    if (typeof active.timeoutHandle.unref === 'function') {
+      active.timeoutHandle.unref();
+    }
     this.emit('cancelling', { jobId, job });
     return true;
   }
 
   dispose() {
+    this.#disposed = true;
+    if (this.#telemetryTimer) {
+      clearInterval(this.#telemetryTimer);
+      this.#telemetryTimer = null;
+    }
+    if (this.#eventLoopDelayMonitor) {
+      try {
+        this.#eventLoopDelayMonitor.disable();
+      } catch (error) {
+        this.emit('log', {
+          level: 'debug',
+          message: 'Failed to disable event loop monitor',
+          meta: { error: error?.message },
+        });
+      }
+      this.#eventLoopDelayMonitor = null;
+    }
     for (const { worker } of this.active.values()) {
       worker.terminate();
     }
@@ -143,6 +206,9 @@ class TaskManager extends EventEmitter {
       startedAt: Date.now(),
       cancelRequested: false,
       timeoutHandle: null,
+      eventLoopUtilization: worker?.performance?.eventLoopUtilization
+        ? worker.performance.eventLoopUtilization()
+        : null,
     };
     this.active.set(job.id, activeRecord);
 
@@ -154,7 +220,10 @@ class TaskManager extends EventEmitter {
     if (job.timeoutMs) {
       activeRecord.timeoutHandle = setTimeout(() => {
         this.cancel(job.id, 'Timed out');
-      }, job.timeoutMs).unref();
+      }, job.timeoutMs);
+      if (typeof activeRecord.timeoutHandle.unref === 'function') {
+        activeRecord.timeoutHandle.unref();
+      }
     }
 
     worker.on('message', (message) => {
@@ -244,6 +313,124 @@ class TaskManager extends EventEmitter {
       activeRecord.worker.terminate();
     }
     this.#drain();
+  }
+
+  async #emitTelemetry() {
+    if (this.#emittingTelemetry || this.#disposed) {
+      return;
+    }
+
+    this.#emittingTelemetry = true;
+    try {
+      const now = performance.now();
+      const cpuUsage = process.cpuUsage();
+      const prevUsage = this.#lastCpuUsage;
+      const prevTimestamp = this.#lastCpuTimestamp;
+      const cpuDiffUser = prevUsage ? cpuUsage.user - prevUsage.user : 0;
+      const cpuDiffSystem = prevUsage ? cpuUsage.system - prevUsage.system : 0;
+      const elapsedMs = prevTimestamp ? Math.max(now - prevTimestamp, 1) : this.telemetryIntervalMs;
+      const totalCpuMs = (cpuDiffUser + cpuDiffSystem) / 1_000;
+      const cores = os.cpus()?.length ?? 1;
+      const cpuPercent = elapsedMs > 0 ? Math.min(cores * 100, (totalCpuMs / elapsedMs) * 100) : 0;
+      const normalizedCpuPercent = cores > 0 ? cpuPercent / cores : cpuPercent;
+
+      this.#lastCpuUsage = cpuUsage;
+      this.#lastCpuTimestamp = now;
+
+      const memoryUsage = process.memoryUsage();
+      let processMemoryInfo = null;
+      if (typeof process.getProcessMemoryInfo === 'function') {
+        try {
+          processMemoryInfo = await process.getProcessMemoryInfo();
+        } catch (error) {
+          this.emit('log', {
+            level: 'debug',
+            message: 'getProcessMemoryInfo failed',
+            meta: { error: error?.message },
+          });
+        }
+      }
+
+      let eventLoopMetrics = null;
+      if (this.#eventLoopDelayMonitor) {
+        const histogram = this.#eventLoopDelayMonitor;
+        eventLoopMetrics = {
+          mean: histogram.mean / 1e6,
+          max: histogram.max / 1e6,
+          min: histogram.min / 1e6,
+          stddev: histogram.stddev / 1e6,
+          p50: histogram.percentile(50) / 1e6,
+          p90: histogram.percentile(90) / 1e6,
+          p99: histogram.percentile(99) / 1e6,
+        };
+        histogram.reset();
+      }
+
+      const workers = [];
+      for (const [jobId, record] of this.active.entries()) {
+        const job = this.jobs.get(jobId);
+        let workerEventLoopUtilization = null;
+        if (record.worker?.performance?.eventLoopUtilization) {
+          try {
+            const metrics = record.worker.performance.eventLoopUtilization(record.eventLoopUtilization ?? undefined);
+            record.eventLoopUtilization = metrics;
+            workerEventLoopUtilization = metrics?.utilization ?? null;
+          } catch (error) {
+            this.emit('log', {
+              level: 'debug',
+              message: 'Failed to read worker eventLoopUtilization',
+              meta: { jobId, error: error?.message },
+            });
+          }
+        }
+        workers.push({
+          jobId,
+          threadId: record.worker?.threadId ?? null,
+          type: job?.type ?? 'unknown',
+          status: job?.status ?? 'unknown',
+          progress: job?.progress ?? 0,
+          runtimeMs: job?.startedAt ? Date.now() - job.startedAt : 0,
+          eventLoopUtilization: workerEventLoopUtilization,
+        });
+      }
+
+      const payload = {
+        timestamp: Date.now(),
+        queueSize: this.queue.length,
+        activeCount: this.active.size,
+        concurrency: this.concurrency,
+        cpu: {
+          percent: Number(cpuPercent.toFixed(2)),
+          normalizedPercent: Number(normalizedCpuPercent.toFixed(2)),
+          user: cpuUsage.user,
+          system: cpuUsage.system,
+          totalMs: totalCpuMs,
+          elapsedMs,
+          cores,
+        },
+        memory: {
+          rss: memoryUsage.rss,
+          heapTotal: memoryUsage.heapTotal,
+          heapUsed: memoryUsage.heapUsed,
+          external: memoryUsage.external,
+          arrayBuffers: memoryUsage.arrayBuffers,
+          details: processMemoryInfo,
+        },
+        eventLoop: eventLoopMetrics,
+        system: {
+          loadavg: typeof os.loadavg === 'function' ? os.loadavg() : [],
+          totalMem: typeof os.totalmem === 'function' ? os.totalmem() : null,
+          freeMem: typeof os.freemem === 'function' ? os.freemem() : null,
+          uptime: typeof os.uptime === 'function' ? os.uptime() : null,
+        },
+        workers,
+        jobs: this.listJobs(),
+      };
+
+      this.emit('telemetry', payload);
+    } finally {
+      this.#emittingTelemetry = false;
+    }
   }
 }
 

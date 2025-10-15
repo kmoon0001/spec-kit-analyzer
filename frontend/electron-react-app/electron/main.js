@@ -17,6 +17,7 @@ const TASK_EVENT_CHANNELS = {
   failed: 'tasks:failed',
   cancelled: 'tasks:cancelled',
   log: 'tasks:log',
+  telemetry: 'tasks:telemetry',
 };
 
 const broadcastTaskEvent = (channel, payload) => {
@@ -36,6 +37,7 @@ const setupTaskEventForwarding = () => {
   taskManager.on('failed', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.failed, event));
   taskManager.on('cancelled', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.cancelled, event));
   taskManager.on('log', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.log, event));
+  taskManager.on('telemetry', (payload) => broadcastTaskEvent(TASK_EVENT_CHANNELS.telemetry, payload));
 };
 
 const registerTaskIpcHandlers = () => {
