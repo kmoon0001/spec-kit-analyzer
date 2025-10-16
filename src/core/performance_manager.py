@@ -34,9 +34,17 @@ class PerformanceConfig:
 class PerformanceManager:
     """A singleton class to manage and provide performance metrics."""
 
-    _instance = None
+    _instance: "PerformanceManager | None" = None
 
-    def __new__(cls):
+    def __init__(self) -> None:
+        # These attributes are set in __new__ but we need to declare them for mypy
+        self.process: Any
+        self.current_profile: PerformanceProfile
+        self.config: PerformanceConfig
+        self.system_info: dict[str, Any]
+        self._cache_metrics: dict[str, int]
+
+    def __new__(cls) -> "PerformanceManager":
         if cls._instance is None:
             instance = super().__new__(cls)
             instance.process = psutil.Process(os.getpid())

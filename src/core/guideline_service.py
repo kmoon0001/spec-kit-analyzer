@@ -239,11 +239,11 @@ class GuidelineService:
             return []
         dists = np.linalg.norm(self._fallback_embeddings - query_array[0], axis=1)
         order = np.argsort(dists)[: max(0, top_k)]
-        results: list[dict] = []
+        fallback_results: list[dict] = []
         for idx in order:
             text, source = self.guideline_chunks[int(idx)]
-            results.append({"text": text, "source": source, "score": float(dists[int(idx)])})
-        return results
+            fallback_results.append({"text": text, "source": source, "score": float(dists[int(idx)])})
+        return fallback_results
 
 
 def set_sentence_transformer_override(factory) -> None:

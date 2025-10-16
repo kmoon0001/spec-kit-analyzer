@@ -101,9 +101,9 @@ class RAGFactChecker:
         """Retrieve relevant rules using the hybrid retriever."""
         try:
             # Use the retriever to find relevant rules
-            results = await self.retriever.search_rules(
+            results = await self.retriever.retrieve(
                 query=finding_text,
-                top_k=settings.retrieval.similarity_top_k,
+                top_k=5,  # Default top_k
                 discipline=None,  # Search across all disciplines
             )
 
@@ -183,7 +183,10 @@ class RAGFactChecker:
         try:
             from src.core.llm_service import LLMService
 
-            llm_service = LLMService()
+            llm_service = LLMService(
+                model_repo_id="microsoft/DialoGPT-medium",
+                model_filename="model.gguf"
+            )
 
             # Create a focused prompt for validation
             rules_text = "\n".join([rule.get("content", "") for rule in rules[:3]])  # Top 3 rules
@@ -197,7 +200,7 @@ Relevant Rules:
 
 Is this finding plausible based on the rules? Answer with only "YES" or "NO"."""
 
-            response = await llm_service.generate_response(prompt=prompt, max_tokens=10, temperature=0.1)
+            response = llm_service.generate(prompt=prompt, max_tokens=10, temperature=0.1)
 
             # Parse response
             response_text = response.strip().upper()

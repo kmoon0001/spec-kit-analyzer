@@ -135,7 +135,7 @@ class IndividualHabitTracker:
         )
 
         # Create daily timeline
-        timeline = {}
+        timeline: dict[str, dict[str, Any]] = {}
         for report in user_reports:
             date_key = report.analysis_date.date().isoformat()
 
@@ -170,7 +170,7 @@ class IndividualHabitTracker:
                     )
 
         # Sort timeline by date
-        sorted_timeline = sorted(timeline.values(), key=lambda x: x["date"])
+        sorted_timeline = sorted(timeline.values(), key=lambda x: str(x["date"]))
 
         habit_details = self.habits_framework.get_habit_details(habit_id)
 
@@ -180,7 +180,7 @@ class IndividualHabitTracker:
             "timeline": sorted_timeline,
             "summary": {
                 "total_days": len(sorted_timeline),
-                "days_with_findings": len([d for d in sorted_timeline if d["habit_findings"] > 0]),
+                "days_with_findings": len([d for d in sorted_timeline if int(d["habit_findings"]) > 0]),
                 "total_habit_findings": sum(d["habit_findings"] for d in sorted_timeline),
                 "avg_findings_per_day": sum(d["habit_findings"] for d in sorted_timeline)
                 / max(len(sorted_timeline), 1),

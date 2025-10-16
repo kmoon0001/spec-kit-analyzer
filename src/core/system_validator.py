@@ -59,7 +59,7 @@ class SystemValidator:
         # Flatten results and handle exceptions
         all_results = []
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 all_results.append(
                     ValidationResult(
                         component="system_validator",
@@ -73,8 +73,21 @@ class SystemValidator:
                 )
             elif isinstance(result, list):
                 all_results.extend(result)
-            else:
+            elif isinstance(result, ValidationResult):
                 all_results.append(result)
+            else:
+                # Handle unexpected types
+                all_results.append(
+                    ValidationResult(
+                        component="system_validator",
+                        test_name="validation_execution",
+                        status=ValidationStatus.FAIL,
+                        message=f"Unexpected result type: {type(result)}",
+                        details={"result": str(result)},
+                        duration_ms=0,
+                        timestamp=datetime.now(),
+                    )
+                )
 
         self.validation_results = all_results
 

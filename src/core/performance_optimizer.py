@@ -44,10 +44,10 @@ class PerformanceOptimizer:
         self._lock = threading.Lock()
 
         # Performance thresholds
-        self.performance_thresholds = {
+        self.performance_thresholds: dict[str, float] = {
             "min_hit_rate": 0.7,
-            "max_response_time_ms": 500,
-            "max_memory_usage_mb": 1024,
+            "max_response_time_ms": 500.0,
+            "max_memory_usage_mb": 1024.0,
             "min_efficiency_score": 70.0,
         }
 
@@ -142,7 +142,7 @@ class PerformanceOptimizer:
             # Get baseline performance metrics
             baseline_metrics = await self.analyze_performance()
 
-            optimization_results = {
+            optimization_results: dict[str, Any] = {
                 "status": "in_progress",
                 "baseline_metrics": baseline_metrics,
                 "optimizations_applied": [],
@@ -242,7 +242,7 @@ class PerformanceOptimizer:
         """Optimize memory usage through intelligent cache management."""
         logger.debug("Starting memory optimization")
 
-        memory_results = {
+        memory_results: dict[str, Any] = {
             "initial_memory_mb": 0.0,
             "final_memory_mb": 0.0,
             "memory_freed_mb": 0.0,
@@ -266,11 +266,12 @@ class PerformanceOptimizer:
                 (LLMResponseCache, "llm"),
             ]:
                 try:
-                    if hasattr(cache_class._cache, "clear_expired"):
+                    # Try to get cache instance and clear expired entries
+                    if hasattr(cache_class, "_cache") and hasattr(cache_class._cache, "clear_expired"):
                         cache_class._cache.clear_expired()
                         memory_results["caches_cleaned"].append(f"{cache_name}_expired")
-                except (ImportError, ModuleNotFoundError, AttributeError):
-                    logger.warning("Error cleaning %s cache: {e}", cache_name)
+                except (ImportError, ModuleNotFoundError, AttributeError) as e:
+                    logger.warning("Error cleaning %s cache: %s", cache_name, e)
 
             # Aggressive memory optimization
             if aggressive:
@@ -282,10 +283,14 @@ class PerformanceOptimizer:
                     memory_results["caches_cleaned"].append("document_full_clear")
 
                     # Reduce LLM cache size by clearing older entries
-                    if hasattr(LLMResponseCache._cache, "_cleanup_if_needed"):
-                        LLMResponseCache._cache.max_memory_mb = 128  # Reduce from 256MB
-                        LLMResponseCache._cache._cleanup_if_needed()
-                        memory_results["caches_cleaned"].append("llm_size_reduction")
+                    try:
+                        if hasattr(LLMResponseCache, "_cache") and hasattr(LLMResponseCache._cache, "_cleanup_if_needed"):
+                            if hasattr(LLMResponseCache._cache, "max_memory_mb"):
+                                LLMResponseCache._cache.max_memory_mb = 128  # Reduce from 256MB
+                            LLMResponseCache._cache._cleanup_if_needed()
+                            memory_results["caches_cleaned"].append("llm_size_reduction")
+                    except (AttributeError, TypeError) as e:
+                        logger.warning("Could not reduce LLM cache size: %s", e)
 
             # Get final memory usage
             final_stats = get_cache_stats()
@@ -536,7 +541,7 @@ performance_optimizer = PerformanceOptimizer()
 class LLMResponseCache:
     """LLM response cache implementation."""
 
-    _cache = {}
+    _cache: dict[str, str] = {}
 
     @classmethod
     def get_response(cls, model_name: str, prompt: str) -> str | None:
@@ -562,7 +567,7 @@ class LLMResponseCache:
 class DocumentCache:
     """Document cache implementation."""
 
-    _cache = {}
+    _cache: dict[str, dict] = {}
 
     @classmethod
     def get_document(cls, doc_id: str) -> dict | None:

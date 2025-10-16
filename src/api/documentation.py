@@ -32,7 +32,7 @@ def setup_api_documentation(app: FastAPI) -> None:
     def custom_openapi():
         return create_custom_openapi(app)
 
-    app.openapi = custom_openapi
+    app.openapi = custom_openapi  # type: ignore[method-assign]
 
     # Add custom documentation endpoint
     @app.get("/docs/api", include_in_schema=False)

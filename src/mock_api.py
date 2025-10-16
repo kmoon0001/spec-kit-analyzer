@@ -241,7 +241,7 @@ else:
                 return _MockResponse(403, {"detail": "Inactive users cannot request analysis"})
 
             try:
-                result = _mock_analysis_service.analyze_document(  # type: ignore[arg-type]
+                result = await _mock_analysis_service.analyze_document(  # type: ignore[arg-type]
                     file_content=file_content,
                     original_filename=filename,
                     discipline=discipline,

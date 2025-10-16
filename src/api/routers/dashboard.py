@@ -225,7 +225,17 @@ async def generate_coaching_focus(
         raw_response = llm_service.generate(prompt)
         duration = perf_counter() - start
         logger.info("LLM coaching focus generation complete", duration_s=duration)
-        coaching_data = llm_service.parse_json_output(raw_response)
+        # Parse JSON from the response
+        try:
+            coaching_data = json.loads(raw_response)
+        except json.JSONDecodeError:
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\{.*\}', raw_response, re.DOTALL)
+            if json_match:
+                coaching_data = json.loads(json_match.group())
+            else:
+                raise ValueError("No valid JSON found in response")
         return CoachingFocus(**coaching_data)
     except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.exception("Failed to generate coaching focus", error=str(e))

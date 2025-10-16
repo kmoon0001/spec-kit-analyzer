@@ -53,7 +53,7 @@ async def run_analysis_and_save(
 ) -> None:
     """Background task coordinator that schedules the async analysis workflow."""
 
-    def _update_progress(percentage: int, message: str) -> None:
+    def _update_progress(percentage: int, message: str | None) -> None:
         state = tasks.setdefault(task_id, {})
         state["progress"] = percentage
         state["status_message"] = message

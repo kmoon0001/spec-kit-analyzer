@@ -39,5 +39,5 @@ def setup_documentation(app: FastAPI) -> None:
     def enhanced_openapi():
         return create_enhanced_openapi(app)
 
-    app.openapi = enhanced_openapi
+    app.openapi = enhanced_openapi  # type: ignore[method-assign]
     logger.info("Enhanced API documentation configured")

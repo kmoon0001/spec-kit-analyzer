@@ -122,13 +122,13 @@ async def get_personal_goals(
                     "target_value": goal.target_value,
                     "current_value": goal.current_value,
                     "progress_percentage": (goal.current_value / goal.target_value * 100)
-                    if goal.target_value > 0
+                    if goal.target_value and goal.current_value and goal.target_value > 0
                     else 0,
-                    "target_date": goal.target_date.isoformat(),
-                    "created_at": goal.created_at.isoformat(),
+                    "target_date": goal.target_date.isoformat() if goal.target_date else None,
+                    "created_at": goal.created_at.isoformat() if goal.created_at else None,
                     "status": goal.status,
                     "days_remaining": (goal.target_date - datetime.now()).days
-                    if goal.target_date > datetime.now()
+                    if goal.target_date and goal.target_date > datetime.now()
                     else 0,
                 }
                 for goal in goals

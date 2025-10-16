@@ -280,12 +280,19 @@ async def detailed_health_check(
         if isinstance(component, Exception):
             component_names = ["database", "ai_services", "worker_manager"]
             valid_components.append(ComponentHealth(
-                name=component_names[i],
+                name=component_names[i] if i < len(component_names) else f"component_{i}",
                 status="unhealthy",
                 message=f"Health check failed: {str(component)}"
             ))
-        else:
+        elif isinstance(component, ComponentHealth):
             valid_components.append(component)
+        else:
+            # Handle unexpected types
+            valid_components.append(ComponentHealth(
+                name=f"component_{i}",
+                status="unknown",
+                message=f"Unexpected component type: {type(component)}"
+            ))
 
     # Determine overall status
     unhealthy_count = sum(1 for c in valid_components if c.status == "unhealthy")

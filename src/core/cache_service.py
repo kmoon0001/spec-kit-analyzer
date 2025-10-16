@@ -370,7 +370,7 @@ class LLMResponseCache:
     @classmethod
     def memory_usage_mb(cls) -> float:
         """Estimate memory usage of LLM response cache."""
-        total_bytes = 0
+        total_bytes = 0.0
         for key, value in cls._cache.items():
             total_bytes += len(str(key).encode("utf-8"))
             total_bytes += len(str(value).encode("utf-8"))
@@ -413,7 +413,7 @@ class DocumentCache:
     @classmethod
     def memory_usage_mb(cls) -> float:
         """Estimate memory usage of document cache."""
-        total_bytes = 0
+        total_bytes = 0.0
         for key, value in cls._cache.items():
             total_bytes += len(str(key).encode("utf-8"))
             try:

@@ -156,7 +156,7 @@ class ReportGenerator:
         return normalized
 
     def _build_stage_checkpoints(self, analysis_result: dict[str, Any]) -> list[dict[str, Any]]:
-        stage_definitions = [
+        stage_definitions: list[dict[str, Any]] = [
             {
                 "id": "ingestion",
                 "label": "Document ingestion",

@@ -155,7 +155,7 @@ async def create_goal(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
 
     try:
-        goal = await crud.create_habit_goal(db, current_user.id, goal_data)
+        goal = await crud.create_habit_goal(db, current_user.id, goal_data.model_dump())
         return schemas.HabitGoal.model_validate(goal)
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):

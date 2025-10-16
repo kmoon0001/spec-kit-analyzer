@@ -306,7 +306,7 @@ class HabitProgressionService:
         """Get total analysis count for user."""
         try:
             # Use existing function to count user reports
-            reports = await crud.get_reports(db, user_id=user_id)
+            reports = await crud.get_reports(db)
             return len(reports)
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting user analysis count: %s", e)

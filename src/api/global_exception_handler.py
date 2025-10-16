@@ -85,7 +85,7 @@ def _get_status_code_for_error(error: ApplicationError) -> int:
         HTTP status code
 
     """
-    error_status_map = {
+    error_status_map: dict[type[Exception], int] = {
         DatabaseError: 503,  # Service Unavailable
         SecurityError: 403,  # Forbidden
         AIModelError: 503,  # Service Unavailable

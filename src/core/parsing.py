@@ -13,9 +13,9 @@ from .cache_service import cache_service
 
 # OCR imports with fallback
 try:
-    import cv2
+    import cv2  # type: ignore[import-not-found]
     import numpy as np
-    import pytesseract
+    import pytesseract  # type: ignore[import-untyped]
 
     OCR_AVAILABLE = True
 except ImportError:

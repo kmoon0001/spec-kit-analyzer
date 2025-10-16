@@ -96,7 +96,8 @@ class SystemIntegrationService:
         try:
             # Start core services that have start methods
             self.memory_manager.start()
-            self.model_resource_manager.initialize()
+            if self.model_resource_manager is not None:
+                self.model_resource_manager.initialize()
 
             # Cache service doesn't need explicit start
             # Resource pool manager doesn't need explicit start
@@ -201,7 +202,7 @@ class SystemIntegrationService:
 
     def optimize_system(self, aggressive: bool = False) -> dict[str, Any]:
         """Run comprehensive system optimization."""
-        optimization_results = {
+        optimization_results: dict[str, Any] = {
             "timestamp": datetime.now(),
             "aggressive_mode": aggressive,
             "optimizations_performed": [],

@@ -36,7 +36,7 @@ class PerformanceOptimizer:
 
             # GPU information (basic check)
             gpu_available = False
-            gpu_memory_gb = 0
+            gpu_memory_gb = 0.0
             gpu_name = "None"
 
             try:

@@ -15,7 +15,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.core.metrics_collector import MetricsCollector
+    from src.core.data_aggregator import DataAggregator
 
 try:
     import psutil

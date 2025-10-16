@@ -289,6 +289,12 @@ class BaselineMetricsCollector:
 class OptimizationMetricsCollector:
     """Collects performance metrics with optimizations enabled"""
 
+    def __init__(self) -> None:
+        self.cache_service: Any = None
+        self.memory_manager: Any = None
+        self.optimization_enabled: bool = False
+        self.baseline_collector: Any = None  # Will be set when needed
+
     def set_optimization_services(self, cache_service=None, memory_manager=None):
         """Set optimization services for metrics collection"""
         self.cache_service = cache_service
@@ -429,7 +435,7 @@ class StatisticalAnalysisEngine:
         baseline_metrics: PerformanceMetrics, optimized_metrics: PerformanceMetrics
     ) -> dict[str, Any]:
         """Analyze performance comparison between baseline and optimized metrics"""
-        analysis = {
+        analysis: dict[str, Any] = {
             "timestamp": datetime.now(),
             "improvements": {},
             "regressions": {},

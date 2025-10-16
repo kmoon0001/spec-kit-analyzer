@@ -247,10 +247,13 @@ class PerformanceIntegrationService:
     def _get_cache_hit_rate(self) -> float:
         """Get cache hit rate if available."""
         try:
-            from src.core.cache_integration_service import cache_integration
-            stats = cache_integration.get_cache_performance_stats()
-            return stats.get("hit_rate_percent", 0.0)
-        except ImportError:
+            from src.core.advanced_cache_service import advanced_cache_service
+            # Get cache performance stats if available
+            if hasattr(advanced_cache_service, 'get_cache_performance_stats'):
+                stats = advanced_cache_service.get_cache_performance_stats()
+                return stats.get("hit_rate_percent", 0.0)
+            return 0.0
+        except (ImportError, AttributeError):
             return 0.0
 
     def set_monitoring_enabled(self, enabled: bool) -> None:

@@ -26,7 +26,7 @@ class CacheMetrics:
     avg_response_time_ms: float = 0.0
     total_requests: int = 0
     cache_size_mb: float = 0.0
-    last_updated: datetime = None
+    last_updated: datetime | None = None
 
 
 @dataclass
@@ -51,9 +51,9 @@ class CachePerformanceMonitor:
 
         """
         self.window_size = window_size
-        self.operation_times = deque(maxlen=window_size)
-        self.hit_miss_history = deque(maxlen=window_size)
-        self.cache_metrics = defaultdict(CacheMetrics)
+        self.operation_times: deque[dict[str, Any]] = deque(maxlen=window_size)
+        self.hit_miss_history: deque[dict[str, Any]] = deque(maxlen=window_size)
+        self.cache_metrics: defaultdict[str, CacheMetrics] = defaultdict(CacheMetrics)
         self._lock = threading.Lock()
 
     def record_operation(self, cache_name: str, operation: str, duration_ms: float, hit: bool) -> None:
@@ -143,8 +143,6 @@ class CachePerformanceMonitor:
         recent_hit_rate = sum(1 for op in recent_ops if op["hit"]) / len(recent_ops)
         recent_avg_time = sum(op["duration_ms"] for op in recent_ops) / len(recent_ops)
 
-        trend_analysis = {"improving": True, "stable": True}
-
         if older_ops:
             older_hit_rate = sum(1 for op in older_ops if op["hit"]) / len(older_ops)
             older_avg_time = sum(op["duration_ms"] for op in older_ops) / len(older_ops)
@@ -152,7 +150,7 @@ class CachePerformanceMonitor:
             hit_rate_change = recent_hit_rate - older_hit_rate
             time_change = recent_avg_time - older_avg_time
 
-            trend_analysis = {
+            trend_analysis: dict[str, Any] = {
                 "hit_rate_trend": "improving"
                 if hit_rate_change > 0.05
                 else "declining"
@@ -166,6 +164,8 @@ class CachePerformanceMonitor:
                 "hit_rate_change": hit_rate_change,
                 "response_time_change_ms": time_change,
             }
+        else:
+            trend_analysis = {"insufficient_data": True}
 
         return {
             "recent_hit_rate": recent_hit_rate,
@@ -370,7 +370,7 @@ class CacheWarmingService:
         Args:
             max_concurrent_warming: Maximum number of concurrent warming operations
         """
-        self.warming_queue = []
+        self.warming_queue: list[dict[str, Any]] = []
         self._lock = threading.Lock()
         self.max_concurrent_warming = max_concurrent_warming
         self.warming_in_progress = False
@@ -430,7 +430,7 @@ class CacheWarmingService:
 
         try:
             warmed_items = 0
-            warming_results = {
+            warming_results: dict[str, Any] = {
                 "embeddings_warmed": 0,
                 "ner_warmed": 0,
                 "llm_warmed": 0,
@@ -602,7 +602,7 @@ class CacheWarmingService:
 
     def _analyze_queue_contents(self) -> dict[str, int]:
         """Analyze contents of warming queue by cache type."""
-        type_counts = defaultdict(int)
+        type_counts: defaultdict[str, int] = defaultdict(int)
         for request in self.warming_queue:
             cache_type = request["cache_type"]
             item_count = len(request["items"])
@@ -641,7 +641,7 @@ class AdvancedCacheService:
         """Run cache optimization procedures."""
         logger.info("Starting cache performance optimization")
 
-        optimization_results = {
+        optimization_results: dict[str, Any] = {
             "warming_executed": False,
             "cleanup_performed": False,
             "recommendations_generated": False,

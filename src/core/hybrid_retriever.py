@@ -162,8 +162,8 @@ class HybridRetriever:
         # Dense retrieval only if embeddings available
         if self.corpus_embeddings is not None and _SENTENCE_AVAILABLE and self.dense_retriever is not None:
             query_embedding = self._get_embedding(expanded_query)
-            dense_scores = cos_sim(query_embedding, self.corpus_embeddings)[0]
-            dense_scores = dense_scores.cpu().numpy() if hasattr(dense_scores, "cpu") else np.asarray(dense_scores)
+            dense_scores_tensor = cos_sim(query_embedding, self.corpus_embeddings)[0]
+            dense_scores = dense_scores_tensor.cpu().numpy() if hasattr(dense_scores_tensor, "cpu") else np.asarray(dense_scores_tensor)
             dense_ranks = {doc_id: rank + 1 for rank, doc_id in enumerate(np.argsort(dense_scores)[::-1])}
         else:
             dense_ranks = {}

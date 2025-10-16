@@ -16,7 +16,7 @@ class DocumentProcessingService:
     def _initialize_dependencies(self):
         """Lazy load dependencies to avoid circular imports and improve startup time."""
         try:
-            import fitz  # type: ignore[import-untyped]
+            import fitz  # type: ignore[import-not-found]
             import pytesseract  # type: ignore[import-untyped]
             from docx import Document  # type: ignore[import-untyped]
             from pdf2image import convert_from_path  # type: ignore[import-not-found]

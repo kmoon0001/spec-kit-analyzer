@@ -273,7 +273,7 @@ class MLScheduler:
 
     def get_scheduler_status(self) -> dict[str, Any]:
         """Get the current status of the scheduler."""
-        status = {
+        status: dict[str, Any] = {
             "is_running": self.is_running,
             "jobs": [],
             "next_training": None,

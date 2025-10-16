@@ -29,7 +29,10 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
             logger.info("Creating LLM resource %s with model {self.model_name}", resource_id)
 
             # Create LLM service with specified model
-            llm_service = LLMService()
+            llm_service = LLMService(
+                model_repo_id=self.model_name,
+                model_filename="model.gguf"  # Default filename
+            )
 
             # Initialize the model (this will load it into memory)
             # The actual model loading is handled by LLMService internally
@@ -49,7 +52,7 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
         try:
             # Simple validation - check if we can generate a short response
             test_prompt = "Test"
-            response = resource.generate_response(test_prompt, max_length=10)
+            response = resource.generate(test_prompt, max_length=10)
             return response is not None and len(response.strip()) > 0
 
         except (ValueError, TypeError, AttributeError) as e:
@@ -112,6 +115,8 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model_name = model_name
         self._model_size_mb = 0
+        self._initialized = False
+        self._factories: dict[str, ResourceFactory] = {}
 
     def create_resource(self, resource_id: str) -> SentenceTransformer:
         """Create a new sentence transformer model instance."""
@@ -170,6 +175,11 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
         }
 
         return size_estimates.get(self.model_name, 200)  # Default 200MB
+
+    def initialize(self) -> None:
+        """Initialize the factory."""
+        self._initialized = True
+        logger.info("EmbeddingModelResourceFactory initialized")
 
     def get_factory(self, model_type: str) -> ResourceFactory | None:
         """Get a resource factory by type."""
