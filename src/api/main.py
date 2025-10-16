@@ -5,6 +5,7 @@ Provides endpoints for document analysis, user management, and compliance report
 """
 
 import asyncio
+import json
 import logging
 import sys
 import time
@@ -339,10 +340,13 @@ if EHR_AVAILABLE:
 # Include plugin management
 try:
     from src.api.routers import plugins
+    from src.core.plugin_system import PluginManager
 
+    plugin_manager = PluginManager()
     app.include_router(plugins.router, tags=["Plugin Management"])
     logging.info("Plugin Management API enabled")
 except ImportError:
+    plugin_manager = None
     logging.warning("Plugin Management API not available")
 
 # --- WebSocket Endpoint --- #
@@ -351,6 +355,10 @@ async def _load_all_plugins_background():
     """Background task to load all plugins."""
     results = {}  # Initialize results to an empty dictionary
     try:
+        if plugin_manager is None:
+            logger.info("Plugin manager not available, skipping plugin loading")
+            return
+            
         logger.info("Starting background plugin loading")
         results = plugin_manager.load_all_plugins()
         logger.info(f"Background plugin loading completed with results: {results}")
@@ -361,8 +369,7 @@ async def _load_all_plugins_background():
 
     successful_loads = sum(1 for success in results.values() if success)
     total_plugins = len(results)
-
-logger.info("Background plugin loading complete: %s/%s successful", successful_loads, total_plugins)
+    logger.info("Background plugin loading complete: %s/%s successful", successful_loads, total_plugins)
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.query_params.get("token")

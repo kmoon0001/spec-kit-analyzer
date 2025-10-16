@@ -345,6 +345,12 @@ async def load_all_plugins(
             "total_plugins": len(plugin_manager.plugin_metadata),
             "status": "loading",
         }
+    except Exception as e:
+        logger.exception("Failed to start plugin loading: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Failed to start plugin loading: {e!s}"
+        ) from e
 
 
 async def _load_all_plugins_background():
