@@ -32,13 +32,14 @@
     "eject": "react-scripts eject",
     "electron:dev": "wait-on tcp:3000 && electron .",
     "electron:build": "electron-builder",
-    "start:renderer": "cross-env BROWSER=none react-scripts start",
+    "start:renderer": "cross-env BROWSER=none REACT_APP_API_URL=http://127.0.0.1:8100 react-scripts start",
     "start:electron": "concurrently \"npm run start:renderer\" \"npm run electron:dev\"",
     "build:electron": "npm run build && electron-builder",
     "lint": "eslint ./src --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss}\"",
     "preview": "serve -s build",
     "dev": "npm run start:electron",
+    "dev:full": "concurrently --kill-others \"npm run start:renderer\" \"wait-on tcp:3000 && electron .\"",
     "postinstall": "electron-builder install-app-deps"
   },
   "eslintConfig": {

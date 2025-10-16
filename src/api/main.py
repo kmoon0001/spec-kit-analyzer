@@ -287,9 +287,13 @@ ALLOWED_CORS_ORIGINS = [
     "https://127.0.0.1:3000",
     "https://localhost",
     "https://localhost:3000",
+    # Electron specific origins
+    "app://.",
+    "file://",
 ]
 
-ALLOWED_CORS_REGEX = r"app://.*|file://.*|capacitor://localhost"
+# Enhanced CORS regex for Electron, Capacitor, and other desktop frameworks
+ALLOWED_CORS_REGEX = r"^(app|file|capacitor|electron)://.*$"
 
 app = FastAPI(
     title="Therapy Compliance Analyzer API",
