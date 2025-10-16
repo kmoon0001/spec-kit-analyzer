@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from .text_utils import sanitize_human_text
 
@@ -55,6 +56,11 @@ class MixtureOfExpertsRouter:
 
 class ChatService:
     """Conversational service using a Mixture of Experts."""
+
+    def __init__(self, llm_service: Any = None, router: Any = None):
+        """Initialize ChatService with LLM service and router."""
+        self.llm_service = llm_service
+        self.router = router
 
     def process_message(self, history: list[dict[str, str]]) -> str:
         if not self.llm_service.is_ready():

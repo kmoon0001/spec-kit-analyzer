@@ -26,7 +26,7 @@ async def chat_with_ai(
             detail="The chat model is not available. Please try again later.",
         )
 
-    chat_service = ChatService(chat_llm)
+    chat_service = ChatService(llm_service=chat_llm)
 
     try:
         history_payload = [message.model_dump() for message in chat_request.history]

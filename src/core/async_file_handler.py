@@ -14,7 +14,7 @@ import yaml
 try:
     import aiofiles
 except ImportError:
-    aiofiles = None
+    aiofiles = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +200,7 @@ class AsyncFileHandler:
             Dictionary mapping file paths to their content
 
         """
-        results = {}
+        results: dict[str, str] = {}
         total_files = len(file_paths)
 
         if not file_paths:

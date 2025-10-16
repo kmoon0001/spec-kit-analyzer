@@ -310,7 +310,7 @@ class LogoProcessor:
 class ReportBrandingService:
     """Main service for managing report branding"""
 
-    def __init__(self, config_path: str | Path = None):
+    def __init__(self, config_path: str | Path | None = None):
         self.config_path = Path(config_path) if config_path else Path("config/branding.yaml")
         self.logo_processor = LogoProcessor()
         self.branding_config = BrandingConfiguration()

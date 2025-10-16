@@ -19,7 +19,7 @@ class AnalysisTaskRegistry:
     async def start(self, task_id: str, coroutine: Awaitable[Any]) -> asyncio.Task[Any]:
         """Schedule a coroutine for execution and register it under the given task id."""
         async with self._lock:
-            task = asyncio.create_task(coroutine, name=f"analysis-{task_id}")
+            task: asyncio.Task[Any] = asyncio.create_task(coroutine, name=f"analysis-{task_id}")
             self._handles[task_id] = task
 
             def _cleanup(_: asyncio.Future[Any]) -> None:

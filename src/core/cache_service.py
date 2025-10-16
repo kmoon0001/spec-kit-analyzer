@@ -120,7 +120,7 @@ class MemoryAwareLRUCache:
     def __init__(self, max_memory_mb: int = 512):
         from collections import OrderedDict
 
-        self.cache = OrderedDict()
+        self.cache: OrderedDict[str, Any] = OrderedDict()
         self.current_size_bytes = 0
         self.max_memory_mb = max_memory_mb
         self.memory_pressure_threshold = 85
@@ -163,7 +163,7 @@ class MemoryAwareLRUCache:
 
         return entry["value"]
 
-    def set(self, key: str, value: Any, ttl_seconds: int = None, ttl_hours: float = None):
+    def set(self, key: str, value: Any, ttl_seconds: int | None = None, ttl_hours: float | None = None):
         """Set a value in the cache with optional TTL."""
         # Remove existing entry if it exists
         if key in self.cache:
@@ -173,10 +173,11 @@ class MemoryAwareLRUCache:
         size = self._estimate_size(value)
 
         # Handle both ttl_seconds and ttl_hours
+        final_ttl_seconds: int | None = ttl_seconds
         if ttl_hours is not None:
-            ttl_seconds = int(ttl_hours * 3600)
+            final_ttl_seconds = int(ttl_hours * 3600)
 
-        expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds) if ttl_seconds else None
+        expires_at = datetime.now(UTC) + timedelta(seconds=final_ttl_seconds) if final_ttl_seconds else None
 
         # Store the entry
         self.cache[key] = {"value": value, "size": size, "expires_at": expires_at, "created_at": datetime.now(UTC)}
@@ -348,7 +349,7 @@ __all__ = [
 class LLMResponseCache:
     """LLM response cache implementation."""
 
-    _cache = {}
+    _cache: dict[str, str] = {}
 
     @classmethod
     def get_response(cls, model_name: str, prompt: str) -> str | None:
@@ -388,7 +389,7 @@ class LLMResponseCache:
 class DocumentCache:
     """Document cache implementation."""
 
-    _cache = {}
+    _cache: dict[str, dict[str, Any]] = {}
 
     @classmethod
     def get_document(cls, doc_id: str) -> dict | None:
@@ -418,13 +419,13 @@ class DocumentCache:
             try:
                 import pickle
 
-                total_bytes += len(pickle.dumps(value)) / (1024**2)
+                total_bytes += len(pickle.dumps(value)) / (1024.0**2)
             except (pickle.PicklingError, TypeError):
                 # Fallback for unpicklable objects
-                total_bytes += len(str(value).encode("utf-8")) / (1024**2)
+                total_bytes += len(str(value).encode("utf-8")) / (1024.0**2)
                 # Log the error for debugging, but don't fail the size estimation
                 # logger.debug(f"Could not pickle object for size estimation: {e}")
-        return total_bytes / (1024 * 1024)
+        return total_bytes
 
     @classmethod
     def entry_count(cls) -> int:

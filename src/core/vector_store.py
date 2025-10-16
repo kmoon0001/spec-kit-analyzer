@@ -7,6 +7,7 @@ This is crucial for efficiently finding similar reports based on their embedding
 
 import logging
 import sqlite3
+from typing import Any
 
 # FAISS may not be available in some environments (e.g., Windows py3.13).
 # Fall back to a pure-NumPy implementation when not installed.
@@ -33,13 +34,15 @@ class VectorStore:
     def __new__(cls, embedding_dim: int = 768):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.embedding_dim = embedding_dim
-            cls._instance.index = None
-            cls._instance.report_ids = []
+            # Initialize instance attributes (avoiding type assignment to non-self)
+            instance = cls._instance
+            instance.embedding_dim = embedding_dim
+            instance.index = None
+            instance.report_ids = []
             cls._instance.is_initialized = False
             # Fallback storage when FAISS is unavailable
-            cls._instance._fallback_vectors: list[np.ndarray] = []
-            cls._instance._fallback_ids: list[int] = []
+            instance._fallback_vectors = []
+            instance._fallback_ids = []
         return cls._instance
 
     def initialize_index(self):
@@ -121,14 +124,14 @@ class VectorStore:
             stack = np.stack(self._fallback_vectors, axis=0)
             dists = np.linalg.norm(stack - query, axis=1)
             topk_indices = np.argsort(dists)[: max(k, 0)]
-            results: list[tuple[int, float]] = []
+            fallback_results: list[tuple[int, float]] = []
             for pos in topk_indices:
                 idx = self._fallback_ids[int(pos)]
                 dist = float(dists[int(pos)])
                 similarity = 1 - (dist / float(self.embedding_dim))
                 if similarity >= threshold:
-                    results.append((int(idx), float(similarity)))
-            return results
+                    fallback_results.append((int(idx), float(similarity)))
+            return fallback_results
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as exc:
             logger.exception("Failed to search vector store: %s", exc)
             return []

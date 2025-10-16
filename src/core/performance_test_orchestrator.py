@@ -170,7 +170,7 @@ class ExecutionEngine:
                     error_message=str(result),
                 )
                 test_results.append(failed_result)
-            else:
+            elif isinstance(result, SingleTestResult):
                 test_results.append(result)
 
         return test_results
@@ -185,8 +185,8 @@ class SuiteManager:
         Args:
             config_path: Optional path to YAML configuration file
         """
-        self.test_suites = {}
-        self.test_configurations = {}
+        self.test_suites: dict[str, Any] = {}
+        self.test_configurations: dict[str, Any] = {}
         self.config_path = config_path
 
         if config_path:

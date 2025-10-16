@@ -24,13 +24,19 @@ class DatabaseError(ApplicationError):
 class AIModelError(ApplicationError):
     """AI model operation errors."""
 
-    def __init__(self, message: str, model_name: str = None, **kwargs):
+    def __init__(self, message: str, model_name: str | None = None, **kwargs):
         self.model_name = model_name
         super().__init__(message, error_code="AI_MODEL_ERROR", **kwargs)
 
 
 class ConfigurationError(ApplicationError):
     """Configuration-related errors."""
+
+    pass
+
+
+class AnalysisError(ApplicationError):
+    """Analysis operation errors."""
 
     pass
 

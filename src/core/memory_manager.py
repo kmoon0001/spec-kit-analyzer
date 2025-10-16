@@ -265,7 +265,7 @@ class MemoryOptimizer:
             tracker: Optional resource tracker for optimization decisions
         """
         self._lock = threading.Lock()
-        self._optimization_callbacks = []
+        self._optimization_callbacks: list[Callable[[], int]] = []
         self.tracker = tracker or ResourceTracker()
 
     def register_optimization_callback(self, callback: Callable[[], int]) -> None:

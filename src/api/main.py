@@ -78,7 +78,7 @@ class WebSocketLogHandler(logging.Handler):
         try:
             self.loop = loop or asyncio.get_running_loop()
         except RuntimeError:
-            self.loop = None
+            self.loop = None  # type: ignore[assignment]
 
     def emit(self, record: logging.LogRecord) -> None:
         if not self.loop or self.loop.is_closed():
@@ -113,7 +113,7 @@ class InMemoryTaskPurgeService:
         self.purge_interval_seconds = purge_interval_seconds
         self._stop_event = asyncio.Event()
 
-    def start(self) -> Coroutine[Any, Any, None]:
+    def start(self) -> asyncio.Task[None]:
         logger.info("Starting in-memory task purge service.")
         return asyncio.create_task(self.purge_expired_tasks())
 
@@ -267,7 +267,8 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     logger.info("Scheduler started for daily maintenance tasks.")
 
-    in_memory_task_purge_service.start()
+    # Start the task purge service
+    _ = in_memory_task_purge_service.start()
 
     yield
 
@@ -314,8 +315,8 @@ app.add_middleware(
 
 app.add_middleware(CorrelationIdMiddleware)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
 app.add_exception_handler(Exception, global_exception_handler)
 
 # --- Routers --- #
@@ -350,7 +351,7 @@ try:
     app.include_router(plugins.router, tags=["Plugin Management"])
     logging.info("Plugin Management API enabled")
 except ImportError:
-    plugin_manager = None
+    plugin_manager = None  # type: ignore[assignment]
     logging.warning("Plugin Management API not available")
 
 # --- WebSocket Endpoint --- #

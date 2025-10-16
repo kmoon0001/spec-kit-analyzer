@@ -34,7 +34,7 @@ class TaskResult:
     progress: float = 0.0
     started_at: float | None = None
     completed_at: float | None = None
-    metadata: dict[str, Any] = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.metadata is None:
@@ -49,7 +49,7 @@ class ProgressCallback:
         self.manager = manager
         self._lock = threading.Lock()
 
-    def update(self, progress: float, message: str = "", metadata: dict[str, Any] = None):
+    def update(self, progress: float, message: str = "", metadata: dict[str, Any] | None = None):
         """Update task progress (thread-safe)"""
         with self._lock:
             self.manager._update_task_progress(self.task_id, progress, message, metadata or {})
@@ -193,11 +193,11 @@ class WorkerManager:
         # Set timeout (Unix only)
         if hasattr(signal, 'SIGALRM'):
             old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(int(timeout))
+            signal.alarm(int(timeout))  # type: ignore[attr-defined]
 
             try:
                 result = func(*args, **kwargs)
-                signal.alarm(0)  # Cancel alarm
+                signal.alarm(0)  # Cancel alarm  # type: ignore[attr-defined]
                 return result
             finally:
                 signal.signal(signal.SIGALRM, old_handler)
@@ -231,9 +231,10 @@ class WorkerManager:
             task = self.tasks.get(task_id)
             if task and task.status == TaskStatus.RUNNING:
                 task.progress = max(0.0, min(1.0, progress))
-                task.metadata.update(metadata)
-                if message:
-                    task.metadata['status_message'] = message
+                if task.metadata is not None:
+                    task.metadata.update(metadata)
+                    if message:
+                        task.metadata['status_message'] = message
 
     def _update_task_status(self, task_id: str, status: TaskStatus, message: str):
         """Update task status (internal method)"""
@@ -241,7 +242,7 @@ class WorkerManager:
             task = self.tasks.get(task_id)
             if task:
                 task.status = status
-                if message:
+                if message and task.metadata is not None:
                     task.metadata['status_message'] = message
 
     def get_task_status(self, task_id: str) -> TaskResult | None:
@@ -301,7 +302,7 @@ class WorkerManager:
         """Get worker manager statistics"""
         with self._lock:
             total_tasks = len(self.tasks)
-            status_counts = {}
+            status_counts: dict[str, int] = {}
 
             for task in self.tasks.values():
                 status_counts[task.status.value] = status_counts.get(task.status.value, 0) + 1
@@ -354,8 +355,8 @@ class WorkerManager:
             for task_id in list(self.futures.keys()):
                 self.cancel_task(task_id)
 
-        # Shutdown executor
-        self.executor.shutdown(wait=wait, timeout=timeout)
+        # Shutdown executor (timeout not supported in standard library)
+        self.executor.shutdown(wait=wait)
 
         logger.info("WorkerManager shutdown complete")
 

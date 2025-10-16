@@ -27,9 +27,9 @@ try:  # pragma: no cover - FastAPI is optional in the offline CI image
 
     _FASTAPI_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - executed when FastAPI is absent
-    FastAPI = None  # type: ignore[assignment]
-    UploadFile = Any  # type: ignore[assignment]
-    TestClient = None  # type: ignore[assignment]
+    FastAPI = None  # type: ignore[misc]
+    UploadFile = Any  # type: ignore[misc]
+    TestClient = None  # type: ignore[misc]
     _FASTAPI_AVAILABLE = False
 
 try:  # pragma: no cover - importing the real schemas may fail when deps are missing
@@ -161,7 +161,9 @@ if _FASTAPI_AVAILABLE:  # pragma: no cover - exercised only when FastAPI exists
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         task_id = uuid.uuid4().hex
-        _store_completed_task(task_id=task_id, filename=original_filename, result=result, user=current_user)
+        # Ensure result is properly awaited dict, not coroutine
+        analysis_result: dict[str, Any] = result
+        _store_completed_task(task_id=task_id, filename=original_filename, result=analysis_result, user=current_user)
         return {"task_id": task_id, "status": "processing"}
 
     @app.get("/analysis/status/{task_id}")
@@ -253,10 +255,12 @@ else:
                 return _MockResponse(400, {"detail": str(exc)})
 
             task_id = uuid.uuid4().hex
+            # Ensure result is properly awaited dict, not coroutine
+            mock_result: dict[str, Any] = result
             _store_completed_task(
                 task_id=task_id,
                 filename=filename or "uploaded_document.txt",
-                result=result,
+                result=mock_result,
                 user=current_user,
             )
             return _MockResponse(202, {"task_id": task_id, "status": "processing"})
@@ -277,7 +281,7 @@ else:
             return _MockResponse(200, copy.deepcopy(task))
 
     @contextmanager
-    def create_mock_test_client(user: schemas.User | None = None) -> Iterator[_OfflineClient]:
+    def create_offline_test_client(user: schemas.User | None = None) -> Iterator[_OfflineClient]:
         """Yield the offline client that mimics FastAPI's TestClient."""
 
         override_user = user or get_current_active_user()

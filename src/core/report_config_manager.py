@@ -6,6 +6,7 @@ Separated from the main engine for better maintainability and testing.
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -79,7 +80,7 @@ class ReportConfigurationManager:
 
         logger.info("Created default report configurations")
 
-    def _dict_to_config(self, config_data: dict[str, any]) -> ReportConfig:
+    def _dict_to_config(self, config_data: dict[str, Any]) -> ReportConfig:
         """Convert dictionary to ReportConfig"""
         time_range = None
         if "time_range" in config_data and config_data["time_range"]:
@@ -102,7 +103,7 @@ class ReportConfigurationManager:
             metadata=config_data.get("metadata", {}),
         )
 
-    def _config_to_dict(self, config: ReportConfig) -> dict[str, any]:
+    def _config_to_dict(self, config: ReportConfig) -> dict[str, Any]:
         """Convert ReportConfig to dictionary"""
         config_dict = {
             "report_type": config.report_type.value,

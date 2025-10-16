@@ -277,7 +277,7 @@ class IndividualHabitTracker:
                 trend = "declining"
 
         # Find strongest habits (lowest finding rates)
-        habit_counts = {}
+        habit_counts: dict[str, int] = {}
         for finding in findings:
             habit_id = finding["habit_id"]
             habit_counts[habit_id] = habit_counts.get(habit_id, 0) + 1
@@ -320,15 +320,15 @@ class IndividualHabitTracker:
 
     async def _calculate_achievements(self, db_session, findings: list[dict]) -> dict[str, Any]:
         """Calculate user achievements and badges."""
-        badges = []
-        milestones = []
+        badges: list[dict[str, Any]] = []
+        milestones: list[dict[str, Any]] = []
         points = 0
 
         if not findings:
             return {"badges": badges, "milestones": milestones, "total_points": points}
 
         # Habit mastery badges
-        habit_counts = {}
+        habit_counts: dict[str, int] = {}
         for finding in findings:
             habit_id = finding["habit_id"]
             habit_counts[habit_id] = habit_counts.get(habit_id, 0) + 1

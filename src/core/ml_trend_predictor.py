@@ -81,7 +81,7 @@ class MLTrendPredictorService:
         self,
         analysis_period_days: int = 30,
         departments: list[str] | None = None,
-        insight_types: list[str] = None,
+        insight_types: list[str] | None = None,
         user_id: int = 0,
     ) -> dict[str, Any]:
         """Generate AI-powered compliance insights and recommendations.
@@ -402,13 +402,13 @@ class MLTrendPredictorService:
         impact_weights = {"high": 3, "medium": 2, "low": 1}
         for insight in insights:
             weight = impact_weights.get(insight.impact_level, 1)
-            weighted_confidence += insight.confidence_score * weight
-            total_weight += weight
+            weighted_confidence += float(insight.confidence_score * weight)
+            total_weight += float(weight)
 
         # Add trend confidences
         for trend in trends:
-            weighted_confidence += trend.confidence
-            total_weight += 1
+            weighted_confidence += float(trend.confidence)
+            total_weight += 1.0
 
         return round(weighted_confidence / total_weight if total_weight > 0 else 0.0, 2)
 

@@ -49,14 +49,15 @@ class HabitProgressionService:
         cutoff_date = datetime.now(UTC) - timedelta(days=days_back)
 
         # Get user's reports with findings
-        user_reports = await crud.get_user_reports_with_findings(db, user_id=user_id, since_date=cutoff_date)
+        # Get user's reports with findings (remove since_date parameter as it's not supported)
+        user_reports = await crud.get_user_reports_with_findings(db, user_id=user_id)
 
         if not user_reports:
             return self._empty_progression_data()
 
         # Extract all findings and map to habits
         all_findings = []
-        findings_by_date = {}
+        findings_by_date: dict[Any, list[Any]] = {}
 
         for report in user_reports:
             report_date = report.analysis_date.date()
@@ -149,7 +150,7 @@ class HabitProgressionService:
                     week_findings.extend(findings)
 
             # Calculate week metrics
-            week_habit_counts = {}
+            week_habit_counts: dict[str, int] = {}
             for finding in week_findings:
                 habit_id = finding["habit_id"]
                 week_habit_counts[habit_id] = week_habit_counts.get(habit_id, 0) + 1
@@ -256,7 +257,7 @@ class HabitProgressionService:
         achievements = []
 
         # Habit mastery achievements
-        habit_counts = {}
+        habit_counts: dict[str, int] = {}
         for finding in all_findings:
             habit_id = finding["habit_id"]
             habit_counts[habit_id] = habit_counts.get(habit_id, 0) + 1
@@ -304,7 +305,9 @@ class HabitProgressionService:
     async def _get_user_analysis_count(self, db: AsyncSession, user_id: int) -> int:
         """Get total analysis count for user."""
         try:
-            return await crud.get_user_analysis_count(db, user_id)
+            # Use existing function to count user reports
+            reports = await crud.get_reports(db, user_id=user_id)
+            return len(reports)
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting user analysis count: %s", e)
             return 0
