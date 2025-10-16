@@ -17,7 +17,7 @@ const TOGGLES = [
 
 const PERFORMANCE_FLAGS = [
   { label: 'GPU acceleration', status: 'ready' as const, hint: 'Auto-detected NVidia runtime' },
-  { label: 'Model quantization', status: 'ready' as const, hint: 'Running Q4_K_M profile' },
+  { label: 'Meditron-7B quantization', status: 'ready' as const, hint: 'Running Q4_K_M clinical profile' },
   { label: 'Deep fact checker', status: 'warming' as const, hint: 'Disabled for speed mode' },
 ];
 
@@ -188,4 +188,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

@@ -30,7 +30,7 @@ const MODEL_STATUS = [
   { name: 'S-PubMedBert', status: 'ready' as const },
   { name: 'FAISS + BM25', status: 'warming' as const },
   { name: 'Fact Checker', status: 'warming' as const },
-  { name: 'Compliance LLM', status: 'ready' as const },
+  { name: 'Meditron-7B Clinical AI', status: 'ready' as const },
   { name: 'Chat Copilot', status: 'offline' as const },
 ];
 
