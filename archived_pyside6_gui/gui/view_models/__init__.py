@@ -1,1 +1,0 @@
-"""View models for the GUI application."""

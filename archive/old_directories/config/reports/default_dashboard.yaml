@@ -1,0 +1,13 @@
+data_sources: []
+description: Real-time system performance and health dashboard
+filters: {}
+metadata: {}
+output_formats:
+- html
+recipients: []
+report_type: dashboard
+template_id: dashboard
+time_range:
+  end_time: '2025-10-07T02:04:57.781090'
+  start_time: '2025-10-07T01:04:57.781090'
+title: System Dashboard

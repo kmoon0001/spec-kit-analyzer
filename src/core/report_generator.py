@@ -127,7 +127,7 @@ class ReportGenerator:
 
         findings = normalized.get("findings", [])
         if not isinstance(findings, list):
-            findings = list(findings) if isinstance(findings, (tuple, set)) else []
+            findings = list(findings) if isinstance(findings, tuple | set) else []
         normalized["findings"] = findings
 
         summary = normalized.get("summary")

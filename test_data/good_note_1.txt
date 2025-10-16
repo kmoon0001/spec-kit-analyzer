@@ -1,7 +1,0 @@
-Patient seen for skilled therapy session.
-Plan of Care certified on 09/01/2025.
-Patient demonstrates progress towards goals, showing increased strength.
-A measurable goal is to increase knee extension strength from 4/5 to 5/5 in 3 weeks.
-The medical necessity of this treatment is to improve the patient's ability to ambulate independently.
-Treatment provided by PTA under supervision of PT.
-Signed: Dr. Ada Lovelace, PT, DPT. Dated: 09/14/2025.

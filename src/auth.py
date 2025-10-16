@@ -3,8 +3,8 @@ from functools import lru_cache
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from jose import JWTError, jwt  # type: ignore[import-untyped]
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings

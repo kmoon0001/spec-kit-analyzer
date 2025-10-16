@@ -309,7 +309,7 @@ class PerformanceOptimizer:
         """Execute proactive cache warming for commonly used operations."""
         logger.debug("Starting proactive cache warming")
 
-        warming_results = {
+        warming_results: dict[str, Any] = {
             "warming_requests_scheduled": 0,
             "warming_executed": False,
             "items_warmed": 0,
@@ -359,7 +359,7 @@ class PerformanceOptimizer:
 
     def _identify_bottlenecks(self, cache_stats: dict[str, Any]) -> list[str]:
         """Identify performance bottlenecks from cache statistics."""
-        bottlenecks = []
+        bottlenecks: list[str] = []
 
         try:
             base_stats = cache_stats.get("cache_stats", {})
@@ -448,9 +448,9 @@ class PerformanceOptimizer:
 
     def _calculate_performance_improvements(
         self, baseline: PerformanceMetrics, final: PerformanceMetrics
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         """Calculate performance improvements between baseline and final metrics."""
-        improvements = {}
+        improvements: dict[str, Any] = {}
 
         try:
             # Response time improvement (lower is better)

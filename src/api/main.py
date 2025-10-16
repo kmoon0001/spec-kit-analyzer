@@ -9,10 +9,8 @@ import json
 import logging
 import sys
 import time
-from collections.abc import Coroutine
 from datetime import datetime
 from contextlib import asynccontextmanager
-from typing import Any
 
 import numpy as np
 import structlog

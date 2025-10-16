@@ -15,14 +15,14 @@ import sys
 import time
 from typing import Any
 
-import transformers
+import transformers  # type: ignore[import-untyped]
 
 if "file_utils" not in dir(transformers):
     import transformers.utils
 
     sys.modules["transformers.file_utils"] = transformers.utils
 
-from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline  # type: ignore[import-untyped]
 
 from src.core.cache_service import NERCache
 

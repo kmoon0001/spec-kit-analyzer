@@ -201,8 +201,8 @@ async def generate_coaching_focus(
         prompt += f"  - {item.habit_name}: {item.count} findings\n"
 
     prompt += "\n**Clinician-Specific Breakdown (Top 5):**\n"
-    for item in dashboard_data.clinician_habit_breakdown[:5]:
-        prompt += f"  - {item.clinician_name} ({item.habit_name}): {item.count} findings\n"
+    for clinician_item in dashboard_data.clinician_habit_breakdown[:5]:
+        prompt += f"  - {clinician_item.clinician_name} ({clinician_item.habit_name}): {clinician_item.count} findings\n"
 
     prompt += """
     **Your Task:**
@@ -235,7 +235,7 @@ async def generate_coaching_focus(
             if json_match:
                 coaching_data = json.loads(json_match.group())
             else:
-                raise ValueError("No valid JSON found in response")
+                raise ValueError("No valid JSON found in response") from None
         return CoachingFocus(**coaching_data)
     except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.exception("Failed to generate coaching focus", error=str(e))

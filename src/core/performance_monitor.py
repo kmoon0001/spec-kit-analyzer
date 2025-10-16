@@ -168,8 +168,8 @@ class PerformanceMonitor:
         self._error_count: int = 0
 
         # Components
-        self.metrics_collector: "MetricsCollector | None" = None
-        self.data_aggregator: "DataAggregator | None" = None
+        self.metrics_collector: MetricsCollector | None = None
+        self.data_aggregator: DataAggregator | None = None
 
         # Create storage directory if needed
         if self.config.storage_path:

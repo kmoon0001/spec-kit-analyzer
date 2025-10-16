@@ -4,7 +4,7 @@ import sqlite3
 import numpy as np
 import sqlalchemy
 import sqlalchemy.exc
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Okapi  # type: ignore[import-untyped]
 
 # sentence_transformers is optional in lightweight/test environments
 try:  # pragma: no cover - environment dependent
@@ -197,7 +197,7 @@ class HybridRetriever:
         final_rules = []
         for doc_id, score in sorted_reranked_docs:
             rule = self.rules[doc_id].copy()
-            rule["relevance_score"] = float(score if isinstance(score, (int, float)) else 0.0)
+            rule["relevance_score"] = float(score if isinstance(score, int | float) else 0.0)
 
             # Add expansion metadata if query expansion was used
             if expansion_result and self.use_query_expansion:

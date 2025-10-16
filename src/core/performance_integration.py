@@ -9,15 +9,13 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-import requests
-from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
 
 class PerformanceIntegrationService:
     """Service that integrates performance management throughout the application.
-    
+
     Provides centralized performance monitoring and optimization triggers.
     Converted from Qt signals to callback-based system for Electron compatibility.
     """
@@ -29,16 +27,16 @@ class PerformanceIntegrationService:
         self.memory_pressure_callbacks: list[Callable[[float], None]] = []
         self.profile_changed_callbacks: list[Callable[[str], None]] = []
         self.optimization_completed_callbacks: list[Callable[[dict[str, Any]], None]] = []
-        
+
         # Service references
         self.performance_manager: Any = None
         self.cache_service: Any = None
         self.monitoring_enabled: bool = True
-        
+
         # Initialize performance components
         self._initialize_performance_manager()
         self._initialize_cache_service()
-        
+
         logger.info("Performance integration service initialized")
 
     def _initialize_performance_manager(self) -> None:
@@ -130,13 +128,13 @@ class PerformanceIntegrationService:
                 # Clean up cache if needed
                 try:
                     from src.core.cache_service import cleanup_all_caches, get_cache_stats
-                    
+
                     cache_stats_before = get_cache_stats()
                     cleanup_all_caches()
                     cache_stats_after = get_cache_stats()
 
                     memory_freed = (
-                        cache_stats_before.get("memory_usage_mb", 0) - 
+                        cache_stats_before.get("memory_usage_mb", 0) -
                         cache_stats_after.get("memory_usage_mb", 0)
                     )
                     if memory_freed > 0:

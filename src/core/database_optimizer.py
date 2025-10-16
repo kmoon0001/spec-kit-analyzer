@@ -19,7 +19,6 @@ import sqlalchemy.exc
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database import crud
 
 logger = logging.getLogger(__name__)
 

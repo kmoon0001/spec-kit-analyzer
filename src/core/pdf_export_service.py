@@ -384,7 +384,7 @@ class PDFExportService:
             except Exception as exc:  # pragma: no cover - safety net
                 raise PDFExportError(f"Failed to render PDF bytes: {exc}") from exc
 
-            if not isinstance(pdf_bytes, (bytes, bytearray)):
+            if not isinstance(pdf_bytes, bytes | bytearray):
                 pdf_bytes = str(pdf_bytes or "").encode("utf-8")
             return bytes(pdf_bytes)
 

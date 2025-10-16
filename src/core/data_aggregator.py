@@ -96,7 +96,7 @@ class TimeSeriesStorage:
 
     def __init__(self, db_path: str = "metrics.db"):
         import threading
-        
+
         self.db_path = db_path
         self._lock = threading.Lock()
         self._init_database()
@@ -480,7 +480,7 @@ class DataAggregator:
     def __init__(self, buffer_size: int = 10000, db_path: str = "metrics.db"):
         import threading
         from datetime import datetime
-        
+
         self.buffer = MetricBuffer(buffer_size)
         self.storage = TimeSeriesStorage(db_path)
         self._lock = threading.Lock()

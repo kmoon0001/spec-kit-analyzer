@@ -75,7 +75,7 @@ class LLMService:
 
     def _load_ctransformers_model(self) -> None:
         try:
-            from ctransformers import AutoModelForCausalLM
+            from ctransformers import AutoModelForCausalLM  # type: ignore[import-untyped]
         except ImportError as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("ctransformers backend requested but not installed") from exc
 
@@ -105,7 +105,7 @@ class LLMService:
 
         try:
             import torch  # lazy import
-            from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
+            from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer  # type: ignore[import-untyped]
         except Exception as exc:  # pragma: no cover - allow import-time fallback
             logger.warning("Transformers/torch unavailable: %s", exc)
             self.llm = None
@@ -192,7 +192,7 @@ class LLMService:
                 return result
 
             # Transformers backend
-            from transformers import StoppingCriteria, StoppingCriteriaList  # type: ignore
+            from transformers import StoppingCriteria, StoppingCriteriaList  # type: ignore[import-untyped]
             import torch  # lazy import
 
             if self.tokenizer is None or self.llm is None:

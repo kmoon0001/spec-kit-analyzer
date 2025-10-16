@@ -380,7 +380,7 @@ class ApplicationMetricsSource(MetricSource):
         error_type = type(error).__name__
         with self._metrics_lock:
             self._error_counts[error_type] += 1
-    
+
     def record_error_by_type(self, error_type: str) -> None:
         """Record an error occurrence by type string."""
         if not error_type or not error_type.strip():
@@ -640,7 +640,7 @@ class MetricsCollector:
 
         with self._stats_lock:
             current_count = self._stats["total_collections"]
-            if isinstance(current_count, (int, float)):
+            if isinstance(current_count, int | float):
                 self._stats["total_collections"] = current_count + 1
             else:
                 self._stats["total_collections"] = 1
@@ -662,7 +662,7 @@ class MetricsCollector:
                     logger.error("Error in concurrent metric collection: %s", result)
                     with self._stats_lock:
                         current_count = self._stats["failed_collections"]
-                        if isinstance(current_count, (int, float)):
+                        if isinstance(current_count, int | float):
                             self._stats["failed_collections"] = current_count + 1
                         else:
                             self._stats["failed_collections"] = 1

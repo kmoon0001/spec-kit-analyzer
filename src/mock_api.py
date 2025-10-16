@@ -216,7 +216,7 @@ else:
         def __init__(self, user_provider: Callable[[], schemas.User]):
             self._user_provider = user_provider
 
-        def post(
+        async def post(
             self,
             path: str,
             *,

@@ -67,8 +67,6 @@ class ComponentDefinition:
     css_classes: list[str] = field(default_factory=list)
     javascript_code: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    MARKDOWN = "markdown"
-    PLAIN_TEXT = "plain_text"
 
 
 @dataclass
@@ -154,7 +152,9 @@ class ComponentLibrary:
                 # Validate component
                 issues = self.validator.validate_component(component)
                 if issues:
-                    logger.warning("Component %s has validation issues: {issues}", component_id)
+                    logger.warning(
+                        "Component %s has validation issues: %s", component_id, issues
+                    )
 
                 self.components[component_id] = component
                 logger.debug("Loaded component: %s", component_id)
@@ -303,8 +303,8 @@ class ComponentLibrary:
                 rendered = rendered.replace(placeholder, str(value))
 
             return rendered
-        except Exception:
-            logger.exception("Error rendering component %s: {e}", component_id)
+        except (ValueError, TypeError, KeyError) as e:
+            logger.exception("Error rendering component %s: %s", component_id, e)
             return f"<div class='component-error'>Error rendering component: {component_id}</div>"
 
 
@@ -440,7 +440,7 @@ class AdvancedTemplateRenderer:
         self.jinja_env.globals["get_chart_config"] = get_chart_config
 
     def render_template(
-        self, template_id: str, context: dict[str, Any], format: RenderFormat = RenderFormat.HTML
+        self, template_id: str, context: dict[str, Any], render_format: RenderFormat = RenderFormat.HTML
     ) -> str:
         """Render template with advanced features"""
         try:
@@ -450,7 +450,7 @@ class AdvancedTemplateRenderer:
             # Add format-specific context
             enhanced_context = {
                 **context,
-                "render_format": format.value,
+                "render_format": render_format.value,
                 "generated_at": datetime.now(),
                 "template_id": template_id,
             }
@@ -459,18 +459,18 @@ class AdvancedTemplateRenderer:
             rendered = template.render(**enhanced_context)
 
             # Post-process based on format
-            if format == RenderFormat.PLAIN_TEXT:
+            if render_format == RenderFormat.PLAIN_TEXT:
                 rendered = self._html_to_text(rendered)
-            elif format == RenderFormat.MARKDOWN:
+            elif render_format == RenderFormat.MARKDOWN:
                 rendered = self._html_to_markdown(rendered)
 
             return rendered
 
         except TemplateError as e:
-            logger.exception("Template rendering error for %s: {e}", template_id)
+            logger.exception("Template rendering error for %s: %s", template_id, e)
             return self._render_error_template(template_id, str(e))
-        except Exception as e:
-            logger.exception("Unexpected error rendering template %s: {e}", template_id)
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            logger.exception("Unexpected error rendering template %s: %s", template_id, e)
             return self._render_error_template(template_id, str(e))
 
     def _html_to_text(self, html_content: str) -> str:
@@ -539,8 +539,6 @@ class TemplateLibrary:
     """Library for managing and versioning report templates"""
 
     def __init__(self, templates_dir: str | None = None, metadata_dir: str | None = None):
-        from pathlib import Path
-        
         self.templates_dir = Path(templates_dir or "src/resources/templates")
         self.metadata_dir = Path(metadata_dir or "src/resources/templates/metadata")
         self.templates: dict[str, TemplateMetadata] = {}
@@ -581,7 +579,7 @@ class TemplateLibrary:
 
             logger.info("Loaded %s report templates", len(self.templates))
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, yaml.YAMLError) as e:
             logger.exception("Error loading templates: %s", e)
             self._create_default_templates()
 
@@ -604,8 +602,6 @@ class TemplateLibrary:
                     tags=["performance", "analysis", "metrics"],
                 ),
                 """
-<!DOCTYPE html>
-<!DOCTYPE html>
 <!DOCTYPE html>
 <html>
 <head>

@@ -46,7 +46,7 @@ class HabitProgressionService:
 
         """
         # Get user's analysis history
-        cutoff_date = datetime.now(UTC) - timedelta(days=days_back)
+        datetime.now(UTC) - timedelta(days=days_back)
 
         # Get user's reports with findings
         # Get user's reports with findings (remove since_date parameter as it's not supported)

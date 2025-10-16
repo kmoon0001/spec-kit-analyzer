@@ -75,7 +75,7 @@ class ConfidenceCalibrator:
         """Calibrate confidence scores."""
         if not self.is_fitted:
             return scores
-        if isinstance(scores, (list, tuple)):
+        if isinstance(scores, list | tuple):
             scores = np.array(scores)
         return self.predict_proba(scores)
 

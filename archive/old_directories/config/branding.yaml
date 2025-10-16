@@ -1,0 +1,18 @@
+accent_color: '#28a745'
+custom_css: null
+font_family: Arial, sans-serif
+logo:
+  custom_height: null
+  custom_width: null
+  enabled: false
+  file_path: null
+  margin_bottom: 10
+  margin_left: 10
+  margin_right: 10
+  margin_top: 10
+  opacity: 1.0
+  position: top_right
+  size: medium
+organization_name: null
+primary_color: '#2c5aa0'
+secondary_color: '#6c757d'
