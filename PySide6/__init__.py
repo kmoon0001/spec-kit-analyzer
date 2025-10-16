@@ -1,4 +1,5 @@
 """Compatibility shim that falls back to a lightweight PySide6 stub when real bindings are unavailable."""
+
 from __future__ import annotations
 
 import importlib.machinery

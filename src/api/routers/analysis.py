@@ -295,7 +295,8 @@ async def analyze_document(
     }
 
     background_tasks.add_task(
-f        content,
+        run_analysis_and_save,
+        content,
         task_id,
         safe_filename,
         discipline,

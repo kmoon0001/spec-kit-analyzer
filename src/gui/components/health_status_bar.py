@@ -135,7 +135,7 @@ class HealthStatusBar(QStatusBar):
                 border-top: 1px solid #323232;
                 padding: 4px;
             }
-            
+
             QLabel {
                 color: #A9B7C6;
                 background: transparent;

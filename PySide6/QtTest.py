@@ -1,4 +1,5 @@
 """Simplified QtTest module for compatibility with pytest-qt."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,4 +1,5 @@
 """Simplified QtGui module used for non-GUI test execution."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,4 +1,5 @@
 """Simplified QtCore module used for non-GUI test execution."""
+
 from __future__ import annotations
 
 from typing import Any, Callable, Optional
@@ -161,6 +162,7 @@ class QUrl:
     def toString(self) -> str:
         return self._url
 
+
 class QPoint:
     def __init__(self, x: int = 0, y: int = 0) -> None:
         self._x = x
@@ -171,6 +173,8 @@ class QPoint:
 
     def y(self) -> int:
         return self._y
+
+
 class QRect:
     def __init__(self, x: int = 0, y: int = 0, width: int = 0, height: int = 0) -> None:
         self._x = x
@@ -217,6 +221,7 @@ class QPropertyAnimation(QObject):
     def start(self) -> None:  # pragma: no cover - no animation loop
         return None
 
+
 class QAbstractAnimation(QObject):
     def start(self) -> None:  # pragma: no cover - stub
         return None
@@ -229,6 +234,7 @@ class QSequentialAnimationGroup(QAbstractAnimation):
 
     def addAnimation(self, animation: QAbstractAnimation) -> None:
         self._animations.append(animation)
+
 
 class _QtVersion:
     def __init__(self, version: str = "6.0.0") -> None:

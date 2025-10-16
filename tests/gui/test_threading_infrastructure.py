@@ -249,17 +249,13 @@ class TestResourceManager:
             return callback
 
         # Submit jobs with different priorities
-        manager.submit_job(
-            SimpleTestWorker(delay=0.1), priority=JobPriority.LOW, on_complete=on_complete("low")
-        )
+        manager.submit_job(SimpleTestWorker(delay=0.1), priority=JobPriority.LOW, on_complete=on_complete("low"))
 
         manager.submit_job(
             SimpleTestWorker(delay=0.1), priority=JobPriority.CRITICAL, on_complete=on_complete("critical")
         )
 
-        manager.submit_job(
-            SimpleTestWorker(delay=0.1), priority=JobPriority.HIGH, on_complete=on_complete("high")
-        )
+        manager.submit_job(SimpleTestWorker(delay=0.1), priority=JobPriority.HIGH, on_complete=on_complete("high"))
 
         time.sleep(2.0)  # Allow processing
 

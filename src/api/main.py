@@ -347,7 +347,22 @@ except ImportError:
 
 # --- WebSocket Endpoint --- #
 
+async def _load_all_plugins_background():
+    """Background task to load all plugins."""
+    results = {}  # Initialize results to an empty dictionary
+    try:
+        logger.info("Starting background plugin loading")
+        results = plugin_manager.load_all_plugins()
+        logger.info(f"Background plugin loading completed with results: {results}")
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        logger.exception("Background plugin loading failed due to data error: %s", e)
+    except Exception as e:
+        logger.error(f"Error during background plugin loading: {e}")
 
+    successful_loads = sum(1 for success in results.values() if success)
+    total_plugins = len(results)
+
+logger.info("Background plugin loading complete: %s/%s successful", successful_loads, total_plugins)
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.query_params.get("token")

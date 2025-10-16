@@ -1,4 +1,5 @@
 """Simplified QtWidgets module for running tests without a GUI stack."""
+
 from __future__ import annotations
 
 from typing import Any, Optional

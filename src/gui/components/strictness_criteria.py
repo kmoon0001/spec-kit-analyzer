@@ -251,38 +251,38 @@ class StrictnessDescriptionWidget(QWidget):
         </head>
         <body>
             <div class="metric">
-                <span class="metric-label">Compliance Threshold:</span> 
+                <span class="metric-label">Compliance Threshold:</span>
                 <span class="metric-value">{criteria["threshold"]}% score required to pass</span>
             </div>
-            
+
             <div class="metric">
-                <span class="metric-label">Word Count Requirement:</span> 
+                <span class="metric-label">Word Count Requirement:</span>
                 <span class="metric-value">Minimum {criteria["min_words"]} words</span>
             </div>
-            
+
             <div class="metric">
-                <span class="metric-label">Error Tolerance:</span> 
+                <span class="metric-label">Error Tolerance:</span>
                 <span class="metric-value">
-                    Max {criteria["max_critical_errors"]} critical errors, 
+                    Max {criteria["max_critical_errors"]} critical errors,
                     {criteria["max_warnings"]} warnings
                 </span>
             </div>
-            
+
             <div class="scoring-box">
                 <span class="metric-label">Scoring Logic:</span><br>
                 {criteria["scoring_logic"]}
             </div>
-            
+
             <h3>📋 Detailed Criteria</h3>
             <ul>
                 {detailed_html}
             </ul>
-            
+
             <h3>💼 Use Cases</h3>
             <ul>
                 {use_cases_html}
             </ul>
-            
+
             <div class="why-box">
                 <span class="metric-label">Why Use {criteria["name"]}?</span><br>
                 {criteria["why_use"]}
