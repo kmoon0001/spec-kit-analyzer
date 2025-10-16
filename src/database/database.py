@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 DATABASE_URL = settings.database.url
 
+
+def get_database_url() -> str:
+    """Get the database URL for connection."""
+    return DATABASE_URL
+
+
+async def test_connection() -> bool:
+    """Test database connection."""
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+            return True
+    except Exception as e:
+        logger.error("Database connection test failed: %s", e)
+        return False
+
 # Ensure the URL is async-compatible for SQLite
 if "sqlite" in DATABASE_URL and "aiosqlite" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")

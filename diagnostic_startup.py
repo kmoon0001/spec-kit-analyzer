@@ -41,16 +41,23 @@ class SystemDiagnostics:
         result = DiagnosticResult(name, status, message, details)
         self.results.append(result)
         
-        # Print result immediately
-        status_icon = {"pass": "✓", "warn": "⚠", "fail": "✗"}[status]
+        # Print result immediately with ASCII-safe icons
+        status_icon = {"pass": "[OK]", "warn": "[WARN]", "fail": "[FAIL]"}[status]
         status_color = {"pass": "\033[92m", "warn": "\033[93m", "fail": "\033[91m"}[status]
         reset_color = "\033[0m"
         
-        print(f"{status_color}{status_icon} {name}: {message}{reset_color}")
+        try:
+            print(f"{status_color}{status_icon} {name}: {message}{reset_color}")
+        except UnicodeEncodeError:
+            # Fallback for systems with encoding issues
+            print(f"{status_icon} {name}: {message}")
         
         if details and status != "pass":
             for key, value in details.items():
-                print(f"   {key}: {value}")
+                try:
+                    print(f"   {key}: {value}")
+                except UnicodeEncodeError:
+                    print(f"   {key}: [encoding error]")
 
     def check_system_requirements(self):
         """Check basic system requirements"""
@@ -109,7 +116,14 @@ class SystemDiagnostics:
         
         for package in required_packages:
             try:
-                __import__(package.replace("-", "_"))
+                # Handle special cases for package names
+                import_name = package.replace("-", "_")
+                if package == "python-jose":
+                    import_name = "jose"
+                elif package == "python-multipart":
+                    import_name = "multipart"
+                
+                __import__(import_name)
                 self.add_result(f"Package: {package}", "pass", "Available")
             except ImportError:
                 missing_required.append(package)
@@ -117,7 +131,12 @@ class SystemDiagnostics:
         
         for package in optional_packages:
             try:
-                __import__(package.replace("-", "_"))
+                # Handle special cases for package names
+                import_name = package.replace("-", "_")
+                if package == "python-docx":
+                    import_name = "docx"
+                
+                __import__(import_name)
                 self.add_result(f"Package: {package}", "pass", "Available")
             except ImportError:
                 missing_optional.append(package)
@@ -242,14 +261,14 @@ class SystemDiagnostics:
         
         # Check for npm
         try:
-            result = subprocess.run(["npm", "--version"], capture_output=True, text=True, timeout=10)
+            result = subprocess.run(["npm", "--version"], capture_output=True, text=True, timeout=10, shell=True)
             if result.returncode == 0:
                 version = result.stdout.strip()
                 self.add_result("npm", "pass", f"Available: {version}")
             else:
-                self.add_result("npm", "fail", "Not working properly")
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            self.add_result("npm", "fail", "Not found or not accessible")
+                self.add_result("npm", "fail", f"Not working properly: {result.stderr}")
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            self.add_result("npm", "fail", f"Not found or not accessible: {str(e)}")
 
     def test_api_startup(self):
         """Test if the API can start successfully"""
