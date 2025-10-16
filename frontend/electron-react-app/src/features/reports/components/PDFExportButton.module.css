@@ -1,0 +1,360 @@
+.container {
+  position: relative;
+  display: inline-block;
+}
+
+.buttonGroup {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.exportButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.optionsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 36px;
+}
+
+.optionsButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Variants */
+.primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 204, 0.3);
+}
+
+.secondary {
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--background-hover);
+  border-color: var(--primary-color);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--background-hover);
+  color: var(--text-primary);
+}
+
+/* Sizes */
+.small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.small.optionsButton {
+  min-width: 28px;
+}
+
+.medium {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.medium.optionsButton {
+  min-width: 36px;
+}
+
+.large {
+  padding: 12px 20px;
+  font-size: 16px;
+}
+
+.large.optionsButton {
+  min-width: 44px;
+}
+
+/* States */
+.loading {
+  pointer-events: none;
+}
+
+.success {
+  background: #28a745 !important;
+  color: white !important;
+}
+
+.error {
+  background: #dc3545 !important;
+  color: white !important;
+}
+
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Options Panel */
+.optionsPanel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  min-width: 280px;
+  margin-top: 4px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.optionsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--background-secondary);
+}
+
+.optionsHeader h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: var(--background-hover);
+  color: var(--text-primary);
+}
+
+.optionsContent {
+  padding: 16px;
+}
+
+.optionGroup {
+  margin-bottom: 16px;
+}
+
+.optionGroup:last-child {
+  margin-bottom: 0;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.optionLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color);
+}
+
+.selectLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.formatSelect,
+.watermarkInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.formatSelect:focus,
+.watermarkInput:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 204, 0.1);
+}
+
+.optionsActions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .optionsPanel {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .primary {
+  background: var(--primary-color);
+}
+
+[data-theme="dark"] .secondary {
+  background: var(--card-background);
+  border-color: var(--border-color);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .optionsPanel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    max-width: 320px;
+    margin-top: 0;
+  }
+
+  .buttonGroup {
+    width: 100%;
+  }
+
+  .exportButton {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .exportButton,
+  .optionsButton {
+    border-width: 2px;
+  }
+
+  .optionsPanel {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .exportButton,
+  .optionsButton,
+  .closeButton {
+    transition: none;
+  }
+
+  .optionsPanel {
+    animation: none;
+  }
+
+  .spinner {
+    animation: none;
+  }
+}
+
+/* Focus styles for accessibility */
+.exportButton:focus,
+.optionsButton:focus,
+.closeButton:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.optionLabel:focus-within {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Loading state overlay */
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .loading::after {
+  background: rgba(0, 0, 0, 0.8);
+}

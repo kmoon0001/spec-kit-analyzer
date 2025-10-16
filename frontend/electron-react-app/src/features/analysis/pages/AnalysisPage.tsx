@@ -7,6 +7,10 @@ import { StatusChip } from '../../../components/ui/StatusChip';
 import { fetchRubrics } from '../api';
 import { useAnalysisController } from '../hooks/useAnalysisController';
 import { useDesktopTelemetry } from '../../system/hooks/useDesktopTelemetry';
+import { ChatAssistant } from '../components/ChatAssistant';
+import { ReasoningSteps } from '../../ai/components/ReasoningSteps';
+import { PDFExportButton } from '../../reports/components/PDFExportButton';
+import { ReportBuilder } from '../../reports/components/ReportBuilder';
 
 import styles from './AnalysisPage.module.css';
 
@@ -332,18 +336,57 @@ export default function AnalysisPage() {
             )}
           </Card>
 
-          <Card title="Compliance Copilot" subtitle="Chat assistant placeholder">
-            <div className={styles.chatPlaceholder}>
-              <p>
-                The conversational assistant will connect to <code>src/api/routers/chat.py</code> via WebSocket streaming just like the PySide chat dialog.
-              </p>
-              <textarea className={styles.chatInput} placeholder="Ask about documentation gaps..." rows={3} />
-              <div className={styles.chatActions}>
-                <Button variant="primary">Send Prompt</Button>
-                <Button variant="ghost">Insert Latest Finding</Button>
-              </div>
-            </div>
-          </Card>
+          {controller.analysisComplete && controller.analysisResult && (
+            <Card title="A
+              <ReasoningSteps
+                steps={controller.analysisResult?.reasoning_
+                showConfidence={true}
+                expandable={true}
+              />
+            </
+          )}
+
+          {contr
+          s">
+
+ ions}>
+Card>        </  />
+            }}
+            score
+  mpliance_co?.ulteslysisRanaoller. contrianceScore: compl               [],
+ dings ||ult?.finanalysisResller.ntrocofindings:
+         e?.name,iler.uploadedFontrolle: cmentNam   docu            text={{
+ sConanalysi           t
+   tAssistan     <Cha       istant">
+tation assred documenwetle="AI-posubti" opilotance C"Complile=ard tit<C
+            )}
+
+    Card>         </</div>
+                       />
+
+           }}              ons);
+  ctitions:', seith seceport w'Preview re.log(olns   co                 {
+ ctions) =>{(sew=  onPrevie            }
+               }s);
+       ', sectionh sections:nerated witrt geom repo('Custlog  console.
+         > {ections) =(srate={neeportGe onR
+          esult}lysisRoller.anantr{cota=  analysisDa
+  tBuilder <Repor
+                  /div>
+          <  >
+                   /     }}
+                   rror);
+    ailed:', e export for('PDFole.errns co
+     or) => {={(errorErrxport    onE                      }}
+           esult);
+    rcompleted:',t orF expPDlog('e.ol     cons                ult) => {
+ (res={leteonExportComp                 ium"
+   ize="med          s
+     imary"="pr    variant             df`}
+   analysis'}.pme || 'ile?.nadFdeuploacontroller.eport_${ance_r={`compliilename  f
+        sisResult}lytroller.anaata={conrtDepo           r         t?.id}
+sisResulroller.analycontanalysisId={
+      tonPDFExportBut   <               rtActpos.exyleme={st classNa<div               ction}>ortSeles.expssName={sty   <div cla       nce reportiaomplssional cofeGenerate pritle=" subtrting"epoport & Rd title="Ex  <Carsult && (nalysisReller.atroplete && conisComler.analysol
         </div>
       </section>
     </div>

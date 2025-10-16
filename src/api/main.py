@@ -29,6 +29,7 @@ from src.api.dependencies import startup_event as api_startup
 from src.auth import get_auth_service
 from src.api.routers import (
     admin,
+    advanced_analytics,
     analysis,
     auth,
     chat,
@@ -328,6 +329,7 @@ app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
 app.include_router(habits.router, tags=["Habits"])
+app.include_router(advanced_analytics.router, tags=["Advanced Analytics"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
 app.include_router(feedback.router)
 app.include_router(users.router, tags=["Users"])

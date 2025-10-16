@@ -1,0 +1,114 @@
+.container {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.refreshButton {
+  background: none;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #007acc;
+  color: #007acc;
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.componentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.componentItem {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.componentItem:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.componentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.componentName {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.componentDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detailsText {
+  font-size: 10px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.componentMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 9px;
+  color: #888;
+}
+
+.responseTime {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.lastCheck {
+  color: #666;
+}
+
+.noComponents {
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  padding: 20px;
+  font-style: italic;
+}

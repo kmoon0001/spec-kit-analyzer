@@ -1,0 +1,79 @@
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 45px;
+  height: 22px;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: bold;
+  color: white;
+  padding: 0 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.badge.high {
+  background-color: #28a745;
+}
+
+.badge.medium {
+  background-color: #ffc107;
+  color: #2c3e50;
+}
+
+.badge.low {
+  background-color: #dc3545;
+}
+
+.calibratedIcon {
+  font-size: 12px;
+  cursor: help;
+  opacity: 0.8;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: 10px;
+  color: #666;
+  font-weight: 500;
+}
+
+.calibrationInfo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: #888;
+}
+
+.originalScore {
+  color: #dc3545;
+  text-decoration: line-through;
+}
+
+.arrow {
+  color: #007acc;
+  font-weight: bold;
+}
+
+.calibratedScore {
+  color: #28a745;
+  font-weight: bold;
+}

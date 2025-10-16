@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...database import models
 from ...database.database import get_async_db
-from ..dependencies import get_current_user
+from ...auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["Advanced Analytics"])
@@ -41,7 +41,9 @@ class AnalyticsDataGenerator:
         return {
             "dates": dates,
             "overall_scores": scores,
-            "frequency_scores": [s + random.uniform(-10, 10) for s in scores],
+            "frequency_scores": [
+                s + random.uniform(-10, 10) for s in scores
+            ],
             "goal_scores": [s + random.uniform(-8, 8) for s in scores],
             "progress_scores": [s + random.uniform(-12, 12) for s in scores],
         }
@@ -118,7 +120,7 @@ class AnalyticsDataGenerator:
 @router.get("/advanced")
 async def get_advanced_analytics(
     time_range: str = Query("Last 30 Days", description="Time range for analysis"),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> Dict[str, Any]:
     """Get advanced analytics data including trends and key metrics.
@@ -175,7 +177,7 @@ async def get_advanced_analytics(
 
 @router.get("/predictive")
 async def get_predictive_analytics(
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> Dict[str, Any]:
     """Get predictive analytics including risk forecasts and AI recommendations.
@@ -203,7 +205,7 @@ async def get_predictive_analytics(
 
 @router.get("/benchmarks")
 async def get_benchmark_analytics(
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> Dict[str, Any]:
     """Get benchmark comparison data against industry standards.
@@ -232,7 +234,7 @@ async def get_benchmark_analytics(
 
 @router.get("/risk-assessment")
 async def get_risk_assessment(
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> Dict[str, Any]:
     """Get comprehensive risk assessment and mitigation strategies.
