@@ -411,8 +411,8 @@ class TestPerformanceMonitorIntegration:
 
         assert monitor.metrics_collector == mock_collector_instance
         assert monitor.data_aggregator == mock_aggregator_instance
-        mock_collector.assert_called_once_with(monitor.config)
-        mock_aggregator.assert_called_once_with(monitor.config)
+        mock_collector.assert_called_once_with(30.0)
+        mock_aggregator.assert_called_once_with()
 
     def test_component_cleanup(self):
         """Test component cleanup during shutdown."""

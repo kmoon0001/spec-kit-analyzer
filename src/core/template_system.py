@@ -334,7 +334,9 @@ class TemplateValidator:
         template_vars = self._extract_template_variables(template_content)
         missing_required = set(metadata.required_data_fields) - set(template_vars)
         if missing_required:
-            issues.append(f"Required data not used in template: {missing_required}")
+            issues.append(
+                f"Required data not used in template: {missing_required}"
+            )
 
         return issues
 
@@ -362,7 +364,9 @@ class TemplateValidator:
             required_data_fields=component.required_props,
         )
 
-        template_issues = self.validate_template(component.template_content, template_metadata)
+        template_issues = self.validate_template(
+            component.template_content, template_metadata
+        )
         issues.extend(template_issues)
 
         # Check required props are defined
@@ -376,12 +380,16 @@ class AdvancedTemplateRenderer:
     """Advanced template renderer with Jinja2 support"""
 
     def __init__(self, component_library: ComponentLibrary):
-        from jinja2 import Environment, FileSystemLoader, select_autoescape
+        try:
+            from jinja2 import Environment, FileSystemLoader, select_autoescape
+        except ImportError as e:
+            raise ImportError("Jinja2 is required for advanced template rendering") from e
 
         self.component_library = component_library
         self.validator = TemplateValidator()
         self.jinja_env = Environment(
-            loader=FileSystemLoader("src/resources/templates"), autoescape=select_autoescape(["html", "xml"])
+            loader=FileSystemLoader("src/resources/templates"),
+            autoescape=select_autoescape(["html", "xml"])
         )
         self._register_custom_filters()
         self._register_custom_functions()
@@ -440,7 +448,10 @@ class AdvancedTemplateRenderer:
         self.jinja_env.globals["get_chart_config"] = get_chart_config
 
     def render_template(
-        self, template_id: str, context: dict[str, Any], render_format: RenderFormat = RenderFormat.HTML
+        self,
+        template_id: str,
+        context: dict[str, Any],
+        render_format: RenderFormat = RenderFormat.HTML,
     ) -> str:
         """Render template with advanced features"""
         try:
@@ -487,10 +498,14 @@ class AdvancedTemplateRenderer:
         # Convert headers
         html_content = re.sub(r"<h1[^>]*>(.*?)</h1>", r"# \1\n", html_content)
         html_content = re.sub(r"<h2[^>]*>(.*?)</h2>", r"## \1\n", html_content)
-        html_content = re.sub(r"<h3[^>]*>(.*?)</h3>", r"### \1\n", html_content)
+        html_content = re.sub(
+            r"<h3[^>]*>(.*?)</h3>", r"### \1\n", html_content
+        )
 
         # Convert paragraphs
-        html_content = re.sub(r"<p[^>]*>(.*?)</p>", r"\1\n\n", html_content)
+        html_content = re.sub(
+            r"<p[^>]*>(.*?)</p>", r"\1\n\n", html_content
+        )
 
         # Convert lists
         html_content = re.sub(r"<li[^>]*>(.*?)</li>", r"- \1\n", html_content)
@@ -538,7 +553,9 @@ class AdvancedTemplateRenderer:
 class TemplateLibrary:
     """Library for managing and versioning report templates"""
 
-    def __init__(self, templates_dir: str | None = None, metadata_dir: str | None = None):
+    def __init__(
+        self, templates_dir: str | None = None, metadata_dir: str | None = None
+    ):
         self.templates_dir = Path(templates_dir or "src/resources/templates")
         self.metadata_dir = Path(metadata_dir or "src/resources/templates/metadata")
         self.templates: dict[str, TemplateMetadata] = {}

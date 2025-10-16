@@ -104,17 +104,24 @@ def reset_mock_tasks() -> None:
 
 
 def get_mock_analysis_service() -> MockAnalysisService:
+    """Get the mock analysis service instance."""
     return _mock_analysis_service
 
 
 def get_current_active_user() -> schemas.User:
+    """Get the current active mock user."""
     return schemas.User(id=1, username="mock-user", is_active=True, is_admin=False)
 
 
-def _store_completed_task(*, task_id: str, filename: str, result: dict[str, Any], user: schemas.User) -> dict[str, Any]:
+def _store_completed_task(
+    *, task_id: str, filename: str, result: dict[str, Any], user: schemas.User
+) -> dict[str, Any]:
+    """Store a completed analysis task in the mock registry."""
     timestamp = dt.datetime.now(dt.UTC)
     analysis_payload = copy.deepcopy(result)
-    analysis_details = analysis_payload.get("analysis", {}) if isinstance(analysis_payload, dict) else {}
+    analysis_details = (
+        analysis_payload.get("analysis", {}) if isinstance(analysis_payload, dict) else {}
+    )
 
     task_entry = {
         "task_id": task_id,
@@ -148,8 +155,11 @@ if _FASTAPI_AVAILABLE:  # pragma: no cover - exercised only when FastAPI exists
         current_user: schemas.User = Depends(get_current_active_user),
         analysis_service: MockAnalysisService = Depends(get_mock_analysis_service),
     ) -> dict[str, str]:
+        """Analyze a document and return task ID."""
         if not current_user.is_active:
-            raise HTTPException(status_code=403, detail="Inactive users cannot request analysis")
+            raise HTTPException(
+                status_code=403, detail="Inactive users cannot request analysis"
+            )
 
         file_content = await file.read()
         if not file_content:
@@ -169,15 +179,20 @@ if _FASTAPI_AVAILABLE:  # pragma: no cover - exercised only when FastAPI exists
         task_id = uuid.uuid4().hex
         # Ensure result is properly awaited dict, not coroutine
         analysis_result: dict[str, Any] = result
-        _store_completed_task(task_id=task_id, filename=original_filename, result=analysis_result, user=current_user)
+        _store_completed_task(
+            task_id=task_id, filename=original_filename, result=analysis_result, user=current_user
+        )
         return {"task_id": task_id, "status": "processing"}
 
     @app.get("/analysis/status/{task_id}")
     async def get_analysis_status(
         task_id: str, current_user: schemas.User = Depends(get_current_active_user)
     ) -> dict[str, Any]:
+        """Get the status of an analysis task."""
         if not current_user.is_active:
-            raise HTTPException(status_code=403, detail="Inactive users cannot view task status")
+            raise HTTPException(
+                status_code=403, detail="Inactive users cannot view task status"
+            )
 
         task = _tasks.get(task_id)
         if task is None:
@@ -230,6 +245,8 @@ else:
             data: dict[str, str],
             headers: Any | None = None,
         ) -> _MockResponse:  # noqa: ANN401
+            """Post request handler."""
+            _ = headers  # Unused but part of interface
             if path != "/analysis/analyze":
                 return _MockResponse(404, {"detail": "Endpoint not found"})
 
@@ -247,14 +264,14 @@ else:
                 return _MockResponse(403, {"detail": "Inactive users cannot request analysis"})
 
             try:
-                result = await _mock_analysis_service.analyze_document(  # type: ignore[arg-type]
+                result = await _mock_analysis_service.analyze_document(
                     file_content=file_content,
                     original_filename=filename,
                     discipline=discipline,
                     analysis_mode=analysis_mode,
                 )
                 if hasattr(result, "__await__"):
-                    result = result.__await__().__next__()  # type: ignore[assignment]
+                    result = result.__await__().__next__()
             except StopIteration as exc:  # pragma: no cover - defensive
                 result = exc.value
             except ValueError as exc:
@@ -272,6 +289,8 @@ else:
             return _MockResponse(202, {"task_id": task_id, "status": "processing"})
 
         def get(self, path: str, headers: Any | None = None) -> _MockResponse:  # noqa: ANN401
+            """Get request handler."""
+            _ = headers  # Unused but part of interface
             if not path.startswith("/analysis/status/"):
                 return _MockResponse(404, {"detail": "Endpoint not found"})
 

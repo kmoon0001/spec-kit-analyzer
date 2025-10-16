@@ -331,13 +331,13 @@ class TestApplicationMetricsSource:
         source.record_request("   ")  # Should be ignored
 
         # Test invalid error type
-        source.record_error("")  # Should be ignored
-        source.record_error("   ")  # Should be ignored
+        source.record_error_by_type("")  # Should be ignored
+        source.record_error_by_type("   ")  # Should be ignored
 
         # Valid data should work
         source.record_response_time(100.0)
         source.record_request("/api/test")
-        source.record_error("test_error")
+        source.record_error_by_type("test_error")
 
         stats = source.get_current_stats()
         assert stats["response_times_count"] == 1
