@@ -1,0 +1,47 @@
+.widget {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 5px;
+  padding: 12px;
+  margin: 5px 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.widget:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.name {
+  font-size: 11px;
+  font-weight: bold;
+  color: #2c3e50;
+  flex: 1;
+}
+
+.metrics {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.impact {
+  font-size: 10px;
+  color: #666;
+}
+
+.impactValue {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.trend {
+  font-size: 10px;
+  font-weight: 600;
+}

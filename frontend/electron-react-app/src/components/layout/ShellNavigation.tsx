@@ -6,6 +6,9 @@ const links = [
   { path: '/', label: 'Analysis', icon: 'A' },
   { path: '/dashboard', label: 'Dashboard', icon: 'D' },
   { path: '/mission-control', label: 'Mission Control', icon: 'MC' },
+  { path: '/analytics/advanced', label: 'Advanced Analytics', icon: '📊' },
+  { path: '/analytics/meta', label: 'Team Analytics', icon: '👥' },
+  { path: '/habits/growth-journey', label: 'Growth Journey', icon: '🌟' },
   { path: '/settings', label: 'Settings', icon: 'S' },
 ];
 

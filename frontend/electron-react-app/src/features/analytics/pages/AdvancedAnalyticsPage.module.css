@@ -1,0 +1,248 @@
+.container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+  color: #666;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerContent h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.headerControls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.timeRangeSelect {
+  background: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #007acc;
+  background: rgba(0, 122, 204, 0.05);
+}
+
+.activeTab {
+  color: #007acc !important;
+  border-bottom-color: #007acc !important;
+  background: rgba(0, 122, 204, 0.05) !important;
+}
+
+.content {
+  min-height: 600px;
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Trends Tab */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chartsLayout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.chartContainer {
+  min-height: 400px;
+}
+
+.breakdownContainer {
+  min-height: 400px;
+}
+
+/* Predictive Tab */
+.forecastCard {
+  margin-bottom: 20px;
+}
+
+.predictionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px 0;
+}
+
+.prediction {
+  text-align: center;
+}
+
+.predictionPeriod {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.predictionScore {
+  font-size: 20px;
+  font-weight: bold;
+  color: #007acc;
+  margin-bottom: 4px;
+}
+
+.predictionConfidence {
+  font-size: 10px;
+  color: #666;
+}
+
+.riskFactorsCard,
+.recommendationsCard {
+  margin-bottom: 20px;
+}
+
+/* Benchmarks Tab */
+.benchmarkCard {
+  margin-bottom: 20px;
+}
+
+.rankingHeader {
+  font-size: 14px;
+  font-weight: bold;
+  color: #007acc;
+  padding: 12px;
+  background: #f0f8ff;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.benchmarkComparisons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Risk Assessment Tab */
+.riskOverviewCard {
+  margin-bottom: 20px;
+}
+
+.mitigationCard {
+  margin-bottom: 20px;
+}
+
+.strategiesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.strategySection h4 {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 12px;
+}
+
+.strategySection ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.strategySection li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 11px;
+  color: #555;
+  position: relative;
+  padding-left: 20px;
+}
+
+.strategySection li:before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #28a745;
+  font-weight: bold;
+}
+
+.strategySection li:last-child {
+  border-bottom: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .chartsLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .predictionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .strategiesGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,50 @@
+.container {
+  margin-bottom: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.habitName {
+  font-size: 10px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.masteryLevel {
+  font-size: 9px;
+  font-weight: bold;
+}
+
+.progressContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressBar {
+  flex: 1;
+  height: 8px;
+  background-color: #ecf0f1;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.percentage {
+  font-size: 9px;
+  font-weight: bold;
+  color: #2c3e50;
+  min-width: 30px;
+  text-align: right;
+}

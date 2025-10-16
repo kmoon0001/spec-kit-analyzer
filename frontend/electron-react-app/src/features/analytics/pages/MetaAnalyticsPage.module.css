@@ -1,0 +1,436 @@
+.container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+  color: #666;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.headerContent h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.controls {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.controlGroup label {
+  font-weight: 500;
+}
+
+.daysInput {
+  width: 60px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.disciplineSelect {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  background: white;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #007acc;
+  background: rgba(0, 122, 204, 0.05);
+}
+
+.activeTab {
+  color: #007acc !important;
+  border-bottom-color: #007acc !important;
+  background: rgba(0, 122, 204, 0.05) !important;
+}
+
+.content {
+  min-height: 600px;
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.noData {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Overview Tab */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.metricCard {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.metricLabel {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.metricValue {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.chartCard {
+  min-height: 350px;
+}
+
+.insightsCard {
+  margin-bottom: 20px;
+}
+
+.insightsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insightItem {
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.insightItem.positive {
+  background: #f8fff8;
+  border-left-color: #28a745;
+}
+
+.insightItem.concern {
+  background: #fff8f8;
+  border-left-color: #dc3545;
+}
+
+.insightItem.action_required {
+  background: #fff9f0;
+  border-left-color: #ffc107;
+}
+
+.insightItem.neutral {
+  background: #f8f9fa;
+  border-left-color: #6c757d;
+}
+
+.insightTitle {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 6px;
+}
+
+.insightDescription {
+  font-size: 11px;
+  color: #555;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.insightRecommendation {
+  font-size: 10px;
+  color: #2E8B57;
+  line-height: 1.4;
+}
+
+/* Training Tab */
+.trainingChartCard {
+  margin-bottom: 20px;
+  min-height: 450px;
+}
+
+.trainingRecsCard {
+  margin-bottom: 20px;
+}
+
+.trainingRecommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trainingRec {
+  padding: 16px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: white;
+}
+
+.trainingRecHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.trainingRecTitle {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+  flex: 1;
+}
+
+.trainingRecPriority {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+.trainingRecPriority.high {
+  background: #dc3545;
+  color: white;
+}
+
+.trainingRecPriority.medium {
+  background: #ffc107;
+  color: #2c3e50;
+}
+
+.trainingRecPriority.low {
+  background: #28a745;
+  color: white;
+}
+
+.trainingRecStats {
+  display: flex;
+  gap: 16px;
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.trainingRecFocus {
+  font-size: 10px;
+  color: #555;
+  line-height: 1.4;
+}
+
+/* Trends Tab */
+.trendsCard {
+  margin-bottom: 20px;
+  min-height: 400px;
+}
+
+.trendsChart {
+  padding: 20px 0;
+}
+
+.trendsTable {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: #dee2e6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.trendsHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: #f8f9fa;
+  padding: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.trendsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: white;
+  padding: 10px 12px;
+  font-size: 10px;
+  color: #555;
+}
+
+.trendsRow:nth-child(even) {
+  background: #f8f9fa;
+}
+
+/* Benchmarks Tab */
+.benchmarksCard {
+  margin-bottom: 20px;
+  min-height: 400px;
+}
+
+.benchmarksContent {
+  padding: 20px 0;
+}
+
+.benchmarksSummary {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.benchmarksTitle {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.percentilesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.percentileCard {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.percentileLabel {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.percentileValue {
+  font-size: 20px;
+  font-weight: bold;
+  color: #007acc;
+}
+
+.benchmarksNote {
+  text-align: center;
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .percentilesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .percentilesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .trainingRecHeader {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .trainingRecStats {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

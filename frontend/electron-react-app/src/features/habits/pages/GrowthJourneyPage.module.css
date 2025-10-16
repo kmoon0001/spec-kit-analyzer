@@ -1,0 +1,259 @@
+.container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+  color: #666;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.header h2 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.refreshButton {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* Overall Progress Summary */
+.summaryCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  padding: 24px;
+  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.progressSection {
+  text-align: center;
+}
+
+.progressValue {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.progressStatus {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.streakSection {
+  text-align: center;
+}
+
+.streakValue {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.improvementSection {
+  text-align: center;
+}
+
+.improvementValue {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Main Content Layout */
+.content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.leftPanel,
+.rightPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Habit Mastery Card */
+.masteryCard {
+  min-height: 400px;
+}
+
+.habitsList {
+  padding: 16px 0;
+}
+
+/* Achievements Card */
+.achievementsCard {
+  min-height: 200px;
+}
+
+.achievementsList {
+  padding: 12px 0;
+}
+
+/* Recommendations Card */
+.recommendationsCard {
+  min-height: 300px;
+}
+
+.recommendationsList {
+  padding: 12px 0;
+}
+
+/* Goals Card */
+.goalsCard {
+  min-height: 250px;
+}
+
+.goalsList {
+  padding: 12px 0;
+}
+
+.goalItem {
+  padding: 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  background: #f8f9fa;
+}
+
+.goalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.goalTitle {
+  font-size: 11px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.goalProgress {
+  font-size: 10px;
+  font-weight: bold;
+  color: #007acc;
+}
+
+.goalDescription {
+  font-size: 9px;
+  color: #666;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.goalProgressBar {
+  height: 6px;
+  background-color: #dee2e6;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.goalProgressFill {
+  height: 100%;
+  background-color: #007acc;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.goalTarget {
+  font-size: 8px;
+  color: #666;
+  text-align: right;
+}
+
+/* Weekly Focus Card */
+.weeklyFocusCard {
+  min-height: 150px;
+}
+
+.weeklyFocus {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.focusHabit {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.focusDescription {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+.focusButton {
+  font-size: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryCard {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    text-align: left;
+  }
+
+  .refreshButton {
+    position: static;
+    margin-top: 12px;
+  }
+
+  .summaryCard {
+    padding: 16px;
+  }
+
+  .progressValue {
+    font-size: 24px;
+  }
+
+  .streakValue {
+    font-size: 14px;
+  }
+}
