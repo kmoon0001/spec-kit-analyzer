@@ -39,7 +39,7 @@ class SecurityValidator:
         r"javascript:",
         r"onerror=",
         r"onload=",
-        r"\.\./",   # Path traversal
+        r"\.\./",  # Path traversal
         r"\.\.\\",  # Path traversal (Windows)
     )
 

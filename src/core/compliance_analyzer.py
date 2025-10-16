@@ -110,6 +110,7 @@ class ComplianceAnalyzer:
             try:
                 # Suppress sklearn version warnings during loading
                 import warnings
+
                 with warnings.catch_warnings():
                     warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
                     self.confidence_calibrator.load(calibrator_path)
@@ -431,15 +432,16 @@ class ComplianceAnalyzer:
             # RAG-based fact-checking (preferred) or traditional fact-checking
             if associated_rule:
                 is_plausible = True
-                
+
                 # Try RAG-based fact-checking first
                 if self.rag_fact_checker and self.rag_fact_checker.is_ready():
                     try:
                         # Check if deep fact-checking is enabled in settings
                         from src.config import get_settings
+
                         settings = get_settings()
-                        deep_check = getattr(settings.performance, 'enable_deep_fact_checking', False)
-                        
+                        deep_check = getattr(settings.performance, "enable_deep_fact_checking", False)
+
                         is_plausible = await self.rag_fact_checker.check_finding_plausibility(
                             finding, associated_rule, deep_check=deep_check
                         )
@@ -448,11 +450,11 @@ class ComplianceAnalyzer:
                         # Fall back to traditional fact-checking
                         if self.fact_checker_service:
                             is_plausible = self.fact_checker_service.is_finding_plausible(finding, associated_rule)
-                
+
                 # Fall back to traditional fact-checking if RAG is not available
                 elif self.fact_checker_service:
                     is_plausible = self.fact_checker_service.is_finding_plausible(finding, associated_rule)
-                
+
                 if not is_plausible:
                     finding["is_disputed"] = True
 

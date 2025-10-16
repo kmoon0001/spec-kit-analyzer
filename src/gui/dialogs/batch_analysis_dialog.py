@@ -45,9 +45,7 @@ class BatchAnalysisDialog(QDialog):
         self.analysis_data = analysis_data
         self.files_to_process: list[str] = []
 
-        self._scanner_factory = scanner_factory or (
-            lambda path, extensions: FileScannerWorker(path, extensions)
-        )
+        self._scanner_factory = scanner_factory or (lambda path, extensions: FileScannerWorker(path, extensions))
         self._processor_factory = processor_factory or (
             lambda files, token, data: BatchProcessorWorker(files, token, data)
         )

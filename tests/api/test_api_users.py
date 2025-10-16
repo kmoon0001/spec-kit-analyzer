@@ -8,6 +8,7 @@ from src.database import crud, schemas
 from src.auth import AuthService
 from unittest.mock import patch
 
+
 @pytest.mark.asyncio
 async def test_update_current_user_password(client: AsyncClient, db_session: AsyncSession):
     # Create a user

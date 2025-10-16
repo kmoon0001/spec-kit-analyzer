@@ -35,6 +35,7 @@ except ModuleNotFoundError:  # pragma: no cover - executed when FastAPI is absen
 try:  # pragma: no cover - importing the real schemas may fail when deps are missing
     from src.database import schemas
 except Exception:  # pragma: no cover - fallback for offline execution
+
     @dataclass
     class _FallbackUser:
         id: int
@@ -75,9 +76,7 @@ class MockAnalysisService:
                     {
                         "rule_id": "MOCK-001",
                         "title": "Plan of care details incomplete",
-                        "description": (
-                            "Documentation is missing measurable objectives for the therapy plan."
-                        ),
+                        "description": ("Documentation is missing measurable objectives for the therapy plan."),
                         "recommendation": "Add at least one measurable functional goal to the plan.",
                         "severity": "moderate",
                     }
@@ -106,9 +105,7 @@ def get_current_active_user() -> schemas.User:
     return schemas.User(id=1, username="mock-user", is_active=True, is_admin=False)
 
 
-def _store_completed_task(
-    *, task_id: str, filename: str, result: dict[str, Any], user: schemas.User
-) -> dict[str, Any]:
+def _store_completed_task(*, task_id: str, filename: str, result: dict[str, Any], user: schemas.User) -> dict[str, Any]:
     timestamp = dt.datetime.now(dt.UTC)
     analysis_payload = copy.deepcopy(result)
     analysis_details = analysis_payload.get("analysis", {}) if isinstance(analysis_payload, dict) else {}
@@ -217,7 +214,14 @@ else:
         def __init__(self, user_provider: Callable[[], schemas.User]):
             self._user_provider = user_provider
 
-        def post(self, path: str, *, files: dict[str, tuple[str, io.BufferedReader, str]], data: dict[str, str], headers: Any | None = None) -> _MockResponse:  # noqa: ANN401
+        def post(
+            self,
+            path: str,
+            *,
+            files: dict[str, tuple[str, io.BufferedReader, str]],
+            data: dict[str, str],
+            headers: Any | None = None,
+        ) -> _MockResponse:  # noqa: ANN401
             if path != "/analysis/analyze":
                 return _MockResponse(404, {"detail": "Endpoint not found"})
 
@@ -296,4 +300,3 @@ __all__ = [
     "get_mock_analysis_service",
     "reset_mock_tasks",
 ]
-

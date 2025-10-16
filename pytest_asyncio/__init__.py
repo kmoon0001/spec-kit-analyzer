@@ -1,4 +1,5 @@
 """Minimal pytest-asyncio replacement for offline test environments."""
+
 from __future__ import annotations
 
 import asyncio
@@ -41,13 +42,11 @@ atexit.register(_shutdown_event_loop)
 
 
 @overload
-def fixture(func: Callable[..., _T]) -> Callable[..., _T]:
-    ...
+def fixture(func: Callable[..., _T]) -> Callable[..., _T]: ...
 
 
 @overload
-def fixture(*args: Any, **kwargs: Any) -> Callable[[Callable[..., _T]], Callable[..., _T]]:
-    ...
+def fixture(*args: Any, **kwargs: Any) -> Callable[[Callable[..., _T]], Callable[..., _T]]: ...
 
 
 def fixture(*args: Any, **kwargs: Any):
@@ -62,6 +61,7 @@ def fixture(*args: Any, **kwargs: Any):
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         if inspect.isasyncgenfunction(func):
+
             @pytest.fixture(*args, **kwargs)
             @wraps(func)
             def wrapper(*f_args: Any, **f_kwargs: Any) -> Generator[Any, None, None]:
@@ -81,6 +81,7 @@ def fixture(*args: Any, **kwargs: Any):
             return wrapper
 
         if inspect.iscoroutinefunction(func):
+
             @pytest.fixture(*args, **kwargs)
             @wraps(func)
             def wrapper(*f_args: Any, **f_kwargs: Any) -> Any:

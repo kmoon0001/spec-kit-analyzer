@@ -8,21 +8,14 @@ return the correct data and perform the correct calculations. They use a live,
 in-memory SQLite database to ensure full validation of the SQL logic.
 """
 
-import os
-from datetime import UTC, datetime, timedelta
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database import crud, models
 
 import pytest
-import pytest_asyncio
 
 np = pytest.importorskip("numpy")
 pytest.importorskip("sqlalchemy")
-
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-
-from src.core.vector_store import get_vector_store
-from src.database import Base, crud, models
 
 pytestmark = pytest.mark.integration
 

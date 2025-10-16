@@ -191,53 +191,47 @@ async def initialize_vector_store():
 async def auto_warm_ai_models():
     """Auto-warm AI models with tiny prompts to reduce first-use latency."""
     logger.info("Starting AI model auto-warming...")
-    
+
     try:
         # Import AI services
         from src.core.analysis_service import AnalysisService
         from src.core.hybrid_retriever import HybridRetriever
-        
+
         # Initialize retriever
         retriever = HybridRetriever()
         await retriever.initialize()
-        
+
         # Initialize analysis service
         analysis_service = AnalysisService(retriever=retriever)
-        
+
         # Skip auto-warming if using mocks
         if analysis_service.use_mocks:
             logger.info("Skipping AI model auto-warming (mocks enabled)")
             return
-        
+
         # Tiny warm-up prompts
-        warm_prompts = [
-            "Test",
-            "Hello",
-            "Sample note",
-            "Patient visit",
-            "Assessment"
-        ]
-        
+        warm_prompts = ["Test", "Hello", "Sample note", "Patient visit", "Assessment"]
+
         # Staggered warming with delays
         for i, prompt in enumerate(warm_prompts):
             try:
-                logger.info(f"Auto-warming AI models with prompt {i+1}/{len(warm_prompts)}: '{prompt}'")
-                
+                logger.info(f"Auto-warming AI models with prompt {i + 1}/{len(warm_prompts)}: '{prompt}'")
+
                 # Warm up document classifier (if available)
                 if analysis_service.document_classifier is not None:
                     analysis_service.document_classifier.classify_document(prompt)
-                
+
                 # Warm up NER (skip for now - heavy on CPU)
-                
+
                 # Small delay between warm-ups
                 await asyncio.sleep(0.5)
-                
+
             except Exception as e:
                 logger.warning(f"Auto-warm failed for prompt '{prompt}': {e}")
                 continue
-        
+
         logger.info("AI model auto-warming completed successfully")
-        
+
     except Exception as e:
         logger.warning(f"Auto-warm initialization failed: {e}")
         # Don't fail startup if auto-warm fails
@@ -262,7 +256,7 @@ async def lifespan(app: FastAPI):
 
     await api_startup()
     await initialize_vector_store()
-    
+
     # Auto-warm AI models in background to reduce first-use latency
     # Note: This runs as a background task and should not block startup
     asyncio.create_task(auto_warm_ai_models())
@@ -381,11 +375,13 @@ async def websocket_endpoint(websocket: WebSocket):
             return
 
     await websocket_routes.manager.connect(websocket, "log_stream")
-    await websocket.send_json({
-        "type": "connected",
-        "message": "Log stream connected",
-        "timestamp": datetime.utcnow().isoformat(),
-    })
+    await websocket.send_json(
+        {
+            "type": "connected",
+            "message": "Log stream connected",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
     try:
         while True:
             await websocket.receive_text()

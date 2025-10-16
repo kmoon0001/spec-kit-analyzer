@@ -28,7 +28,9 @@ def test_log_analysis_start_records_session_metadata(temp_logger: AnalysisWorkfl
     assert session["steps"] == []
 
 
-def test_log_api_request_sanitises_payload(temp_logger: AnalysisWorkflowLogger, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_log_api_request_sanitises_payload(
+    temp_logger: AnalysisWorkflowLogger, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     dummy_file = tmp_path / "note.txt"
     dummy_file.write_text("note", encoding="utf-8")
     temp_logger.log_analysis_start(str(dummy_file), rubric="default")

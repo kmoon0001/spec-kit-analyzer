@@ -26,7 +26,7 @@ class ChatWorker(QObject):
         """Send chat message and emit result."""
         if self._should_stop:
             return
-            
+
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             payload = {"history": self.history}

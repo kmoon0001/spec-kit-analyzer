@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Final
 
@@ -145,7 +145,9 @@ class AnalysisWorkflowLogger:
             )
 
         if response and "task_id" in response:
-            self.logger.info("Task identifier received | session=%s | task_id=%s", session.session_id, response["task_id"])
+            self.logger.info(
+                "Task identifier received | session=%s | task_id=%s", session.session_id, response["task_id"]
+            )
 
     def log_polling_attempt(
         self,
@@ -308,7 +310,7 @@ class AnalysisWorkflowLogger:
 
     @staticmethod
     def _now_iso() -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     def _log_session_summary(self) -> None:
         session = self._session

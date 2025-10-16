@@ -32,15 +32,14 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 tasks = analysis_task_registry.metadata
 
 uploaded_documents: dict[str, dict[str, Any]] = {}
-legacy_router = APIRouter(tags=['analysis-legacy'])
+legacy_router = APIRouter(tags=["analysis-legacy"])
 
 
 class LegacyAnalysisRequest(BaseModel):
     document_id: str
     rubric_id: str
-    analysis_type: str = 'comprehensive'
+    analysis_type: str = "comprehensive"
     discipline: str | None = None
-
 
 
 async def run_analysis_and_save(
@@ -95,20 +94,22 @@ async def run_analysis_and_save(
             task_entry["status_message"] = "Finalizing analysis results..."
             task_entry["progress"] = max(task_entry.get("progress", 90), 95)
             await asyncio.sleep(0.2)
-            task_entry.update({
-                "status": "completed",
-                "result": result,
-                "filename": original_filename,
-                "timestamp": datetime.datetime.now(datetime.UTC),
-                "progress": 100,
-                "status_message": "Analysis complete.",
-                "analysis": analysis_details,
-                "findings": findings,
-                "overall_score": compliance_score,
-                "document_type": document_type,
-                "report_html": report_html,
-                "strictness": strictness,
-            })
+            task_entry.update(
+                {
+                    "status": "completed",
+                    "result": result,
+                    "filename": original_filename,
+                    "timestamp": datetime.datetime.now(datetime.UTC),
+                    "progress": 100,
+                    "status_message": "Analysis complete.",
+                    "analysis": analysis_details,
+                    "findings": findings,
+                    "overall_score": compliance_score,
+                    "document_type": document_type,
+                    "report_html": report_html,
+                    "strictness": strictness,
+                }
+            )
             logger.info("Analysis completed for task %s", task_id)
         except Exception as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
@@ -193,9 +194,7 @@ async def legacy_start_analysis(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     if document["owner_id"] != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to analyze this document."
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to analyze this document.")
 
     discipline = (request.discipline or "pt").lower()
     is_valid, error = SecurityValidator.validate_discipline(discipline)
@@ -295,9 +294,8 @@ async def analyze_document(
         "strictness": strictness,
     }
 
-
-crudc        run_analysis_and_save,
-        content,
+    background_tasks.add_task(
+f        content,
         task_id,
         safe_filename,
         discipline,
@@ -320,7 +318,9 @@ async def submit_document(
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ) -> dict[str, str]:
     """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
-    return await analyze_document(background_tasks, file, discipline, analysis_mode, strictness, _current_user, analysis_service)
+    return await analyze_document(
+        background_tasks, file, discipline, analysis_mode, strictness, _current_user, analysis_service
+    )
 
 
 @router.get("/status/{task_id}")
@@ -450,6 +450,7 @@ async def export_report_to_pdf(
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"PDF export failed: {e!s}") from e
 
+
 @router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
 async def submit_feedback(
     feedback: schemas.FeedbackAnnotationCreate,
@@ -464,5 +465,3 @@ async def submit_feedback(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to save feedback: {e}"
         ) from e
-
-

@@ -5,13 +5,12 @@ Provides detailed strictness level criteria and a rich display widget
 showing exactly what each strictness level means.
 """
 
-from typing import Dict, Any
+from typing import Any
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QTextBrowser
-from PySide6.QtCore import Qt
 
 
 # Comprehensive strictness criteria definitions
-STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
+STRICTNESS_CRITERIA: dict[str, dict[str, Any]] = {
     "lenient": {
         "name": "Lenient",
         "emoji": "🟢",
@@ -24,7 +23,7 @@ STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
             "Quick progress notes",
             "Internal documentation",
             "Routine session summaries",
-            "Progress tracking"
+            "Progress tracking",
         ],
         "why_use": "Provides fast turnaround for routine documentation with lower regulatory risk. Best for internal records where full compliance isn't legally required.",
         "detailed_criteria": [
@@ -33,8 +32,8 @@ STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
             "Up to 5 critical errors allowed",
             "Up to 10 warnings tolerated",
             "Essential sections must be present",
-            "Minor formatting issues ignored"
-        ]
+            "Minor formatting issues ignored",
+        ],
     },
     "balanced": {
         "name": "Balanced",
@@ -48,7 +47,7 @@ STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
             "Standard therapy notes",
             "Regular client assessments",
             "Treatment plans",
-            "Session documentation"
+            "Session documentation",
         ],
         "why_use": "Optimal balance of thoroughness and efficiency for routine clinical work. Ensures good documentation quality without excessive overhead.",
         "detailed_criteria": [
@@ -58,8 +57,8 @@ STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
             "Up to 7 warnings tolerated",
             "All major sections required",
             "Proper clinical terminology expected",
-            "Formatting standards enforced"
-        ]
+            "Formatting standards enforced",
+        ],
     },
     "strict": {
         "name": "Strict",
@@ -74,7 +73,7 @@ STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
             "Legal documentation",
             "High-risk case documentation",
             "Audit-ready records",
-            "Medicare/Medicaid claims"
+            "Medicare/Medicaid claims",
         ],
         "why_use": "Ensures full regulatory compliance to avoid claim denials, legal issues, or audit failures. Required for maximum reimbursement and legal protection.",
         "detailed_criteria": [
@@ -86,16 +85,16 @@ STRICTNESS_CRITERIA: Dict[str, Dict[str, Any]] = {
             "Precise clinical terminology mandatory",
             "Full regulatory alignment (HIPAA, state laws)",
             "Detailed treatment rationale required",
-            "Clear progress documentation needed"
-        ]
-    }
+            "Clear progress documentation needed",
+        ],
+    },
 }
 
 
 class StrictnessDescriptionWidget(QWidget):
     """
     Rich display widget for strictness level criteria.
-    
+
     Shows comprehensive details about each strictness level including:
         - Threshold and requirements
         - Scoring logic
@@ -103,16 +102,16 @@ class StrictnessDescriptionWidget(QWidget):
         - Why to use this level
         - Detailed criteria checklist
     """
-    
+
     def __init__(self, parent=None):
         """Initialize strictness description widget."""
         super().__init__(parent)
-        
+
         # Create layout
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
+
         # Title label
         self.title_label = QLabel()
         self.title_label.setStyleSheet("""
@@ -126,7 +125,7 @@ class StrictnessDescriptionWidget(QWidget):
             }
         """)
         layout.addWidget(self.title_label)
-        
+
         # Description browser
         self.description_browser = QTextBrowser()
         self.description_browser.setOpenExternalLinks(False)
@@ -156,49 +155,45 @@ class StrictnessDescriptionWidget(QWidget):
             }
         """)
         layout.addWidget(self.description_browser)
-        
+
         # Set initial content
         self.set_strictness_level("balanced")
-    
+
     def set_strictness_level(self, level: str):
         """
         Update displayed strictness level.
-        
+
         Args:
             level: Strictness level key ('lenient', 'balanced', 'strict')
         """
         if level not in STRICTNESS_CRITERIA:
             level = "balanced"
-        
+
         criteria = STRICTNESS_CRITERIA[level]
-        
+
         # Update title
         self.title_label.setText(f"{criteria['emoji']} {criteria['name']} Mode - Detailed Criteria")
-        
+
         # Build rich HTML description
         html = self._build_html_description(criteria)
         self.description_browser.setHtml(html)
-    
-    def _build_html_description(self, criteria: Dict) -> str:
+
+    def _build_html_description(self, criteria: dict) -> str:
         """
         Build rich HTML description.
-        
+
         Args:
             criteria: Strictness criteria dict
-            
+
         Returns:
             HTML string
         """
         # Use cases list
-        use_cases_html = "".join(
-            f"<li>{case}</li>" for case in criteria['use_cases']
-        )
-        
+        use_cases_html = "".join(f"<li>{case}</li>" for case in criteria["use_cases"])
+
         # Detailed criteria list
-        detailed_html = "".join(
-            f"<li>{item}</li>" for item in criteria['detailed_criteria']
-        )
-        
+        detailed_html = "".join(f"<li>{item}</li>" for item in criteria["detailed_criteria"])
+
         html = f"""
         <html>
         <head>
@@ -257,25 +252,25 @@ class StrictnessDescriptionWidget(QWidget):
         <body>
             <div class="metric">
                 <span class="metric-label">Compliance Threshold:</span> 
-                <span class="metric-value">{criteria['threshold']}% score required to pass</span>
+                <span class="metric-value">{criteria["threshold"]}% score required to pass</span>
             </div>
             
             <div class="metric">
                 <span class="metric-label">Word Count Requirement:</span> 
-                <span class="metric-value">Minimum {criteria['min_words']} words</span>
+                <span class="metric-value">Minimum {criteria["min_words"]} words</span>
             </div>
             
             <div class="metric">
                 <span class="metric-label">Error Tolerance:</span> 
                 <span class="metric-value">
-                    Max {criteria['max_critical_errors']} critical errors, 
-                    {criteria['max_warnings']} warnings
+                    Max {criteria["max_critical_errors"]} critical errors, 
+                    {criteria["max_warnings"]} warnings
                 </span>
             </div>
             
             <div class="scoring-box">
                 <span class="metric-label">Scoring Logic:</span><br>
-                {criteria['scoring_logic']}
+                {criteria["scoring_logic"]}
             </div>
             
             <h3>📋 Detailed Criteria</h3>
@@ -289,12 +284,11 @@ class StrictnessDescriptionWidget(QWidget):
             </ul>
             
             <div class="why-box">
-                <span class="metric-label">Why Use {criteria['name']}?</span><br>
-                {criteria['why_use']}
+                <span class="metric-label">Why Use {criteria["name"]}?</span><br>
+                {criteria["why_use"]}
             </div>
         </body>
         </html>
         """
-        
-        return html
 
+        return html

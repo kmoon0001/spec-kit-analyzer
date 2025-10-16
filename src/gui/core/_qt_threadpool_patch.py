@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from PySide6.QtCore import QCoreApplication, QThreadPool
 
@@ -20,7 +19,7 @@ _ORIGINAL_WAIT_FOR_DONE = QThreadPool.waitForDone
 _PATCH_APPLIED = False
 
 
-def _compute_deadline(timeout_ms: int) -> Optional[float]:
+def _compute_deadline(timeout_ms: int) -> float | None:
     """Return an absolute ``time.monotonic`` deadline for the timeout."""
 
     if timeout_ms < 0:

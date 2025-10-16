@@ -87,8 +87,6 @@ class TestNewFeaturesIntegration:
             assert len(recent_metrics) > 0
             assert recent_metrics[-1].operation == "pdf_export"
 
-
-
     @pytest.mark.asyncio
     async def test_multi_agent_workflow_integration(self):
         """Test multi-agent workflow orchestration."""
@@ -220,8 +218,6 @@ class TestNewFeaturesIntegration:
             performance_data = performance_monitor.get_component_performance("test", 1)
             assert isinstance(performance_data, dict)
 
-
-
             logger.info("End-to-end workflow test completed successfully")
 
         except Exception as e:
@@ -231,8 +227,6 @@ class TestNewFeaturesIntegration:
 
 class TestFeatureInteroperability:
     """Test how new features work together."""
-
-
 
     def test_error_handling_with_performance_monitoring(self):
         """Test error handling integration with performance monitoring."""
@@ -293,8 +287,6 @@ class TestSystemStability:
             for i in range(3):
                 task = get_pdf_export_service().export_report_to_pdf(sample_data, f"test_concurrent_{i}.pdf")
                 tasks.append(task)
-
-
 
         # Execute all tasks concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)

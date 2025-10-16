@@ -114,7 +114,7 @@ def check_consistency():
         # Test critical import paths
         critical_imports = [
             "src.core.pdf_export_service",
-                        "src.gui.main",
+            "src.gui.main",
         ]
 
         for import_path in critical_imports:
@@ -139,7 +139,7 @@ def check_consistency():
 
         # Test async service methods
         async def test_async_services():
-                        from src.core.system_validator import system_validator
+            from src.core.system_validator import system_validator
 
             # Test async methods exist and are callable
             assert hasattr(system_validator, "run_full_validation")

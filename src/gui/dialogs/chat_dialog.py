@@ -102,9 +102,7 @@ class ChatDialog(QDialog):
         input_layout.setSpacing(8)
 
         self.message_input = QLineEdit()
-        self.message_input.setPlaceholderText(
-            "Ask about compliance, documentation tips, or specific findings..."
-        )
+        self.message_input.setPlaceholderText("Ask about compliance, documentation tips, or specific findings...")
         self.message_input.setMinimumHeight(40)
         self.message_input.setStyleSheet(
             """

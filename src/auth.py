@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 
-import PIL
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt

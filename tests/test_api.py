@@ -1,19 +1,11 @@
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 
 pytest.importorskip("sqlalchemy")
 
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from httpx import AsyncClient
 
-from src.api.dependencies import get_analysis_service
-from src.api.main import app
-from src.auth import get_current_active_user
-from src.database import Base, get_async_db, models
 
 pytestmark = pytest.mark.integration
 

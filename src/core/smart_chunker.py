@@ -11,9 +11,7 @@ try:
     nltk.data.find("tokenizers/punkt")
     PUNKT_AVAILABLE = True
 except LookupError:
-    logger.warning(
-        "NLTK 'punkt' tokenizer data is not available. Falling back to a simple sentence splitter."
-    )
+    logger.warning("NLTK 'punkt' tokenizer data is not available. Falling back to a simple sentence splitter.")
     PUNKT_AVAILABLE = False
 
 

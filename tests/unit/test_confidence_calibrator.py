@@ -4,10 +4,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from src.core.confidence_calibrator import ConfidenceCalibrator, IsotonicCalibration, PlattScaling, TemperatureScaling
 
 np = pytest.importorskip("numpy")
-
-from src.core.confidence_calibrator import ConfidenceCalibrator, IsotonicCalibration, PlattScaling, TemperatureScaling
 
 
 class TestTemperatureScaling:

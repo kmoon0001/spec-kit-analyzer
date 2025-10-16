@@ -47,10 +47,7 @@ class NLGService:
             issue_title = finding.get("issue_title") or finding.get("title") or "N/A"
             issue_detail = finding.get("issue_detail") or finding.get("description") or "N/A"
             text_snippet = (
-                finding.get("text")
-                or finding.get("text_snippet")
-                or finding.get("problematic_text")
-                or "N/A"
+                finding.get("text") or finding.get("text_snippet") or finding.get("problematic_text") or "N/A"
             )
 
             # First attempt: common variables

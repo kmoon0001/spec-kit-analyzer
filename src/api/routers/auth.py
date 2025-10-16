@@ -67,7 +67,7 @@ async def register_user(
         created_user = await crud.create_user(db, user_data, hashed_password)
     except sqlalchemy.exc.IntegrityError as exc:
         if "UNIQUE constraint failed: users.username" in str(exc):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists") from exc
         raise HTTPException(status_code=400, detail="Registration failed") from exc
     except Exception as exc:  # pragma: no cover - errors handled by global exception handler in practice
         logger.exception("User registration failed: %s", exc)

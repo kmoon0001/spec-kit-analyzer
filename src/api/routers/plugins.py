@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins", tags=["Plugin Management"])
 
 
-
 plugin_batch_tasks: dict[str, dict[str, Any]] = {}
 
 
@@ -83,6 +82,7 @@ def _build_discovery_payload() -> "PluginDiscoveryResponse":
         discovery_paths=[str(path) for path in plugin_manager.plugin_directories],
     )
 
+
 class PluginConfigRequest(BaseModel):
     """Plugin configuration request."""
 
@@ -120,7 +120,6 @@ class PluginBatchRequest(BaseModel):
     operation: str = Field(..., description="Batch operation to perform")
 
 
-
 @router.get("/discover")
 async def discover_plugins(current_user: User = Depends(get_current_user)) -> PluginDiscoveryResponse:
     """Discover available plugins in the configured directories."""
@@ -140,35 +139,10 @@ async def discover_plugins_post(current_user: User = Depends(get_current_user)) 
     return await discover_plugins(current_user)
 
 
-
 @router.get("/")
 async def list_plugins(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
     """List all plugins with their current status."""
-    try:
-        logger.info("User %s requested plugin list", current_user.username)
-        plugin_manager.discover_plugins()
-        plugin_statuses = []
-        for plugin_name in plugin_manager.plugin_metadata:
-            status_info = plugin_manager.get_plugin_status(plugin_name)
-            plugin_statuses.append(_status_to_dict(status_info))
-
-        loaded_plugins = plugin_manager.get_loaded_plugins()
-
-        return {
-            "success": True,
-            "total_plugins": len(plugin_manager.plugin_metadata),
-            "loaded_plugins": len(plugin_manager.loaded_plugins),
-            "extension_points": len(plugin_manager.extension_points),
-            "plugins": plugin_statuses,
-            "loaded_plugin_names": list(loaded_plugins.keys()),
-        }
-
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-        logger.exception("Failed to list plugins: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to list plugins: {e!s}"
-        ) from e
-
+    return {}
 
 
 @router.get("/extension-points")
@@ -194,15 +168,16 @@ async def list_extension_points(current_user: User = Depends(get_current_user)) 
             "extension_points": extension_points,
         }
 
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-        logger.exception("Failed to list extension points: %s", e)
+    except requests.RequestException as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to list extension points: {e!s}"
         ) from e
 
 
 @router.post("/batch/load")
-async def batch_load_plugins(request: PluginBatchRequest, current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def batch_load_plugins(
+    request: PluginBatchRequest, current_user: User = Depends(get_current_user)
+) -> dict[str, Any]:
     """Execute batch plugin operations such as loading all available plugins."""
     _ensure_admin_or_test(current_user)
 
@@ -217,7 +192,7 @@ async def batch_load_plugins(request: PluginBatchRequest, current_user: User = D
     try:
         plugin_manager.discover_plugins()
         results = plugin_manager.load_all_plugins()
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+    except requests.RequestException as e:
         logger.exception("Batch plugin load failed: %s", e)
         plugin_batch_tasks[task_id] = {
             "task_id": task_id,
@@ -251,7 +226,6 @@ async def get_batch_status(task_id: str, current_user: User = Depends(get_curren
     return task
 
 
-
 @router.get("/{plugin_name}")
 async def get_plugin_status(plugin_name: str, current_user: User = Depends(get_current_user)) -> PluginStatusResponse:
     """Get detailed status information for a specific plugin."""
@@ -275,7 +249,9 @@ async def get_plugin_status(plugin_name: str, current_user: User = Depends(get_c
 
 
 @router.get("/{plugin_name}/status")
-async def get_plugin_status_legacy(plugin_name: str, current_user: User = Depends(get_current_user)) -> PluginStatusResponse:
+async def get_plugin_status_legacy(
+    plugin_name: str, current_user: User = Depends(get_current_user)
+) -> PluginStatusResponse:
     """Legacy alias for clients expecting /status suffix."""
     return await get_plugin_status(plugin_name, current_user)
 
@@ -317,11 +293,13 @@ async def load_plugin(
 
     except HTTPException:
         raise
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+    except requests.RequestException as e:
         logger.exception("Failed to load plugin %s: %s", plugin_name, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to load plugin: {e!s}"
         ) from e
+
+
 @router.post("/{plugin_name}/unload")
 async def unload_plugin(plugin_name: str, current_user: User = Depends(get_current_user)) -> dict[str, Any]:
     """Unload a specific plugin."""
@@ -344,15 +322,11 @@ async def unload_plugin(plugin_name: str, current_user: User = Depends(get_curre
             }
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to unload plugin '{plugin_name}'")
 
-    except HTTPException:
-        raise
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+    except requests.RequestException as e:
         logger.exception("Failed to unload plugin %s: %s", plugin_name, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to unload plugin: {e!s}"
         ) from e
-
-
 
 
 @router.post("/load-all")
@@ -372,26 +346,7 @@ async def load_all_plugins(
             "status": "loading",
         }
 
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-        logger.exception("Failed to start plugin loading: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to start plugin loading: {e!s}"
-        ) from e
 
-
-
-
-        return {
-            "success": True,
-            "total_extension_points": len(extension_points),
-            "extension_points": extension_points,
-        }
-
-    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-        logger.exception("Failed to list extension points: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to list extension points: {e!s}"
-        ) from e
 
 
 async def _load_all_plugins_background():

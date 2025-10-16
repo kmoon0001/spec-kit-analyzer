@@ -51,7 +51,7 @@ class AnalysisWorker(QObject):
         """Execute the analysis logic, relaying progress updates from the service."""
         if self._should_stop:
             return
-            
+
         loop: asyncio.AbstractEventLoop | None = None
         self._progress_reached_finish = False
 

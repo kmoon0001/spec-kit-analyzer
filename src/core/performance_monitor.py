@@ -517,7 +517,7 @@ class PerformanceMonitor:
                 fp = Path(dirpath) / f
                 if fp.is_file():
                     total_size += fp.stat().st_size
-        return total_size / (1024 * 1024) # Convert bytes to MB
+        return total_size / (1024 * 1024)  # Convert bytes to MB
 
     def _calculate_percentile(self, values: list[float], percentile: int) -> float:
         """Calculate percentile value."""

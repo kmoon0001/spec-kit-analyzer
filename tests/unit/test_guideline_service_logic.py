@@ -2,11 +2,9 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.core.guideline_service import GuidelineService
 
 np = pytest.importorskip("numpy")
-
-# No sys.path manipulation needed if pytest runs from the root
-from src.core.guideline_service import GuidelineService
 
 
 @pytest.fixture

@@ -2,10 +2,9 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.core.guideline_service import GuidelineService
 
 np = pytest.importorskip("numpy")
-
-from src.core.guideline_service import GuidelineService
 
 
 @pytest.fixture

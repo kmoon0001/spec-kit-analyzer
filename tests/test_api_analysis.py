@@ -17,17 +17,17 @@ pytestmark = pytest.mark.heavy
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-sys.modules['transformers'] = types.ModuleType('transformers')
-sys.modules['transformers'].pipeline = MagicMock()
-sys.modules['transformers'].AutoModelForTokenClassification = MagicMock()
-sys.modules['transformers'].AutoTokenizer = MagicMock()
+sys.modules["transformers"] = types.ModuleType("transformers")
+sys.modules["transformers"].pipeline = MagicMock()
+sys.modules["transformers"].AutoModelForTokenClassification = MagicMock()
+sys.modules["transformers"].AutoTokenizer = MagicMock()
 
-sys.modules['transformers.configuration_utils'] = types.ModuleType('transformers.configuration_utils')
-sys.modules['transformers.configuration_utils'].PretrainedConfig = MagicMock()
+sys.modules["transformers.configuration_utils"] = types.ModuleType("transformers.configuration_utils")
+sys.modules["transformers.configuration_utils"].PretrainedConfig = MagicMock()
 
-sys.modules['transformers.utils'] = types.ModuleType('transformers.utils')
-sys.modules['transformers'].utils = sys.modules['transformers.utils']
-sys.modules['transformers.utils'].logging = MagicMock()
+sys.modules["transformers.utils"] = types.ModuleType("transformers.utils")
+sys.modules["transformers"].utils = sys.modules["transformers.utils"]
+sys.modules["transformers.utils"].logging = MagicMock()
 
 # 1. Mock the modules that are missing from the codebase.
 MOCK_MODULES = {
@@ -151,10 +151,10 @@ def test_analyze_document_rejects_invalid_strictness(client: TestClient, tmp_pat
         )
 
     assert response.status_code == 400
-    payload = response.json() if response.headers.get('content-type') == 'application/json' else {}
+    payload = response.json() if response.headers.get("content-type") == "application/json" else {}
     assert isinstance(payload, dict)
-    message = cast(str | None, payload.get('detail') or payload.get('message'))
-    assert message is not None and 'Invalid strictness' in message
+    message = cast(str | None, payload.get("detail") or payload.get("message"))
+    assert message is not None and "Invalid strictness" in message
 
 
 def test_analyze_document_rejects_oversized_file(client: TestClient, mocker, tmp_path):
@@ -174,10 +174,10 @@ def test_analyze_document_rejects_oversized_file(client: TestClient, mocker, tmp
         )
 
     assert response.status_code == 400
-    payload = response.json() if response.headers.get('content-type') == 'application/json' else {}
+    payload = response.json() if response.headers.get("content-type") == "application/json" else {}
     assert isinstance(payload, dict)
-    message = cast(str | None, payload.get('detail') or payload.get('message'))
-    assert message == 'too big'
+    message = cast(str | None, payload.get("detail") or payload.get("message"))
+    assert message == "too big"
 
 
 @pytest.mark.asyncio

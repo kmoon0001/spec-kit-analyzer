@@ -36,6 +36,7 @@ async def get_system_health():
         "timestamp": datetime.utcnow().isoformat(),
     }
 
+
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check(db: AsyncSession = Depends(get_db)):
     """Performs a health check of the API.

@@ -97,7 +97,7 @@ class MainViewModel(QObject):
         success_signal: str | None = "success",
         error_signal: str | None = "error",
         auto_stop: bool = True,  # This parameter is now less relevant but kept for signature compatibility
-        start_slot: str = "run", # This parameter is no longer used but kept for signature compatibility
+        start_slot: str = "run",  # This parameter is no longer used but kept for signature compatibility
         **kwargs: Any,
     ) -> None:
         _ = auto_stop  # parameter retained for backwards compatibility
@@ -131,7 +131,9 @@ class MainViewModel(QObject):
             if not callable(start_callable):
                 start_callable = getattr(worker, "run", None)
             if not callable(start_callable):
-                raise AttributeError(f"{worker_class.__name__} must implement a callable '{start_slot}' or 'run' method")
+                raise AttributeError(
+                    f"{worker_class.__name__} must implement a callable '{start_slot}' or 'run' method"
+                )
             thread.started.connect(start_callable)
 
             if hasattr(worker, "finished"):
@@ -330,14 +332,18 @@ class MainViewModel(QObject):
                 if thread.isRunning():
                     worker = getattr(thread, "_worker_ref", None)
                     if worker and hasattr(worker, "stop"):
-                        logger.debug("Calling stop() on worker %s in thread %s", worker.__class__.__name__, hex(id(thread)))
+                        logger.debug(
+                            "Calling stop() on worker %s in thread %s", worker.__class__.__name__, hex(id(thread))
+                        )
                         worker.stop()
 
                     logger.debug("Calling quit() on thread %s", hex(id(thread)))
                     thread.quit()
 
                     if not thread.wait(wait_timeout_ms):
-                        logger.warning("Thread %s did not quit within %d ms, terminating", hex(id(thread)), wait_timeout_ms)
+                        logger.warning(
+                            "Thread %s did not quit within %d ms, terminating", hex(id(thread)), wait_timeout_ms
+                        )
                         thread.terminate()
                         # Wait a bit more after termination
                         thread.wait(500)

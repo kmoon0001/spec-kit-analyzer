@@ -173,9 +173,7 @@ class PDFExportService:
         if self.enable_auto_purge and self.retention_hours > 0:
             result["purge_at"] = (now_utc + timedelta(hours=self.retention_hours)).isoformat()
 
-        logger.info(
-            "PDF export completed: path=%s size_mb=%.2f", result["pdf_path"], result["file_size_mb"]
-        )
+        logger.info("PDF export completed: path=%s size_mb=%.2f", result["pdf_path"], result["file_size_mb"])
 
         return result
 
@@ -218,9 +216,7 @@ class PDFExportService:
         try:
             if combined:
                 combined_data = self._combine_reports_data(reports)
-                pdf_bytes = await self.export_report_to_pdf(
-                    combined_data, template_name="batch_compliance_report_pdf"
-                )
+                pdf_bytes = await self.export_report_to_pdf(combined_data, template_name="batch_compliance_report_pdf")
                 return {
                     "success": True,
                     "type": "combined",
@@ -235,9 +231,7 @@ class PDFExportService:
                     pdf_bytes = await self.export_report_to_pdf(report)
                     if output_dir:
                         output_dir.mkdir(parents=True, exist_ok=True)
-                        filename = (
-                            f"compliance_report_{index + 1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                        )
+                        filename = f"compliance_report_{index + 1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
                         file_path = output_dir / filename
                         file_path.write_bytes(pdf_bytes)
                         results.append(
@@ -716,7 +710,9 @@ class PDFExportService:
                 metadata_source = potential_metadata
             else:
                 metadata_source = {
-                    str(key): value for key, value in data.items() if isinstance(key, str) and key.lower() != "watermark"
+                    str(key): value
+                    for key, value in data.items()
+                    if isinstance(key, str) and key.lower() != "watermark"
                 }
 
         watermark_html = ""
@@ -749,7 +745,7 @@ class PDFExportService:
         lower_content = content.lower()
         body_start = lower_content.find("<body")
         if body_start != -1:
-            body_end = lower_content.find('>', body_start)
+            body_end = lower_content.find(">", body_start)
             if body_end != -1:
                 content = content[: body_end + 1] + insertion + content[body_end + 1 :]
         else:

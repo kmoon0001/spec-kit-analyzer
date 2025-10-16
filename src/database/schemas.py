@@ -109,23 +109,23 @@ class RubricListResponse(BaseModel):
 
 
 class UserPreferences(BaseModel):
-    theme_mode: Literal['system', 'light', 'dark'] = 'system'
-    startup_screen: Literal['analysis', 'dashboard', 'mission_control'] = 'analysis'
+    theme_mode: Literal["system", "light", "dark"] = "system"
+    startup_screen: Literal["analysis", "dashboard", "mission_control"] = "analysis"
     enable_beta_widgets: bool = True
     auto_start_backend: bool = False
     stream_analysis_logs: bool = True
-    default_strictness: Literal['lenient', 'standard', 'strict'] = 'standard'
-    auto_export_format: Literal['pdf', 'pdf_html'] = 'pdf_html'
+    default_strictness: Literal["lenient", "standard", "strict"] = "standard"
+    auto_export_format: Literal["pdf", "pdf_html"] = "pdf_html"
 
 
 class UserPreferencesUpdate(BaseModel):
-    theme_mode: Literal['system', 'light', 'dark'] | None = None
-    startup_screen: Literal['analysis', 'dashboard', 'mission_control'] | None = None
+    theme_mode: Literal["system", "light", "dark"] | None = None
+    startup_screen: Literal["analysis", "dashboard", "mission_control"] | None = None
     enable_beta_widgets: bool | None = None
     auto_start_backend: bool | None = None
     stream_analysis_logs: bool | None = None
-    default_strictness: Literal['lenient', 'standard', 'strict'] | None = None
-    auto_export_format: Literal['pdf', 'pdf_html'] | None = None
+    default_strictness: Literal["lenient", "standard", "strict"] | None = None
+    auto_export_format: Literal["pdf", "pdf_html"] | None = None
 
 
 class UserBase(BaseModel):

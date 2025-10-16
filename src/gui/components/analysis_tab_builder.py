@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.widgets.medical_theme import medical_theme
-from src.gui.components.strictness_criteria import StrictnessDescriptionWidget
 from src.gui.widgets.micro_interactions import AnimatedButton
 
 if TYPE_CHECKING:

@@ -14,7 +14,6 @@ import pytest
 from tests.e2e.conftest import E2ETestHelper
 
 
-
 def _extract_rubric_id(rubric: dict[str, Any]) -> str:
     """Return rubric identifier compatible with legacy analysis endpoints."""
     value = rubric.get("value", rubric.get("id"))

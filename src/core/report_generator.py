@@ -233,9 +233,7 @@ class ReportGenerator:
                 return None
         return current
 
-    def _build_fallback_messages(
-        self, analysis_result: dict[str, Any], checkpoints: list[dict[str, Any]]
-    ) -> list[str]:
+    def _build_fallback_messages(self, analysis_result: dict[str, Any], checkpoints: list[dict[str, Any]]) -> list[str]:
         messages: list[str] = []
 
         error = analysis_result.get("error")
@@ -275,20 +273,24 @@ class ReportGenerator:
         summary = sanitize_human_text(analysis_result.get("summary", "")) or (
             "Report generation completed with partial results."
         )
-        checkpoint_items = "".join(
-            (
-                "<li><strong>{label}:</strong> {details} ({status})</li>".format(
-                    label=sanitize_human_text(cp["label"]),
-                    details=sanitize_human_text(cp["details"]),
-                    status=sanitize_human_text(cp["status"]),
+        checkpoint_items = (
+            "".join(
+                (
+                    "<li><strong>{label}:</strong> {details} ({status})</li>".format(
+                        label=sanitize_human_text(cp["label"]),
+                        details=sanitize_human_text(cp["details"]),
+                        status=sanitize_human_text(cp["status"]),
+                    )
                 )
+                for cp in checkpoints
             )
-            for cp in checkpoints
-        ) or "<li>No checkpoints were evaluated.</li>"
+            or "<li>No checkpoints were evaluated.</li>"
+        )
 
-        fallback_items = "".join(
-            f"<li>{sanitize_human_text(message)}</li>" for message in fallback_messages
-        ) or "<li>No additional context was provided.</li>"
+        fallback_items = (
+            "".join(f"<li>{sanitize_human_text(message)}</li>" for message in fallback_messages)
+            or "<li>No additional context was provided.</li>"
+        )
 
         findings_count = len(analysis_result.get("findings", []))
         findings_note = (
@@ -298,7 +300,7 @@ class ReportGenerator:
         )
 
         return (
-            "<section class=\"report-fallback\">"
+            '<section class="report-fallback">'
             f"<h1>{safe_doc_name} &mdash; Partial Compliance Report</h1>"
             f"<p>{summary}</p>"
             f"{findings_note}"

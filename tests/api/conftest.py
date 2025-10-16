@@ -1,4 +1,3 @@
-
 import pytest
 import pytest_asyncio
 
@@ -17,7 +16,6 @@ except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     AsyncSession = object  # type: ignore[assignment]
 else:
     SQLALCHEMY_IMPORT_ERROR = None
-from unittest.mock import MagicMock
 
 try:  # pragma: no cover - dependency availability
     from src.api.dependencies import get_analysis_service
@@ -31,6 +29,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     models = None  # type: ignore[assignment]
 else:
     API_IMPORT_ERROR = None
+
 
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncClient:

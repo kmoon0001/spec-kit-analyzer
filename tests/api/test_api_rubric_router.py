@@ -9,7 +9,9 @@ from src.auth import AuthService
 from src.database import crud, schemas
 
 
-async def _create_and_login_user(client: AsyncClient, db_session: AsyncSession, *, username: str, is_admin: bool) -> str:
+async def _create_and_login_user(
+    client: AsyncClient, db_session: AsyncSession, *, username: str, is_admin: bool
+) -> str:
     user_data = schemas.UserCreate(username=username, password="password", is_admin=is_admin)
     hashed_password = AuthService().get_password_hash(user_data.password)
     await crud.create_user(db_session, user_data, hashed_password)

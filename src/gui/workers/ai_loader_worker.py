@@ -47,7 +47,7 @@ class AILoaderWorker(QObject):
         """
         if self._should_stop:
             return
-            
+
         try:
             # Fast path: if mocks enabled, avoid heavy initialization entirely
             settings = get_settings()

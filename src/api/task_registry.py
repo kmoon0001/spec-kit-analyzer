@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable
+from typing import Any
+from collections.abc import Awaitable
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,7 @@ class AnalysisTaskRegistry:
     def active_count(self) -> int:
         """Return the number of tasks that are not terminally completed."""
         return sum(
-            1
-            for state in self.metadata.values()
-            if state.get("status") not in {"completed", "failed", "cancelled"}
+            1 for state in self.metadata.values() if state.get("status") not in {"completed", "failed", "cancelled"}
         )
 
 

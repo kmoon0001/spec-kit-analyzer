@@ -232,6 +232,7 @@ class TemperatureScaling:
         scaled = logits_array / max(self.temperature, 1e-6)
         return self._sigmoid(scaled)
 
+
 class PlattScaling:
     """Platt scaling calibration method."""
 

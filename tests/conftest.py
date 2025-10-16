@@ -20,6 +20,7 @@ def pytest_addoption(parser) -> None:  # pragma: no cover - pytest hook
         default="pyside6",
     )
 
+
 try:  # pragma: no cover - dependency availability
     import numpy as np
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
@@ -29,63 +30,63 @@ else:
     NUMPY_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import yaml  # type: ignore[import-not-found]
+    import yaml  # type: ignore[import-not-found] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     YAML_IMPORT_ERROR = exc
 else:
     YAML_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import requests  # type: ignore[import-untyped]
+    import requests  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     REQUESTS_IMPORT_ERROR = exc
 else:
     REQUESTS_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import jinja2  # type: ignore[import-untyped]
+    import jinja2  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     JINJA_IMPORT_ERROR = exc
 else:
     JINJA_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import psutil  # type: ignore[import-untyped]
+    import psutil  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     PSUTIL_IMPORT_ERROR = exc
 else:
     PSUTIL_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import rdflib  # type: ignore[import-untyped]
+    import rdflib  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     RDFLIB_IMPORT_ERROR = exc
 else:
     RDFLIB_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import nltk  # type: ignore[import-untyped]
+    import nltk  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     NLTK_IMPORT_ERROR = exc
 else:
     NLTK_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import httpx  # type: ignore[import-untyped]
+    import httpx  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     HTTPX_IMPORT_ERROR = exc
 else:
     HTTPX_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import PIL  # type: ignore[import-not-found]
+    import PIL  # type: ignore[import-not-found] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     PIL_IMPORT_ERROR = exc
 else:
     PIL_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
-    import torch  # type: ignore[import-untyped]
+    import torch  # type: ignore[import-untyped] # noqa: F401
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     TORCH_IMPORT_ERROR = exc
 else:
@@ -277,11 +278,7 @@ else:  # pragma: no cover - dependency missing
 
 
 def _ensure_qapplication() -> QApplication:
-    if (
-        QApplication is None
-        or _QT_IMPORT_ERROR is not None
-        or _QT_IS_STUB
-    ):  # pragma: no cover - skip handled elsewhere
+    if QApplication is None or _QT_IMPORT_ERROR is not None or _QT_IS_STUB:  # pragma: no cover - skip handled elsewhere
         raise RuntimeError("Qt application cannot be created without GUI dependencies.")
     app = QApplication.instance()
     if app is None:

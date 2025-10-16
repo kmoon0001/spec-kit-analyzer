@@ -9,7 +9,6 @@ import atexit
 import gc
 import logging
 import threading
-import time
 import weakref
 from collections.abc import Callable
 from dataclasses import dataclass

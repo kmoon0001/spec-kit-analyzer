@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-np = pytest.importorskip("numpy")
-
 from src.core.calibration_trainer import CalibrationTrainer, FeedbackCollector
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.confidence_calibrator import ConfidenceCalibrator
+
+np = pytest.importorskip("numpy")
 
 
 @pytest.fixture

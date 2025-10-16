@@ -62,7 +62,6 @@ def main():
     if test_component("Plugin System", lambda: __import__("src.core.plugin_system", fromlist=["plugin_manager"])):
         tests_passed += 1
 
-
     tests_total += 1
     if test_component(
         "Multi-Agent Orchestrator",

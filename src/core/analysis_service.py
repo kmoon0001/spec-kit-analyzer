@@ -40,7 +40,6 @@ class AnalysisOutput(dict):
     """Dictionary wrapper for consistent analysis output."""
 
 
-
 class _MockLLMService:
     """Lightweight mock implementation used when USE_AI_MOCKS is enabled."""
 
@@ -50,10 +49,7 @@ class _MockLLMService:
         return True
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
-        return (
-            "Mock analysis response generated for testing purposes. "
-            "No real language model invocation occurred."
-        )
+        return "Mock analysis response generated for testing purposes. No real language model invocation occurred."
 
     def generate_analysis(self, prompt: str, **kwargs: Any) -> str:
         return self.generate(prompt, **kwargs)
@@ -163,7 +159,9 @@ class AnalysisService:
             return await obj
         return obj
 
-    def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: str | None, strictness: str | None) -> str:
+    def _get_analysis_cache_key(
+        self, content_hash: str, discipline: str, analysis_mode: str | None, strictness: str | None
+    ) -> str:
         hasher = hashlib.sha256()
         hasher.update(content_hash.encode())
         hasher.update(discipline.encode())
@@ -226,7 +224,6 @@ class AnalysisService:
 
             if not text_to_process:
                 raise ValueError("Could not extract any text from the provided document.")
-
 
             if self.use_mocks:
                 return await self._run_mock_pipeline(
@@ -301,7 +298,6 @@ class AnalysisService:
                 metadata["analysis_mode"] = analysis_mode
             metadata["strictness"] = normalized_strictness
 
-
             _update_progress(95, "Generating report...")
             # Add timeout to report generation
             try:
@@ -336,7 +332,6 @@ class AnalysisService:
 
             logger.info("Cleaned up temporary file: %s", temp_file_path)
 
-
     async def _run_mock_pipeline(
         self,
         *,
@@ -348,27 +343,27 @@ class AnalysisService:
         update_progress: Callable[[int, str], None],
     ) -> AnalysisOutput:
         """Fast-path analysis used when USE_AI_MOCKS is enabled."""
-    
+
         update_progress(10, "Preprocessing document text...")
         await asyncio.sleep(0.2)
         sanitized_text = sanitize_human_text(text_to_process) or "Clinical document"
         doc_length = len(sanitized_text)
         doc_hash = hashlib.sha1(sanitized_text.encode("utf-8")).hexdigest()
-    
+
         update_progress(30, "Performing PHI redaction (mock)...")
         await asyncio.sleep(0.2)
         discipline_clean = sanitize_human_text(discipline or "unknown").upper()
         doc_type = "Progress Note" if doc_length < 4000 else "Evaluation"
-    
+
         update_progress(60, "Generating compliance findings (mock)...")
         await asyncio.sleep(0.2)
         base_score = 88 + (int(doc_hash[:2], 16) % 7)
         compliance_score = max(70, min(99, base_score))
-    
+
         strictness_normalized = (strictness or "standard").lower()
         offset_map = {"lenient": 4, "standard": 0, "strict": -5}
         compliance_score = max(65, min(99, compliance_score + offset_map.get(strictness_normalized, 0)))
-    
+
         findings = [
             {
                 "id": "mock-finding-1",
@@ -382,7 +377,7 @@ class AnalysisService:
                 "rule_id": "mock-rule-1",
             }
         ]
-    
+
         deterministic_checks = [
             {
                 "id": "deterministic-soap",
@@ -397,19 +392,19 @@ class AnalysisService:
                 "recommendation": "Tie interventions directly to functional goals.",
             },
         ]
-    
+
         summary = (
             "Automated compliance mock analysis completed successfully. "
             "One improvement opportunity identified for measurable goals."
         )
-    
+
         highlights = [
             "Maintain detailed objective measures to support progress.",
             "Ensure plan of care references functional goals explicitly.",
         ]
-    
+
         generated_at = datetime.datetime.now(datetime.UTC).isoformat()
-    
+
         analysis_payload = {
             "status": "completed",
             "discipline": discipline_clean,
@@ -431,7 +426,7 @@ class AnalysisService:
                 },
             },
         }
-    
+
         report_html = (
             "<h1>Mock Compliance Report</h1>"
             f"<p>Discipline: {discipline_clean}</p>"
@@ -439,10 +434,10 @@ class AnalysisService:
             f"<p>Overall Score: {compliance_score}</p>"
             f"<p>{summary}</p>"
         )
-    
+
         update_progress(90, "Synthesizing final report (mock)...")
         await asyncio.sleep(0.2)
-    
+
         payload = AnalysisOutput(
             {
                 "analysis": analysis_payload,
@@ -450,7 +445,6 @@ class AnalysisService:
                 "generated_at": generated_at,
             }
         )
-    
+
         update_progress(100, "Analysis complete (mock).")
         return payload
-
