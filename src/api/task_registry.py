@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Any
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class AnalysisTaskRegistry:
         self._handles: dict[str, asyncio.Task[Any]] = {}
         self._lock = asyncio.Lock()
 
-    async def start(self, task_id: str, coroutine: Awaitable[Any]) -> asyncio.Task[Any]:
+    async def start(self, task_id: str, coroutine: Coroutine[Any, Any, Any]) -> asyncio.Task[Any]:
         """Schedule a coroutine for execution and register it under the given task id."""
         async with self._lock:
             task: asyncio.Task[Any] = asyncio.create_task(coroutine, name=f"analysis-{task_id}")

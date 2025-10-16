@@ -51,7 +51,7 @@ class ErrorContext:
     component: str
     user_id: int | None = None
     operation: str | None = None
-    additional_data: dict[str, Any] = None
+    additional_data: dict[str, Any] | None = None
 
 
 class EnhancedError(Exception):
@@ -241,6 +241,8 @@ class ErrorHandler:
                     continue
 
         # All retries failed
+        if last_exception is None:
+            last_exception = RuntimeError("Operation failed after all retries with no specific exception")
         return self.handle_error(last_exception, component, "retry_operation")
 
     def _classify_error(self, exception: Exception, component: str) -> tuple[ErrorSeverity, ErrorCategory]:

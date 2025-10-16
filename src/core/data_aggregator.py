@@ -94,6 +94,13 @@ class MetricBuffer:
 class TimeSeriesStorage:
     """SQLite-based time-series storage for metrics."""
 
+    def __init__(self, db_path: str = "metrics.db"):
+        import threading
+        
+        self.db_path = db_path
+        self._lock = threading.Lock()
+        self._init_database()
+
     def _init_database(self) -> None:
         """Initialize database schema."""
         with self._lock:
@@ -469,6 +476,25 @@ class TimeSeriesStorage:
 
 class DataAggregator:
     """Processes and aggregates performance metrics with time-series storage."""
+
+    def __init__(self, buffer_size: int = 10000, db_path: str = "metrics.db"):
+        import threading
+        from datetime import datetime
+        
+        self.buffer = MetricsBuffer(buffer_size)
+        self.storage = TimeSeriesStorage(db_path)
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._metrics_processed = 0
+        self._metrics_stored = 0
+        self._aggregations_created = 0
+        self._aggregation_thread: threading.Thread | None = None
+        self._cleanup_thread: threading.Thread | None = None
+        self._last_aggregation = {
+            AggregationLevel.SHORT_TERM: datetime.min,
+            AggregationLevel.MEDIUM_TERM: datetime.min,
+            AggregationLevel.LONG_TERM: datetime.min,
+        }
 
     def process_metrics(self, metrics: list[dict[str, Any]]) -> None:
         """Process and store metrics.

@@ -10,9 +10,19 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
+
+
+class PatternDict(TypedDict):
+    """Type definition for pattern dictionary."""
+    type: str
+    title: str
+    description: str
+    confidence: float
+    impact: str
+    actions: list[str]
 
 
 @dataclass
@@ -149,7 +159,7 @@ class MLTrendPredictorService:
         insights = []
 
         # Simulate pattern analysis
-        patterns = [
+        patterns: list[PatternDict] = [
             {
                 "type": "trend",
                 "title": "Improving Documentation Quality",
@@ -402,12 +412,12 @@ class MLTrendPredictorService:
         impact_weights = {"high": 3, "medium": 2, "low": 1}
         for insight in insights:
             weight = impact_weights.get(insight.impact_level, 1)
-            weighted_confidence += float(insight.confidence_score * weight)
-            total_weight += float(weight)
+            weighted_confidence += insight.confidence_score * weight
+            total_weight += weight
 
         # Add trend confidences
         for trend in trends:
-            weighted_confidence += float(trend.confidence)
+            weighted_confidence += trend.confidence
             total_weight += 1.0
 
         return round(weighted_confidence / total_weight if total_weight > 0 else 0.0, 2)

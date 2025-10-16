@@ -47,9 +47,9 @@ class ExportOptions:
     include_raw_data: bool = False
     watermark: str | None = None
     page_size: str = "letter"
-    margins: dict[str, float] = None
+    margins: dict[str, float] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.margins is None:
             self.margins = {"top": 72, "bottom": 72, "left": 72, "right": 72}
 

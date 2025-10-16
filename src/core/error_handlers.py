@@ -8,7 +8,7 @@ handling and appropriate logging.
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from src.core.exceptions import AnalysisError, SecurityError
 
@@ -21,7 +21,7 @@ def handle_analysis_error(func: F) -> F:
     """Decorator to handle analysis-related errors."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -31,14 +31,14 @@ def handle_analysis_error(func: F) -> F:
                 details={"original_error": str(e)},
             ) from e
 
-    return wrapper
+    return cast(F, wrapper)
 
 
 def handle_ai_model_error(func: F) -> F:
     """Decorator to handle AI model-related errors."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -48,14 +48,14 @@ def handle_ai_model_error(func: F) -> F:
                 details={"original_error": str(e)},
             ) from e
 
-    return wrapper
+    return cast(F, wrapper)
 
 
 def handle_security_error(func: F) -> F:
     """Decorator to handle security-related errors."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -65,10 +65,10 @@ def handle_security_error(func: F) -> F:
                 details={"original_error": str(e)},
             ) from e
 
-    return wrapper
+    return cast(F, wrapper)
 
 
-def log_and_suppress_error(error_message: str, return_value: Any = None, log_level: int = logging.ERROR) -> Callable:
+def log_and_suppress_error(error_message: str, return_value: Any = None, log_level: int = logging.ERROR) -> Callable[[F], F]:
     """Decorator to log errors and return a default value instead of raising.
 
     Useful for non-critical operations where graceful degradation is preferred.
@@ -76,13 +76,13 @@ def log_and_suppress_error(error_message: str, return_value: Any = None, log_lev
 
     def decorator(func: F) -> F:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
                 logger.log(log_level, "%s in %s: %s", error_message, func.__name__, str(e))
                 return return_value
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator

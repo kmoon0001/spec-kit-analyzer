@@ -29,9 +29,18 @@ logger = logging.getLogger(__name__)
 class VectorStore:
     """A singleton class to manage the FAISS index for report embeddings."""
 
-    _instance = None
+    _instance: "VectorStore | None" = None
 
-    def __new__(cls, embedding_dim: int = 768):
+    def __init__(self) -> None:
+        # These attributes are set in __new__ but we need to declare them for mypy
+        self.embedding_dim: int
+        self.index: Any
+        self.report_ids: list[str]
+        self.is_initialized: bool
+        self._fallback_vectors: list[Any]
+        self._fallback_ids: list[str]
+
+    def __new__(cls, embedding_dim: int = 768) -> "VectorStore":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             # Initialize instance attributes (avoiding type assignment to non-self)

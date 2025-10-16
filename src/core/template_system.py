@@ -311,6 +311,12 @@ class ComponentLibrary:
 class TemplateValidator:
     """Validates template content and structure"""
 
+    def __init__(self) -> None:
+        self.validation_rules = {
+            "max_template_size": 1024 * 1024,  # 1MB
+            "forbidden_tags": ["script", "iframe", "object", "embed"],
+        }
+
     def validate_template(self, template_content: str, metadata: TemplateMetadata) -> list[str]:
         """Validate template content and return list of issues"""
         issues = []
@@ -373,6 +379,7 @@ class AdvancedTemplateRenderer:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         self.component_library = component_library
+        self.validator = TemplateValidator()
         self.jinja_env = Environment(
             loader=FileSystemLoader("src/resources/templates"), autoescape=select_autoescape(["html", "xml"])
         )
@@ -530,6 +537,15 @@ class AdvancedTemplateRenderer:
 
 class TemplateLibrary:
     """Library for managing and versioning report templates"""
+
+    def __init__(self, templates_dir: str | None = None, metadata_dir: str | None = None):
+        from pathlib import Path
+        
+        self.templates_dir = Path(templates_dir or "src/resources/templates")
+        self.metadata_dir = Path(metadata_dir or "src/resources/templates/metadata")
+        self.templates: dict[str, TemplateMetadata] = {}
+        self.renderer = AdvancedTemplateRenderer(ComponentLibrary())
+        self._load_templates()
 
     def _load_templates(self) -> None:
         """Load templates and their metadata"""

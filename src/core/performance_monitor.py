@@ -772,13 +772,13 @@ class PerformanceMonitor:
             if not self.metrics_collector:
                 from src.core.metrics_collector import MetricsCollector
 
-                self.metrics_collector = MetricsCollector(self.config)
+                self.metrics_collector = MetricsCollector(30.0)  # 30 second collection interval
 
             # Initialize data aggregator
             if not self.data_aggregator:
                 from src.core.data_aggregator import DataAggregator
 
-                self.data_aggregator = DataAggregator(self.config)
+                self.data_aggregator = DataAggregator()
 
             logger.debug("Monitoring components initialized")
 

@@ -193,11 +193,11 @@ class WorkerManager:
         # Set timeout (Unix only)
         if hasattr(signal, 'SIGALRM'):
             old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(int(timeout))  # type: ignore[attr-defined]
+            signal.alarm(int(timeout))  # type: ignore
 
             try:
                 result = func(*args, **kwargs)
-                signal.alarm(0)  # Cancel alarm  # type: ignore[attr-defined]
+                signal.alarm(0)  # Cancel alarm  # type: ignore
                 return result
             finally:
                 signal.signal(signal.SIGALRM, old_handler)

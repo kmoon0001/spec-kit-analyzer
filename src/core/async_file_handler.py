@@ -200,7 +200,7 @@ class AsyncFileHandler:
             Dictionary mapping file paths to their content
 
         """
-        results: dict[str, str] = {}
+        results: dict[Path, str | None] = {}
         total_files = len(file_paths)
 
         if not file_paths:

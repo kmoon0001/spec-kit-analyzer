@@ -289,7 +289,7 @@ class PDFExportService:
                 logger.warning("Failed to purge PDF %s: %s", pdf_file.name, exc)
                 errors.append(f"Failed to purge {pdf_file.name}: {exc}")
 
-        result = {
+        result: dict[str, Any] = {
             "purged": purged,
             "total_size_mb": round(total_size / (1024 * 1024), 2),
             "max_age_hours": max_age,
@@ -759,7 +759,7 @@ class PDFExportService:
         return content
 
     def _combine_reports_data(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
-        combined = {
+        combined: dict[str, Any] = {
             "title": f"Combined Compliance Analysis Report ({len(reports)} Reports)",
             "generated_at": datetime.now().isoformat(),
             "report_count": len(reports),

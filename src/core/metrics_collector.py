@@ -375,8 +375,14 @@ class ApplicationMetricsSource(MetricSource):
         with self._metrics_lock:
             self._request_counts[endpoint.strip()] += 1
 
-    def record_error(self, error_type: str) -> None:
+    def record_error(self, error: Exception) -> None:
         """Record an error occurrence."""
+        error_type = type(error).__name__
+        with self._metrics_lock:
+            self._error_counts[error_type] += 1
+    
+    def record_error_by_type(self, error_type: str) -> None:
+        """Record an error occurrence by type string."""
         if not error_type or not error_type.strip():
             logger.warning("Invalid error type for error recording")
             return
@@ -565,7 +571,7 @@ class MetricsCollector:
         self._metrics_buffer: deque = deque(maxlen=10000)
         self._buffer_lock = threading.Lock()
         self._callbacks: list[Callable[[list[PerformanceMetric]], None]] = []
-        self._stats = {
+        self._stats: dict[str, int | float | datetime | None] = {
             "total_collections": 0,
             "failed_collections": 0,
             "last_collection_time": None,
