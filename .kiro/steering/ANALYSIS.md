@@ -15,7 +15,7 @@ The Therapy Compliance Analyzer is a sophisticated AI-powered desktop applicatio
 ### Core Technology Dependencies
 
 #### AI/ML Stack
-- **Local LLMs**: `ctransformers` with GGUF models (Phi-2, Mistral) for compliance analysis
+- **Local LLMs**: `ctransformers` with GGUF models (Meditron-7B clinical model) for compliance analysis
 - **Embeddings**: `sentence-transformers` for semantic document understanding
 - **Search**: Hybrid approach using `FAISS` + `rank_bm25` for intelligent retrieval
 - **NLP Processing**: `NLTK`, `transformers`, specialized biomedical NER models

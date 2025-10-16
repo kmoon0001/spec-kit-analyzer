@@ -17,7 +17,7 @@
 - [X] **PHI Scrubbing**: Automated PII detection and redaction (presidio)
 
 ## AI/ML Analysis Engine ✅ COMPLETED
-- [X] **Local LLM Service**: ctransformers with GGUF models (Phi-2, Mistral)
+- [X] **Local LLM Service**: ctransformers with GGUF models (Meditron-7B clinical model)
 - [X] **Embeddings Pipeline**: sentence-transformers for semantic understanding
 - [X] **Hybrid Retrieval**: FAISS + BM25 for intelligent rule matching
 - [X] **NER Pipeline**: Biomedical Named Entity Recognition

@@ -7,7 +7,7 @@
 - **Authentication**: JWT tokens with passlib/bcrypt
 
 ## AI/ML Stack
-- **Local LLMs**: ctransformers with GGUF models (Phi-2, Mistral)
+- **Local LLMs**: ctransformers with GGUF models (Meditron-7B clinical model)
 - **Embeddings**: sentence-transformers for semantic search
 - **Search**: Hybrid approach using FAISS + BM25 (rank_bm25)
 - **NLP**: NLTK, transformers, specialized biomedical NER models

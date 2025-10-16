@@ -49,7 +49,7 @@ Build a privacy-first, desktop application for clinical therapists to analyze do
 ## Technical Implementation
 
 ### AI/ML Components
-- **Local LLMs**: ctransformers with GGUF models (Phi-2, Mistral) for compliance analysis
+- **Local LLMs**: ctransformers with GGUF models (Meditron-7B clinical model) for compliance analysis
 - **Embeddings**: sentence-transformers for semantic document understanding
 - **NER Pipeline**: Biomedical Named Entity Recognition for clinical concept extraction
 - **Fact Checking**: AI-powered verification of compliance findings
@@ -73,6 +73,3 @@ Build a privacy-first, desktop application for clinical therapists to analyze do
 - **Cloud Integration**: Optional secure backup while maintaining local processing
 - **Mobile Support**: Responsive UI adaptation for tablet and mobile devices
 - **EHR Integration**: API connections to existing clinical documentation systems
-
-
-

@@ -18,7 +18,7 @@ llm:
   context_length: 4096
   gpu_layers: 0
   threads: 6
-  hf_model_type: mistral
+  hf_model_type: meditron
   generation_params:
     max_new_tokens: 1024
     repeat_penalty: 1.1
@@ -37,13 +37,13 @@ models:
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
   generator: TheBloke/meditron-7B-GGUF
   generator_filename: meditron-7b.Q4_K_M.gguf
-  generator_local_path: models/mistral7b
+  generator_local_path: models/meditron7b
   generator_profiles:
     clinical_fast:
       batch_size: 2
       do_sample: false
       fast_mode: true
-      filename: mistral-7b-instruct-v0.2.Q4_K_M.gguf
+      filename: meditron-7b.Q4_K_M.gguf
       max_length: 1024
       max_system_gb: 8.0
       max_tokens: 512
@@ -56,7 +56,7 @@ models:
     clinical_q4_balanced:
       batch_size: 2
       do_sample: false
-      filename: mistral-7b-instruct-v0.2.Q4_K_M.gguf
+      filename: meditron-7b.Q4_K_M.gguf
       max_length: 1024
       max_system_gb: 16.0
       num_beams: 1
