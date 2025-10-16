@@ -3,21 +3,21 @@ from collections.abc import Callable
 from typing import Any
 
 import requests
-from PySide6.QtCore import QObject, QTimer, Signal
 from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
 
-class PerformanceIntegrationService(QObject):
+class PerformanceIntegrationService:
     """Service that integrates performance management throughout the application.
     Provides centralized performance monitoring and optimization triggers.
     """
 
-    # Signals for performance events
-    performance_warning = Signal(str, str)  # level, message
-    memory_pressure = Signal(float)  # memory percentage
-    profile_changed = Signal(str)  # new profile name
+    # Performance events (converted from Qt signals to callbacks)
+    def __init__(self):
+        self.performance_warning_callbacks: list[Callable[[str, str], None]] = []
+        self.memory_pressure_callbacks: list[Callable[[float], None]] = []
+        self.profile_changed_callbacks: list[Callable[[str], None]] = []
     optimization_completed = Signal(dict)  # optimization results
 
     def __init__(self):

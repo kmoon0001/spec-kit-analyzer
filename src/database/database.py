@@ -250,15 +250,4 @@ async def optimize_database() -> None:
 
 
 # --- Connection Management Utilities ---
-async def test_connection() -> bool:
-    """Test database connectivity.
-
-    Returns:
-        True if connection successful, False otherwise
-
-    """
-    try:
-        health = await get_db_health()
-        return health["status"] == "healthy"
-    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
-        return False
+# test_connection function already defined above

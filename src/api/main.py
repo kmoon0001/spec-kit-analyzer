@@ -362,7 +362,7 @@ async def _load_all_plugins_background():
         if plugin_manager is None:
             logger.info("Plugin manager not available, skipping plugin loading")
             return
-            
+
         logger.info("Starting background plugin loading")
         results = plugin_manager.load_all_plugins()
         logger.info(f"Background plugin loading completed with results: {results}")
