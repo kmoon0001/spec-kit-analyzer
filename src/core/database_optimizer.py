@@ -82,6 +82,10 @@ class DatabaseOptimizer:
         """
         try:
             # Get row count
+            # Validate table name to prevent SQL injection
+            if not table_name.replace('_', '').isalnum():
+                raise ValueError(f"Invalid table name: {table_name}")
+            
             result = await db.execute(text(f"SELECT COUNT(*) as row_count FROM {table_name}"))
             row_count = result.scalar()
 

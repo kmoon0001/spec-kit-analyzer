@@ -261,7 +261,7 @@ class SystemDiagnostics:
         
         # Check for npm
         try:
-            result = subprocess.run(["npm", "--version"], capture_output=True, text=True, timeout=10, shell=True)
+            result = subprocess.run(["npm", "--version"], capture_output=True, text=True, timeout=10, shell=False)
             if result.returncode == 0:
                 version = result.stdout.strip()
                 self.add_result("npm", "pass", f"Available: {version}")

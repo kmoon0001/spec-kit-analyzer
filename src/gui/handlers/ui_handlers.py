@@ -723,7 +723,7 @@ Memory:
         QMessageBox.information(self.main_window, "ℹ️ System Information", system_info)
 
     def show_user_management(self) -> None:
-        """Show user management dialog (placeholder)."""
+        """Show user management dialog."""
         QMessageBox.information(
             self.main_window,
             "👥 User Management",

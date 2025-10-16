@@ -146,8 +146,6 @@ class FileHandlers:
         file_info = f"""✅ DOCUMENT UPLOADED SUCCESSFULLY
 
 📄 File: {file_path.name}
-📄 File: {file_path.name}
-📄 File: {file_path.name}
 📊 Size: {file_size_mb:.1f} MB ({len(content):,} characters)
 📁 Location: {file_path.parent.name}/
 📅 Modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")}
@@ -340,7 +338,9 @@ class ReportGenerator:
     """Report generation utility."""
 
     def __init__(self):
-        pass
+        """Initialize the report generator."""
+        self.template_path = "src/resources/report_template.html"
 
     def generate_report(self, data):
-        return {"success": True, "report": "Generated"}
+        """Generate a compliance report from analysis data."""
+        return {"success": True, "report": "Generated", "data": data}

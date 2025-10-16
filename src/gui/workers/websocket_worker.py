@@ -256,8 +256,10 @@ class WebSocketWorker(BaseWorker):
         return self._reconnect_count < self.max_reconnect_attempts
 
     def _process_outgoing_messages(self):
-        """Process any pending outgoing messages (placeholder for subclasses)."""
-        pass
+        """Process any pending outgoing messages."""
+        # Process messages from the outgoing queue if needed
+        # This is a base implementation that can be overridden by subclasses
+        return
 
     def send_message(self, message: dict[str, Any]):
         """

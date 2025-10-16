@@ -17,7 +17,7 @@ def get_token() -> str:
         r = requests.post(f"{BASE}/auth/token", data=data, timeout=10)
         if r.ok and "access_token" in r.json():
             return r.json()["access_token"]
-    except Exception:
+    except (requests.RequestException, ValueError, KeyError):
         pass
     # Fallback to dev-token
     r = requests.get(f"{BASE}/auth/dev-token", timeout=10)

@@ -40,7 +40,7 @@ class AuthService:
     def verify_password(plain_password, hashed_password):
         try:
             return pwd_context.verify(plain_password, hashed_password)
-        except Exception:
+        except (ValueError, TypeError):
             # Fallback for legacy simple hashes; unknown/invalid hashes should not 500
             import hashlib
 

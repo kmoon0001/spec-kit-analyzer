@@ -82,7 +82,7 @@ class HybridRetriever:
 
     def _build_indices(self) -> None:
         self.corpus = [f"{rule['name']}. {rule['content']}" for rule in self.rules]
-        tokenized_corpus = [document.lower().split() for document in self.corpus]
+        tokenized_corpus = [document.lower().split() for document in self.corpus] if self.corpus else []
         self.bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
         self.corpus_embeddings = (
             self.dense_retriever.encode(self.corpus, convert_to_tensor=True)

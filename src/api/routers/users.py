@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth import AuthService, get_auth_service, get_current_active_user
-from src.database import models
+from src.database import models, schemas
 from src.database.database import get_async_db
 
 router = APIRouter()
@@ -12,6 +12,14 @@ router = APIRouter()
 class PasswordUpdate(BaseModel):
     old_password: str
     new_password: str
+
+
+@router.get("/users/me", response_model=schemas.User)
+async def get_current_user(
+    current_user: models.User = Depends(get_current_active_user),
+):
+    """Get the current user's information."""
+    return current_user
 
 
 @router.put("/users/me/password", status_code=status.HTTP_204_NO_CONTENT)

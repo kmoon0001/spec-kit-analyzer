@@ -268,11 +268,12 @@ class TestDocumentAnalysisWorkflow:
         empty_doc = temp_upload_dir / "empty.txt"
         empty_doc.write_text("")
 
-        upload_response = e2e_helper.client.post(
-            "/upload-document",
-            files={"file": (empty_doc.name, open(empty_doc, "rb"), "text/plain")},
-            headers=e2e_helper.headers,
-        )
+        with empty_doc.open("rb") as f:
+            upload_response = e2e_helper.client.post(
+                "/upload-document",
+                files={"file": (empty_doc.name, f, "text/plain")},
+                headers=e2e_helper.headers,
+            )
 
         # Should handle empty document gracefully
         if upload_response.status_code == 200:

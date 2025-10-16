@@ -361,7 +361,7 @@ class MetaAnalyticsWidget(QWidget):
             ax.text(0.5, 0.5, "No trend data available", ha="center", va="center", transform=ax.transAxes)
         else:
             # Extract data for plotting
-            weeks = [f"Week {i + 1}" for i in range(len(trends))]
+            weeks = [f"Week {i + 1}" for i, _ in enumerate(trends)]
             scores = [trend.get("avg_compliance_score", 0) for trend in trends]
             findings = [trend.get("total_findings", 0) for trend in trends]
 
