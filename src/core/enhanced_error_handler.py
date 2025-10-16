@@ -217,7 +217,7 @@ class ErrorHandler:
             EnhancedError: If all retry attempts fail
 
         """
-        last_exception = None
+        last_exception: Exception | None = None
 
         for attempt in range(max_retries + 1):
             try:

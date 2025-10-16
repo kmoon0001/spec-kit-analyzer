@@ -312,7 +312,7 @@ class TemplateValidator:
     """Validates template content and structure"""
 
     def __init__(self) -> None:
-        self.validation_rules = {
+        self.validation_rules: dict[str, Any] = {
             "max_template_size": 1024 * 1024,  # 1MB
             "forbidden_tags": ["script", "iframe", "object", "embed"],
         }

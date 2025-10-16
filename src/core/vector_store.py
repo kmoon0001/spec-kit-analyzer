@@ -35,10 +35,10 @@ class VectorStore:
         # These attributes are set in __new__ but we need to declare them for mypy
         self.embedding_dim: int
         self.index: Any
-        self.report_ids: list[str]
+        self.report_ids: list[int]
         self.is_initialized: bool
         self._fallback_vectors: list[Any]
-        self._fallback_ids: list[str]
+        self._fallback_ids: list[int]
 
     def __new__(cls, embedding_dim: int = 768) -> "VectorStore":
         if cls._instance is None:

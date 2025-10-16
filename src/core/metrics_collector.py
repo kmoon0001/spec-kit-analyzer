@@ -639,7 +639,11 @@ class MetricsCollector:
         start_time = time.time()
 
         with self._stats_lock:
-            self._stats["total_collections"] += 1
+            current_count = self._stats["total_collections"]
+            if isinstance(current_count, (int, float)):
+                self._stats["total_collections"] = current_count + 1
+            else:
+                self._stats["total_collections"] = 1
 
         # Collect from all sources concurrently
         tasks = []
@@ -657,7 +661,11 @@ class MetricsCollector:
                 elif isinstance(result, Exception):
                     logger.error("Error in concurrent metric collection: %s", result)
                     with self._stats_lock:
-                        self._stats["failed_collections"] += 1
+                        current_count = self._stats["failed_collections"]
+                        if isinstance(current_count, (int, float)):
+                            self._stats["failed_collections"] = current_count + 1
+                        else:
+                            self._stats["failed_collections"] = 1
 
         # Update collection stats
         collection_duration = (time.time() - start_time) * 1000  # Convert to ms
@@ -886,7 +894,7 @@ def record_error(error_type: str) -> None:
         collector = get_metrics_collector()
         app_source = collector._sources.get("application")
         if isinstance(app_source, ApplicationMetricsSource):
-            app_source.record_error(error_type)
+            app_source.record_error_by_type(error_type)
     except Exception as e:
         logger.error("Failed to record error: %s", e)
 

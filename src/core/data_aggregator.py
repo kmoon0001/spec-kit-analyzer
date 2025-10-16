@@ -481,7 +481,7 @@ class DataAggregator:
         import threading
         from datetime import datetime
         
-        self.buffer = MetricsBuffer(buffer_size)
+        self.buffer = MetricBuffer(buffer_size)
         self.storage = TimeSeriesStorage(db_path)
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
