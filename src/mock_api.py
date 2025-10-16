@@ -27,9 +27,9 @@ try:  # pragma: no cover - FastAPI is optional in the offline CI image
 
     _FASTAPI_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - executed when FastAPI is absent
-    FastAPI = None  # type: ignore[misc]
-    UploadFile = Any  # type: ignore[misc]
-    TestClient = None  # type: ignore[misc]
+    FastAPI = None  # type: ignore[assignment]
+    UploadFile = Any  # type: ignore[assignment]
+    TestClient = None  # type: ignore[assignment]
     _FASTAPI_AVAILABLE = False
 
 try:  # pragma: no cover - importing the real schemas may fail when deps are missing
@@ -76,13 +76,19 @@ class MockAnalysisService:
                     {
                         "rule_id": "MOCK-001",
                         "title": "Plan of care details incomplete",
-                        "description": ("Documentation is missing measurable objectives for the therapy plan."),
-                        "recommendation": "Add at least one measurable functional goal to the plan.",
+                        "description": (
+                            "Documentation is missing measurable objectives for the therapy plan."
+                        ),
+                        "recommendation": (
+                            "Add at least one measurable functional goal to the plan."
+                        ),
                         "severity": "moderate",
                     }
                 ],
             },
-            "report_html": "<h1>Mock Compliance Report</h1><p>Generated for offline validation.</p>",
+            "report_html": (
+                "<h1>Mock Compliance Report</h1><p>Generated for offline validation.</p>"
+            ),
             "generated_at": timestamp.isoformat(),
         }
 
