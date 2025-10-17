@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     this.setState({
       error,
       errorInfo,
@@ -35,20 +35,22 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Report error to monitoring service
     this.props.onError?.(error, errorInfo);
-    
-    // Report to desktop diagnostics if available
-    if (window.desktopApi?.onDiagnostic) {
-      window.desktopApi.onDiagnostic({
-        type: 'react-error-boundary',
+
+    // Report to diagnostics store
+    try {
+      const { useDiagnosticsStore } = await import('../../store/useDiagnosticsStore');
+      useDiagnosticsStore.getState().pushEvent({
         message: error.message,
         severity: 'error',
+        source: 'window-error',
         stack: error.stack,
-        source: 'renderer-process',
         context: {
           componentStack: errorInfo.componentStack,
           errorBoundary: true,
         },
       });
+    } catch (e) {
+      console.warn('Failed to report error to diagnostics store:', e);
     }
   }
 
@@ -73,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="error-boundary__message">
               An unexpected error occurred. You can try to recover or reload the application.
             </p>
-            
+
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="error-boundary__details">
                 <summary>Error Details (Development)</summary>
@@ -85,13 +87,13 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
 
             <div className="error-boundary__actions">
-              <button 
+              <button
                 onClick={this.handleRetry}
                 className="error-boundary__button error-boundary__button--primary"
               >
                 Try Again
               </button>
-              <button 
+              <button
                 onClick={this.handleReload}
                 className="error-boundary__button error-boundary__button--secondary"
               >
@@ -126,7 +128,7 @@ export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, N
 
   static getDerivedStateFromError(error: Error): NetworkErrorBoundaryState {
     // Check if this is a network-related error
-    const isNetworkError = 
+    const isNetworkError =
       error.message.includes('Network Error') ||
       error.message.includes('fetch') ||
       error.message.includes('connection') ||
@@ -164,7 +166,7 @@ export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, N
             <p className="network-error-boundary__message">
               Unable to connect to the server. Please check your connection and try again.
             </p>
-            <button 
+            <button
               onClick={this.handleRetry}
               className="network-error-boundary__button"
             >
@@ -182,7 +184,7 @@ export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, N
 // Async Error Boundary Hook for handling promise rejections
 export const useAsyncError = () => {
   const [, setError] = React.useState();
-  
+
   return React.useCallback(
     (error: Error) => {
       setError(() => {
@@ -198,39 +200,39 @@ export const setupGlobalErrorHandlers = () => {
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
-    
-    if (window.desktopApi?.onDiagnostic) {
-      window.desktopApi.onDiagnostic({
-        type: 'unhandled-promise-rejection',
+
+    // Report to diagnostics store
+    import('../../store/useDiagnosticsStore').then(({ useDiagnosticsStore }) => {
+      useDiagnosticsStore.getState().pushEvent({
         message: event.reason?.message || 'Unhandled promise rejection',
         severity: 'error',
+        source: 'unhandled-rejection',
         stack: event.reason?.stack,
-        source: 'renderer-process',
         context: {
           reason: event.reason,
           promise: event.promise,
         },
       });
-    }
+    }).catch(e => console.warn('Failed to report error to diagnostics store:', e));
   });
 
   // Handle general errors
   window.addEventListener('error', (event) => {
     console.error('Global error:', event.error);
-    
-    if (window.desktopApi?.onDiagnostic) {
-      window.desktopApi.onDiagnostic({
-        type: 'global-error',
+
+    // Report to diagnostics store
+    import('../../store/useDiagnosticsStore').then(({ useDiagnosticsStore }) => {
+      useDiagnosticsStore.getState().pushEvent({
         message: event.error?.message || event.message,
         severity: 'error',
+        source: 'window-error',
         stack: event.error?.stack,
-        source: 'renderer-process',
         context: {
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,
         },
       });
-    }
+    }).catch(e => console.warn('Failed to report error to diagnostics store:', e));
   });
 };
