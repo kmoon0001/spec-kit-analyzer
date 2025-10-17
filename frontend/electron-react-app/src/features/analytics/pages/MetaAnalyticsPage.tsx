@@ -31,7 +31,7 @@ export default function MetaAnalyticsPage() {
     return (
       <div className={styles.error}>
         <div>Failed to load analytics data</div>
-        <Button onClick={refetch}>Retry</Button>
+        <Button onClick={() => refetch()}>Retry</Button>
       </div>
     );
   }
@@ -238,7 +238,7 @@ export default function MetaAnalyticsPage() {
               </select>
             </div>
 
-            <Button onClick={refetch} variant="outline">
+            <Button onClick={() => refetch()} variant="outline">
               Refresh Analytics
             </Button>
           </div>

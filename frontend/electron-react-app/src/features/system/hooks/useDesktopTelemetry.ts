@@ -21,7 +21,7 @@ export const useDesktopTelemetry = () => {
       return undefined;
     }
 
-    const unsubscribe = window.desktopApi.tasks.on('telemetry', (payload) => {
+    const unsubscribe = window.desktopApi!.tasks.on('telemetry', (payload) => {
       setSnapshot(payload);
       setHistory((prev) => {
         const next = [...prev, payload];

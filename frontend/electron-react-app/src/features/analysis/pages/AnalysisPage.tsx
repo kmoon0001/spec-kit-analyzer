@@ -7,10 +7,10 @@ import { StatusChip } from '../../../components/ui/StatusChip';
 import { fetchRubrics } from '../api';
 import { useAnalysisController } from '../hooks/useAnalysisController';
 import { useDesktopTelemetry } from '../../system/hooks/useDesktopTelemetry';
-import { ChatAssistant } from '../components/ChatAssistant';
-import { ReasoningSteps } from '../../ai/components/ReasoningSteps';
-import { PDFExportButton } from '../../reports/components/PDFExportButton';
-import { ReportBuilder } from '../../reports/components/ReportBuilder';
+// import { ChatAssistant } from '../components/ChatAssistant';
+// import { ReasoningSteps } from '../../ai/components/ReasoningSteps';
+// import { PDFExportButton } from '../../reports/components/PDFExportButton';
+// import { ReportBuilder } from '../../reports/components/ReportBuilder';
 
 import styles from './AnalysisPage.module.css';
 
@@ -336,49 +336,17 @@ export default function AnalysisPage() {
             )}
           </Card>
 
-          {controller.analysisComplete && controller.analysisResult && (
-            <Card title="AI Reasoning Process" subtitle="Step-by-step analysis breakdown">
-              <ReasoningSteps
-                steps={controller.analysisResult?.reasoning_steps || []}
-                showConfidence={true}
-                expandable={true}
-              />
-            </Card>
-          )}
-
-          {controller.analysisComplete && controller.analysisResult && (
-            <Card title="Export & Reporting" subtitle="Generate professional compliance reports">
-              <div className={styles.exportSection}>
-                <PDFExportButton
-                  analysisId={controller.analysisResult?.id}
-                  reportData={controller.analysisResult}
-                  filename={`compliance_report_${controller.uploadedFile?.name || 'analysis'}.pdf`}
-                  onExportStart={() => console.log('PDF export started')}
-                  onExportComplete={(result) => console.log('PDF export completed:', result)}
-                  onExportError={(error) => console.error('PDF export failed:', error)}
-                />
-
-                <ReportBuilder
-                  analysisData={controller.analysisResult}
-                  onReportGenerate={(sections) => {
-                    console.log('Custom report generated with sections:', sections);
-                  }}
-                  onPreview={(sections) => {
-                    console.log('Preview report with sections:', sections);
-                  }}
-                />
+          <Card title="Compliance Copilot" subtitle="Chat assistant placeholder">
+            <div className={styles.chatPlaceholder}>
+              <p>
+                The conversational assistant will connect to <code>src/api/routers/chat.py</code> via WebSocket streaming just like the PySide chat dialog.
+              </p>
+              <textarea className={styles.chatInput} placeholder="Ask about documentation gaps..." rows={3} />
+              <div className={styles.chatActions}>
+                <button>Send Prompt</button>
+                <button>Insert Latest Finding</button>
               </div>
-            </Card>
-          )}
-
-          <Card title="Compliance Copilot" subtitle="AI-powered documentation assistant">
-            <ChatAssistant
-              analysisContext={{
-                documentName: controller.uploadedFile?.name,
-                findings: controller.analysisResult?.findings || [],
-                complianceScore: controller.analysisResult?.compliance_score
-              }}
-            />
+            </div>
           </Card>
         </div>
       </section>

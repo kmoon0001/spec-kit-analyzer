@@ -8,7 +8,7 @@ import { RecommendationCard } from '../components/RecommendationCard';
 import styles from './GrowthJourneyPage.module.css';
 
 export default function GrowthJourneyPage() {
-  const { progression, achievements, isLoading, isError, refetch } = useHabitsProgression();
+  const { progression, isLoading, isError, refetch } = useHabitsProgression();
 
   if (isLoading) {
     return (

@@ -37,8 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.props.onError?.(error, errorInfo);
 
     // Report to diagnostics store
-    try {
-      const { useDiagnosticsStore } = await import('../../store/useDiagnosticsStore');
+    import('../../store/useDiagnosticsStore').then(({ useDiagnosticsStore }) => {
       useDiagnosticsStore.getState().pushEvent({
         message: error.message,
         severity: 'error',
@@ -49,9 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
           errorBoundary: true,
         },
       });
-    } catch (e) {
-      console.warn('Failed to report error to diagnostics store:', e);
-    }
+    }).catch(e => console.warn('Failed to report error to diagnostics store:', e));
   }
 
   private handleRetry = () => {

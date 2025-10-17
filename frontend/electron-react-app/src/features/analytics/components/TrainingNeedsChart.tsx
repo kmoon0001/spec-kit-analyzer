@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface TrainingNeed {
   habit_name: string;
@@ -82,12 +82,9 @@ export const TrainingNeedsChart: React.FC<TrainingNeedsChartProps> = ({ training
               fontSize: '12px'
             }}
           />
-          <Bar
-            dataKey="percentage"
-            fill={(entry: any) => getBarColor(entry.priority)}
-          >
+          <Bar dataKey="percentage" fill="#007acc">
             {chartData.map((entry, index) => (
-              <Bar key={`bar-${index}`} fill={getBarColor(entry.priority)} />
+              <Cell key={`cell-${index}`} fill={getBarColor(entry.priority)} />
             ))}
           </Bar>
         </BarChart>

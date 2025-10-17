@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusChip } from '../../../components/ui/StatusChip';
+// import { StatusChip } from '../../../components/ui/StatusChip';
 import styles from './MetricCard.module.css';
 
 interface MetricCardProps {

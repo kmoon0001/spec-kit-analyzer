@@ -8,11 +8,12 @@ type CardProps = {
   actions?: ReactNode;
   children: ReactNode;
   variant?: 'default' | 'muted' | 'highlight';
+  className?: string;
 };
 
-export const Card = ({ title, subtitle, actions, children, variant = 'default' }: CardProps) => {
+export const Card = ({ title, subtitle, actions, children, variant = 'default', className = '' }: CardProps) => {
   return (
-    <section className={`${styles.card} ${styles[variant]}`}>
+    <section className={`${styles.card} ${styles[variant]} ${className}`}>
       {(title || actions) && (
         <header className={styles.header}>
           <div>
