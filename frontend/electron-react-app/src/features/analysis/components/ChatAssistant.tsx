@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { useAppStore } from '../../../app/store/useAppStore';
+import { Send, MessageSquare, Loader2, AlertCircle, RefreshCw } from '../../../components/ui/Icons';
+import { useAppStore } from '../../../store/useAppStore';
 import styles from './ChatAssistant.module.css';
 
 interface ChatMessage {

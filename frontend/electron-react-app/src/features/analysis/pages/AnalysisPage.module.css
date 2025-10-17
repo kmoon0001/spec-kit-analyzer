@@ -414,3 +414,47 @@
     font-size: 0.9rem;
   }
 }
+
+/* Export Section Styles */
+.exportSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.exportSection > * {
+  width: 100%;
+}
+
+/* Responsive layout for export section */
+@media (min-width: 768px) {
+  .exportSection {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-xl);
+    align-items: start;
+  }
+}
+
+/* Analysis results layout improvements */
+.resultsGrid {
+  display: grid;
+  gap: var(--spacing-xl);
+}
+
+@media (min-width: 1200px) {
+  .resultsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Reasoning steps container */
+.reasoningContainer {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* Chat assistant container */
+.chatContainer {
+  min-height: 400px;
+}

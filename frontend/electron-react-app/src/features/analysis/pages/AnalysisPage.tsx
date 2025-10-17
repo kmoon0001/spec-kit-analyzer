@@ -337,56 +337,49 @@ export default function AnalysisPage() {
           </Card>
 
           {controller.analysisComplete && controller.analysisResult && (
-            <Card title="A
+            <Card title="AI Reasoning Process" subtitle="Step-by-step analysis breakdown">
               <ReasoningSteps
-                steps={controller.analysisResult?.reasoning_
+                steps={controller.analysisResult?.reasoning_steps || []}
                 showConfidence={true}
                 expandable={true}
               />
-            </
+            </Card>
           )}
 
-          {contr
-          s">
+          {controller.analysisComplete && controller.analysisResult && (
+            <Card title="Export & Reporting" subtitle="Generate professional compliance reports">
+              <div className={styles.exportSection}>
+                <PDFExportButton
+                  analysisId={controller.analysisResult?.id}
+                  reportData={controller.analysisResult}
+                  filename={`compliance_report_${controller.uploadedFile?.name || 'analysis'}.pdf`}
+                  onExportStart={() => console.log('PDF export started')}
+                  onExportComplete={(result) => console.log('PDF export completed:', result)}
+                  onExportError={(error) => console.error('PDF export failed:', error)}
+                />
 
- ions}>
-Card>        </  />
-            }}
-            score
-  mpliance_co?.ulteslysisRanaoller. contrianceScore: compl               [],
- dings ||ult?.finanalysisResller.ntrocofindings:
-         e?.name,iler.uploadedFontrolle: cmentNam   docu            text={{
- sConanalysi           t
-   tAssistan     <Cha       istant">
-tation assred documenwetle="AI-posubti" opilotance C"Complile=ard tit<C
-            )}
+                <ReportBuilder
+                  analysisData={controller.analysisResult}
+                  onReportGenerate={(sections) => {
+                    console.log('Custom report generated with sections:', sections);
+                  }}
+                  onPreview={(sections) => {
+                    console.log('Preview report with sections:', sections);
+                  }}
+                />
+              </div>
+            </Card>
+          )}
 
-    Card>         </</div>
-                       />
-
-           }}              ons);
-  ctitions:', seith seceport w'Preview re.log(olns   co                 {
- ctions) =>{(sew=  onPrevie            }
-               }s);
-       ', sectionh sections:nerated witrt geom repo('Custlog  console.
-         > {ections) =(srate={neeportGe onR
-          esult}lysisRoller.anantr{cota=  analysisDa
-  tBuilder <Repor
-                  /div>
-          <  >
-                   /     }}
-                   rror);
-    ailed:', e export for('PDFole.errns co
-     or) => {={(errorErrxport    onE                      }}
-           esult);
-    rcompleted:',t orF expPDlog('e.ol     cons                ult) => {
- (res={leteonExportComp                 ium"
-   ize="med          s
-     imary"="pr    variant             df`}
-   analysis'}.pme || 'ile?.nadFdeuploacontroller.eport_${ance_r={`compliilename  f
-        sisResult}lytroller.anaata={conrtDepo           r         t?.id}
-sisResulroller.analycontanalysisId={
-      tonPDFExportBut   <               rtActpos.exyleme={st classNa<div               ction}>ortSeles.expssName={sty   <div cla       nce reportiaomplssional cofeGenerate pritle=" subtrting"epoport & Rd title="Ex  <Carsult && (nalysisReller.atroplete && conisComler.analysol
+          <Card title="Compliance Copilot" subtitle="AI-powered documentation assistant">
+            <ChatAssistant
+              analysisContext={{
+                documentName: controller.uploadedFile?.name,
+                findings: controller.analysisResult?.findings || [],
+                complianceScore: controller.analysisResult?.compliance_score
+              }}
+            />
+          </Card>
         </div>
       </section>
     </div>

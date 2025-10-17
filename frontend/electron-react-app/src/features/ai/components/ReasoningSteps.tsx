@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Brain, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Brain, CheckCircle, AlertCircle, Clock } from '../../../components/ui/Icons';
 import styles from './ReasoningSteps.module.css';
 
 interface ReasoningStep {

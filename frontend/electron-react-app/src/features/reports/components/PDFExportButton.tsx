@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Download, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { useAppStore } from '../../../app/store/useAppStore';
+import { Download, FileText, Loader2, CheckCircle, AlertCircle } from '../../../components/ui/Icons';
+import { useAppStore } from '../../../store/useAppStore';
 import styles from './PDFExportButton.module.css';
 
 interface PDFExportOptions {
