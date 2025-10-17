@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { FixedSizeList } from 'react-window';
 
 import { useDocumentProcessor, DocumentPage } from '../../lib/document/DocumentProcessor';
 
@@ -221,8 +221,8 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
     return (
       <div className="document-progress">
         <div className="progress-bar">
-          <div 
-            className="progress-fill" 
+          <div
+            className="progress-fill"
             style={{ width: `${progress.percentage}%` }}
           />
         </div>
@@ -247,7 +247,7 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
           <span>Loading: {progress.currentPage}</span>
         )}
       </div>
-      
+
       <div className="document-actions">
         <button
           onClick={() => scrollToPage(1)}
@@ -277,10 +277,10 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
     <div ref={containerRef} className={`virtualized-document-viewer ${className}`}>
       {renderControls()}
       {renderProgressBar()}
-      
+
       <div className="document-list-container">
         {totalPages > 0 ? (
-          <List
+          <FixedSizeList
             ref={listRef}
             height={listHeight}
             itemCount={totalPages}
@@ -290,7 +290,7 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
             className="document-list"
           >
             {PageItem}
-          </List>
+          </FixedSizeList>
         ) : (
           <div className="document-empty">
             <p>No document loaded</p>
@@ -307,7 +307,7 @@ export const useDocumentViewer = () => {
     id: string;
     totalPages: number;
   } | null>(null);
-  
+
   const [highlightedText, setHighlightedText] = useState<string>('');
   const [selectedPage, setSelectedPage] = useState<number | null>(null);
 
