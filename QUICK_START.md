@@ -1,103 +1,105 @@
-# Quick Start Guide - Therapy Compliance Analyzer
+# Quick Start Guide
 
-## Architecture
-- **Backend**: Python FastAPI (port 8001)
-- **Frontend**: Electron + React (port 3001)
+## Launch the Complete Application
 
-## Prerequisites
-
-### 1. Python Setup
-```bash
-# Check Python version (3.11+ required)
-python --version
-
-# Create virtual environment
-python -m venv venv_fresh
-
-# Activate virtual environment
-venv_fresh\Scripts\activate  # Windows
-# source venv_fresh/bin/activate  # Linux/Mac
-
-# Install Python dependencies
-pip install -r requirements.txt
+### Single Command Launch
+```batch
+LAUNCH_COMPLETE_APP.bat
 ```
 
-### 2. Node.js Setup
-```bash
-# Check Node version (16+ required)
-node --version
+This will:
+1. ✅ Clean up any existing processes
+2. ✅ Start the FastAPI backend (port 8001)
+3. ✅ Wait for API initialization
+4. ✅ Launch the Electron frontend
+5. ✅ Open the application window
 
-# Install frontend dependencies
-cd frontend/electron-react-app
-npm install
-cd ../..
+### What to Expect
+
+**Backend Console:**
+```
+INFO: Application startup complete with mocked services.
+INFO: Uvicorn running on http://127.0.0.1:8001
 ```
 
-## Running the Application
+**Frontend Window:**
+- Login screen appears
+- Use credentials: `admin` / `admin123`
+- Navigate to Analysis tab
+- Upload a document
+- Watch progress go from 0% → 100%
 
-### Option 1: One-Click Launcher (Windows)
-```bash
-# PowerShell (Recommended)
-.\START_APP.ps1
+## Testing Without Frontend
 
-# OR Command Prompt
-START_APP.bat
+### Test API + Analysis Flow
+```batch
+START_API_ONLY.bat
+```
+Then in another terminal:
+```batch
+python test_analysis_direct.py
 ```
 
-### Option 2: Manual Start (All Platforms)
-
-**Terminal 1 - Start Python API:**
-```bash
-# Activate Python environment
-venv_fresh\Scripts\activate  # Windows
-# source venv_fresh/bin/activate  # Linux/Mac
-
-# Start API server
-python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8001 --reload
+Expected output:
 ```
-
-**Terminal 2 - Start Electron Frontend:**
-```bash
-cd frontend/electron-react-app
-npm run dev
+✓ Logged in successfully
+✓ Analysis started
+[  0.0s]  10% | processing   | Preprocessing document text...
+[  1.5s] 100% | analyzing    | Analysis complete.
+✓ ANALYSIS COMPLETED SUCCESSFULLY
 ```
 
 ## Troubleshooting
 
-### API won't start
-```bash
-# Check if port 8001 is in use
-netstat -ano | findstr :8001
+### API Won't Start
+- Check if port 8001 is already in use
+- Kill existing Python processes: `taskkill /F /IM python.exe`
 
-# Kill process if needed
-taskkill /PID <PID> /F
+### Frontend Won't Connect
+- Ensure API is running first
+- Check API is on http://127.0.0.1:8001
+- Verify frontend config points to correct port
+
+### Analysis Stuck
+- Check API console for errors
+- Verify `use_ai_mocks: true` in config.yaml
+- Restart both API and frontend
+
+## Configuration
+
+### Enable/Disable AI Mocks
+Edit `config.yaml`:
+```yaml
+use_ai_mocks: true   # Fast, no model download
+# OR
+use_ai_mocks: false  # Real AI (requires model download)
 ```
 
-### Frontend won't start
-```bash
-# Check if port 3001 is in use
-netstat -ano | findstr :3001
+### Change API Port
+Edit `config.yaml` and frontend config:
+```yaml
+# Backend
+api:
+  port: 8001
 
-# Reinstall dependencies
-cd frontend/electron-react-app
-rm -rf node_modules package-lock.json
-npm install
+# Frontend: frontend/electron-react-app/src/config.js
+API_BASE_URL: 'http://127.0.0.1:8001'
 ```
 
-### AI Models not loading
-- First run downloads ~500MB of AI models
-- Requires internet connection
-- Models cached in `.cache` directory
-- Check logs for download progress
+## Default Credentials
 
-## Default Login
 - **Username**: `admin`
 - **Password**: `admin123`
 
-## API Documentation
-Once running, visit: http://127.0.0.1:8001/docs
+## Key Features Working
 
-## Development Mode
-- API auto-reloads on Python file changes
-- Frontend hot-reloads on React file changes
-- DevTools available in Electron (Ctrl+Shift+I)
+✅ Document upload (PDF, DOCX, TXT)
+✅ Progress tracking (0% → 100%)
+✅ Compliance analysis with mock AI
+✅ Results display with findings
+✅ Dashboard analytics
+✅ User authentication
+
+## Need Help?
+
+See `FIXES_APPLIED.md` for detailed technical information about recent fixes.

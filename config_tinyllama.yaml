@@ -4,7 +4,7 @@ analysis:
   deterministic_focus: '- Treatment frequency documented\n- Goals reviewed or adjusted\n-
     Medical necessity justified'
   max_document_length: 50000
-use_ai_mocks: true
+use_ai_mocks: false  # REAL AI ENABLED with TinyLlama
 auth:
   access_token_expire_minutes: 30
   algorithm: HS256
@@ -16,12 +16,12 @@ habits_framework:
   enabled: true
   visibility_level: moderate
 llm:
-  context_length: 4096
+  context_length: 2048  # Reduced for stability
   gpu_layers: 0
-  threads: 6
-  hf_model_type: meditron
+  threads: 4  # Reduced for stability
+  hf_model_type: llama
   generation_params:
-    max_new_tokens: 1024
+    max_new_tokens: 512  # Reduced for speed
     repeat_penalty: 1.1
     stop_sequences:
     - </analysis>
@@ -36,57 +36,23 @@ models:
   analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
-  generator: TheBloke/meditron-7B-GGUF
-  generator_filename: meditron-7b.Q4_K_M.gguf
-  generator_local_path: models/meditron7b
+  generator: TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF  # CHANGED: Smaller, stable model
+  generator_filename: tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf  # CHANGED: ~700MB
+  generator_local_path: models/tinyllama  # CHANGED: New cache location
   generator_profiles:
     clinical_fast:
       batch_size: 2
       do_sample: false
       fast_mode: true
-      filename: meditron-7b.Q4_K_M.gguf
-      max_length: 1024
-      max_system_gb: 8.0
-      max_tokens: 512
+      filename: tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
+      max_length: 512
+      max_system_gb: 4.0  # Much lower requirement
+      max_tokens: 256
       num_beams: 1
       optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
+      repo: TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF
       revision: main
       temperature: 0.1
-      use_cache: true
-    clinical_q4_balanced:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q4_K_M.gguf
-      max_length: 1024
-      max_system_gb: 16.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
-    clinical_q5_quality:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q5_K_M.gguf
-      max_length: 1024
-      max_system_gb: 24.0
-      min_system_gb: 16.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
-    clinical_q6_precision:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q6_K.gguf
-      max_length: 1024
-      min_system_gb: 24.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
       use_cache: true
   ner_ensemble:
   - d4data/biomedical-ner-all
@@ -94,10 +60,10 @@ models:
   nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
   optimization:
     cache_models: true
-    compile_models: true
+    compile_models: false  # Disabled for stability
     optimize_for_inference: true
-    use_better_transformer: true
-    use_flash_attention: true
+    use_better_transformer: false  # Disabled for stability
+    use_flash_attention: false  # Disabled for stability
   reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
   retriever: pritamdeka/S-PubMedBert-MS-MARCO
 paths:
@@ -109,29 +75,29 @@ paths:
   temp_upload_dir: ./temp
 performance:
   batch_processing: true
-  batch_size: 4
+  batch_size: 2  # Reduced
   context_optimization: true
   enable_caching: true
-  fast_mode: false
-  gpu_acceleration: true
-  gradient_checkpointing: true
+  fast_mode: true  # Enabled for speed
+  gpu_acceleration: false  # Disabled for stability
+  gradient_checkpointing: false  # Disabled
   inference_optimization: true
-  max_chunk_size: 2000
+  max_chunk_size: 1500  # Reduced
   max_workers: 2
   memory_efficient_mode: true
   memory_optimization: true
-  mixed_precision: true
+  mixed_precision: false  # Disabled for stability
   model_quantization: true
   optimized_chunking: true
-  overlap_size: 200
+  overlap_size: 150  # Reduced
   skip_advanced_ner: false
   skip_fact_checking: false
-  enable_deep_fact_checking: true
+  enable_deep_fact_checking: false  # Disabled for speed
   rag_fact_checking:
     similarity_threshold: 0.7
     rerank_threshold: 0.8
   parallel_processing: true
-  reduce_context_window: false
+  reduce_context_window: true  # Enabled for smaller model
   simple_report_mode: false
   smart_caching: true
 retrieval:
@@ -140,5 +106,4 @@ retrieval:
   max_sequence_length: 512
   rrf_k: 60
   similarity_top_k: 10
-use_ai_mocks: true
 log_level: INFO

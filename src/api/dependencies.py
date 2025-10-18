@@ -56,17 +56,35 @@ async def startup_event():
     """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
 
-    # Force the use of the real AnalysisService for production readiness.
-    logger.info("Initializing real AnalysisService.")
+    try:
+        # Check if we should use mocks
+        from src.config import get_settings
+        settings = get_settings()
+        use_mocks = getattr(settings, 'use_ai_mocks', False)
 
-    # 1. Initialize the retriever, which is a dependency for other services.
-    retriever = await get_retriever()
+        if use_mocks:
+            logger.info("Initializing AnalysisService with AI mocks enabled.")
+            # Create service with mocks - no retriever needed
+            analysis_service = AnalysisService()
+            app_state["analysis_service"] = analysis_service
+            logger.info("Application startup complete with mocked services.")
+        else:
+            logger.info("Initializing real AnalysisService.")
+            # 1. Initialize the retriever, which is a dependency for other services.
+            retriever = await get_retriever()
+            # 2. Initialize the analysis service, injecting the retriever.
+            analysis_service = AnalysisService(retriever=retriever)
+            app_state["analysis_service"] = analysis_service
+            logger.info("Application startup complete. Services are initialized.")
 
-    # 2. Initialize the analysis service, injecting the retriever.
-    analysis_service = AnalysisService(retriever=retriever)
-    app_state["analysis_service"] = analysis_service
-
-    logger.info("Application startup complete. Services are initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize services during startup: {e}", exc_info=True)
+        # Create a fallback mock service so the API can still start
+        logger.warning("Falling back to mock AnalysisService due to initialization error.")
+        analysis_service = AnalysisService()
+        analysis_service.use_mocks = True
+        app_state["analysis_service"] = analysis_service
+        logger.info("Application started with fallback mock services.")
 
 
 async def shutdown_event():

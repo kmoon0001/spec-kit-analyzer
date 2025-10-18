@@ -1,105 +1,89 @@
+# Optimized Configuration with Llama 3.2 3B Instruct
+# Modern, stable, excellent for compliance analysis
+
 analysis:
   chunk_overlap: 100
   confidence_threshold: 0.75
-  deterministic_focus: '- Treatment frequency documented\n- Goals reviewed or adjusted\n-
-    Medical necessity justified'
+  deterministic_focus: '- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified'
   max_document_length: 50000
-use_ai_mocks: true
+
+use_ai_mocks: false  # REAL AI with stable Llama 3.2 3B
+
 auth:
   access_token_expire_minutes: 30
   algorithm: HS256
+
 database:
   echo: false
   url: sqlite:///./compliance.db
+
 enable_director_dashboard: true
+
 habits_framework:
   enabled: true
   visibility_level: moderate
+
 llm:
   context_length: 4096
   gpu_layers: 0
-  threads: 6
-  hf_model_type: meditron
+  threads: 4
+  hf_model_type: llama
+  model_type: ctransformers
   generation_params:
-    max_new_tokens: 1024
+    max_new_tokens: 512
     repeat_penalty: 1.1
     stop_sequences:
     - </analysis>
-    - \n\n---
+    - "\n\n---"
     temperature: 0.1
     top_p: 0.9
-  model_type: ctransformers
+
 maintenance:
   purge_interval_days: 1
   purge_retention_days: 30
+
 models:
   analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
-  generator: TheBloke/meditron-7B-GGUF
-  generator_filename: meditron-7b.Q4_K_M.gguf
-  generator_local_path: models/meditron7b
+
+  # Llama 3.2 3B - Latest Meta model, excellent stability
+  generator: bartowski/Llama-3.2-3B-Instruct-GGUF
+  generator_filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
+  generator_local_path: models/llama32-3b
+
   generator_profiles:
     clinical_fast:
       batch_size: 2
       do_sample: false
       fast_mode: true
-      filename: meditron-7b.Q4_K_M.gguf
+      filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
       max_length: 1024
-      max_system_gb: 8.0
+      max_system_gb: 6.0
       max_tokens: 512
       num_beams: 1
       optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
+      repo: bartowski/Llama-3.2-3B-Instruct-GGUF
       revision: main
       temperature: 0.1
       use_cache: true
-    clinical_q4_balanced:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q4_K_M.gguf
-      max_length: 1024
-      max_system_gb: 16.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
-    clinical_q5_quality:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q5_K_M.gguf
-      max_length: 1024
-      max_system_gb: 24.0
-      min_system_gb: 16.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
-    clinical_q6_precision:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q6_K.gguf
-      max_length: 1024
-      min_system_gb: 24.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
+
   ner_ensemble:
   - d4data/biomedical-ner-all
   - OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
+
   nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
+
   optimization:
     cache_models: true
-    compile_models: true
+    compile_models: false
     optimize_for_inference: true
-    use_better_transformer: true
-    use_flash_attention: true
+    use_better_transformer: false
+    use_flash_attention: false
+
   reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
   retriever: pritamdeka/S-PubMedBert-MS-MARCO
+
 paths:
   api_url: http://127.0.0.1:8001
   cache_dir: .cache
@@ -107,20 +91,21 @@ paths:
   medical_dictionary: src/resources/medical_dictionary.txt
   rule_dir: ./src/resources
   temp_upload_dir: ./temp
+
 performance:
   batch_processing: true
-  batch_size: 4
+  batch_size: 2
   context_optimization: true
   enable_caching: true
   fast_mode: false
-  gpu_acceleration: true
-  gradient_checkpointing: true
+  gpu_acceleration: false
+  gradient_checkpointing: false
   inference_optimization: true
   max_chunk_size: 2000
   max_workers: 2
   memory_efficient_mode: true
   memory_optimization: true
-  mixed_precision: true
+  mixed_precision: false
   model_quantization: true
   optimized_chunking: true
   overlap_size: 200
@@ -134,11 +119,12 @@ performance:
   reduce_context_window: false
   simple_report_mode: false
   smart_caching: true
+
 retrieval:
   batch_size: 16
   dense_model_name: pritamdeka/S-PubMedBert-MS-MARCO
   max_sequence_length: 512
   rrf_k: 60
   similarity_top_k: 10
-use_ai_mocks: true
+
 log_level: INFO
