@@ -4,6 +4,13 @@ echo   THERAPY COMPLIANCE ANALYZER
 echo   Starting Application...
 echo ========================================
 echo.
+echo RECENT FIXES APPLIED:
+echo  - Fixed analysis stuck at 5%% progress
+echo  - Improved Qt-like UI styling
+echo  - Enhanced progress tracking
+echo.
+echo ========================================
+echo.
 
 REM Start API in new window
 echo Starting Python API...
