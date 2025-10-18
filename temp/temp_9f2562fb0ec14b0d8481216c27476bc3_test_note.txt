@@ -1,0 +1,13 @@
+
+PHYSICAL THERAPY PROGRESS NOTE
+
+Patient: John Doe
+Date: 2024-01-15
+
+SUBJECTIVE: Patient reports decreased pain in right shoulder.
+
+OBJECTIVE: ROM improved to 140 degrees flexion.
+
+ASSESSMENT: Patient making good progress toward goals.
+
+PLAN: Continue current treatment plan.

@@ -139,5 +139,5 @@ retrieval:
   max_sequence_length: 512
   rrf_k: 60
   similarity_top_k: 10
-use_ai_mocks: false
+use_ai_mocks: true
 log_level: INFO
