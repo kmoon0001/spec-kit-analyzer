@@ -109,8 +109,8 @@
 ```
 
 ### Key Components
-- **Frontend**: PySide6 desktop application with modern UI
-- **Backend**: FastAPI with modular router architecture
+- **Frontend**: Electron + React desktop application with modern UI
+- **Backend**: FastAPI with modular router architecture (Python)
 - **AI/ML**: Local processing with ctransformers, sentence-transformers
 - **Database**: SQLAlchemy ORM with SQLite storage
 - **Security**: JWT authentication, PHI scrubbing, local-only processing

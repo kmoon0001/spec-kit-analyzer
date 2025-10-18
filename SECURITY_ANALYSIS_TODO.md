@@ -97,25 +97,36 @@
 - [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_aggregator.py
 - [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_integration_service.py
   - [ ] Investigate potential for DoS due to unbounded cache size in `BaseDataProvider` on line 193
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_purging_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_maintenance_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_purging_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_maintenance_service.py
   - [ ] Investigate potential for SQL injection in `crud.delete_reports_older_than` on line 49
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_optimizer.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_classifier.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_processing_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\domain_models.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ehr_connector.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\embedding_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\enhanced_error_handler.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\enhanced_habit_mapper.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\error_handlers.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\exceptions.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\explanation.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\export_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\fact_checker_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\feature_config.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\guideline_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habit_mapper.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_optimizer.py
+  - [ ] Investigate potential for SQL injection in `analyze_table_statistics` on line 87
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_classifier.py
+  - [ ] Investigate prompt injection in `classify_document` on line 65
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_processing_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\domain_models.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ehr_connector.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\embedding_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\enhanced_error_handler.py
+  - [ ] Investigate information disclosure in `to_dict` on line 118
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\enhanced_habit_mapper.py
+  - [ ] Investigate prompt injection in `_ai_powered_mapping` on line 432
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\error_handlers.py
+  - [ ] Investigate information disclosure in custom exception details on lines 29, 46, 63
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\exceptions.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\explanation.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\export_service.py
+  - [ ] Investigate path traversal in `export_compliance_data` and `export_analytics_summary` on lines 70 and 234
+  - [ ] Investigate CSV injection in `_export_csv` on line 179
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\fact_checker_service.py
+  - [ ] Investigate prompt injection in `check_consistency` on line 53
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\feature_config.py
+  - [ ] Investigate path traversal in `FeatureConfig` on line 19
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\guideline_service.py
+  - [ ] Investigate insecure deserialization with joblib on line 152
+  - [ ] Investigate path traversal in `GuidelineService` on line 91
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habit_mapper.py
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habit_progression_service.py
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habits_education_service.py
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\hybrid_retriever.py

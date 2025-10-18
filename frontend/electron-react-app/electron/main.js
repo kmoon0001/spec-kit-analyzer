@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell, nativeTheme } = require('electron');
+console.log('Main process started');
 const path = require('node:path');
 const { taskManager } = require('./tasks');
 
@@ -171,6 +172,7 @@ const registerTaskIpcHandlers = () => {
 };
 
 const createMainWindow = () => {
+  console.log('Creating main window');
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -229,14 +231,16 @@ const createMainWindow = () => {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  setTimeout(() => {}, 5000);
 };
 
 const setupAppEvents = () => {
   const gotLock = app.requestSingleInstanceLock();
-  if (!gotLock) {
-    app.quit();
-    return;
-  }
+  // if (!gotLock) {
+  //   app.quit();
+  //   return;
+  // }
 
   app.on('second-instance', () => {
     if (mainWindow) {

@@ -1,0 +1,68 @@
+========================================
+  THERAPY COMPLIANCE ANALYZER
+  Quick Start Guide
+========================================
+
+STEP 1: Run Diagnostic (First Time)
+------------------------------------
+Double-click: DIAGNOSE_AND_FIX.bat
+
+This will:
+- Check Python and Node.js
+- Install missing dependencies
+- Verify configuration
+- Fix common issues
+
+
+STEP 2: Start the Application
+------------------------------------
+Double-click: START_APP.ps1
+(or START_APP.bat if PowerShell doesn't work)
+
+This will:
+- Start Python API backend (port 8001)
+- Start Electron frontend (port 3001)
+- Open the application window
+
+
+STEP 3: Login
+------------------------------------
+Username: admin
+Password: admin123
+
+
+TROUBLESHOOTING
+------------------------------------
+If something goes wrong:
+
+1. Run: RUN_FULL_DIAGNOSTIC.ps1
+   (Shows detailed system status)
+
+2. Read: HOW_TO_RUN.md
+   (Detailed troubleshooting guide)
+
+3. Test components separately:
+   - TEST_API.bat (Test backend only)
+   - TEST_FRONTEND.bat (Test frontend only)
+
+
+FIRST RUN NOTES
+------------------------------------
+- First run downloads ~500MB of AI models
+- Requires internet connection
+- May take 2-3 minutes to fully start
+- Subsequent runs are much faster
+
+
+NEED HELP?
+------------------------------------
+See DIAGNOSIS_COMPLETE.md for:
+- What was fixed
+- System status
+- Detailed instructions
+- Common issues and solutions
+
+
+========================================
+Ready to start? Run START_APP.ps1
+========================================
