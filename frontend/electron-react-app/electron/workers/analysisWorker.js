@@ -281,7 +281,7 @@ const run = async () => {
     post('progress', { progress: 15, statusMessage: 'Analysis started', meta: { taskId } });
 
     const startedAt = Date.now();
-    let lastProgress = 15;
+    let lastProgress = 0;
 
     while (!cancelled) {
       if (Date.now() - startedAt > timeoutMs) {
@@ -307,11 +307,14 @@ const run = async () => {
 
       const status = statusData?.status ?? 'processing';
       let progress = normalizeProgress(statusData?.progress);
-      if (progress < lastProgress) {
+
+      // Only prevent backwards progress if we have meaningful progress from backend
+      if (progress > 0 && progress < lastProgress) {
         progress = lastProgress;
-      } else {
+      } else if (progress > lastProgress) {
         lastProgress = progress;
       }
+
       const statusMessage = statusData?.status_message ?? `Status: ${status}`;
 
       post('progress', {

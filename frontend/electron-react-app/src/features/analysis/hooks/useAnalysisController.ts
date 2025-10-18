@@ -126,7 +126,7 @@ export const useAnalysisController = () => {
         ...prev,
         status: 'queued',
         statusMessage: job.statusMessage ?? 'Queued for processing',
-        progress: clampProgress(job.progress, Math.max(prev.progress, 5)),
+        progress: clampProgress(job.progress, prev.progress),
         isPolling: true,
         meta: job.meta ?? prev.meta ?? null,
       }));
@@ -144,7 +144,7 @@ export const useAnalysisController = () => {
         ...prev,
         status: 'running',
         statusMessage: job.statusMessage ?? 'Running analysis',
-        progress: clampProgress(job.progress, Math.max(prev.progress, 20)),
+        progress: clampProgress(job.progress, prev.progress),
         isPolling: true,
         meta: job.meta ?? prev.meta ?? null,
       }));
@@ -304,7 +304,7 @@ export const useAnalysisController = () => {
         jobId: response.jobId,
         status: 'queued',
         statusMessage: 'Queued for processing',
-        progress: Math.max(prev.progress, 5),
+        progress: 5,
         isPolling: true,
       }));
     } catch (error) {
