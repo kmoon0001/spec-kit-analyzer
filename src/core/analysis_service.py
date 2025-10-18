@@ -29,6 +29,7 @@ from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
 from src.core.report_generator import ReportGenerator
 from src.core.text_utils import sanitize_human_text
+from src.core.rubric_detector import RubricDetector
 from src.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,7 @@ class AnalysisService:
         self.checklist_service = kwargs.get("checklist_service") or ChecklistService()
         self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
         self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
+        self.rubric_detector = kwargs.get("rubric_detector") or RubricDetector()
 
         if self.use_mocks:
             # Lightweight substitutes to avoid heavyweight model loading during tests/CI runs.
@@ -224,6 +226,22 @@ class AnalysisService:
 
             if not text_to_process:
                 raise ValueError("Could not extract any text from the provided document.")
+
+            # Automatic rubric detection based on content
+            _update_progress(8, "Detecting appropriate compliance rubric...")
+            detected_rubric, rubric_confidence, rubric_details = self.rubric_detector.detect_rubric(
+                text_to_process, original_filename
+            )
+            detected_discipline, discipline_confidence = self.rubric_detector.detect_discipline(text_to_process)
+
+            # Use detected discipline if confidence is high, otherwise use provided discipline
+            if discipline_confidence > 0.3:
+                discipline = detected_discipline
+                logger.info(f"Auto-detected discipline: {discipline} (confidence: {discipline_confidence:.2f})")
+            else:
+                logger.info(f"Using provided discipline: {discipline}")
+
+            logger.info(f"Auto-detected rubric: {detected_rubric} (confidence: {rubric_confidence:.2f})")
 
             if self.use_mocks:
                 return await self._run_mock_pipeline(

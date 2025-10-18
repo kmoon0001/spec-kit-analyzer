@@ -2,70 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 500px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--card-background);
-  overflow: hidden;
-}
-
-.chatHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--primary-color);
-  color: white;
-  font-weight: 600;
-}
-
-.headerLeft {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.headerRight {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.connectionStatus {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 4px 8px;
+  background: #f8fafc;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #dc3545;
-}
-
-.connected .statusDot {
-  background: #28a745;
-}
-
-.reconnectBtn {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.reconnectBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
 }
 
 .messagesContainer {
@@ -77,238 +16,152 @@
   gap: 12px;
 }
 
-.welcomeMessage {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-secondary);
-}
-
-.welcomeIcon {
-  color: var(--primary-color);
-  margin-bottom: 16px;
-}
-
-.welcomeMessage h3 {
-  margin: 0 0 8px 0;
-  color: var(--text-primary);
-}
-
-.welcomeMessage p {
-  margin: 0 0 8px 0;
-  line-height: 1.5;
-}
-
-.contextInfo {
-  font-size: 14px;
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
 .message {
   display: flex;
-  flex-direction: column;
-  max-width: 80%;
-  word-wrap: break-word;
+  margin-bottom: 8px;
 }
 
 .message.user {
-  align-self: flex-end;
-  align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .message.assistant {
-  align-self: flex-start;
-  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .messageContent {
+  max-width: 80%;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: 16px;
   position: relative;
 }
 
-.user .messageContent {
-  background: var(--primary-color);
+.message.user .messageContent {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   color: white;
   border-bottom-right-radius: 4px;
 }
 
-.assistant .messageContent {
-  background: var(--background-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
+.message.assistant .messageContent {
+  background: white;
+  color: #374151;
+  border: 1px solid #e5e7eb;
   border-bottom-left-radius: 4px;
 }
 
 .messageText {
-  line-height: 1.4;
-  white-space: pre-wrap;
+  line-height: 1.5;
+  margin-bottom: 4px;
 }
 
-.messageMetadata {
-  margin-top: 8px;
-  font-size: 12px;
-  opacity: 0.8;
+.messageText p {
+  margin: 0 0 8px 0;
 }
 
-.confidence {
-  background: rgba(0, 0, 0, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.sources {
-  margin-top: 8px;
-  font-size: 12px;
-  opacity: 0.8;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  padding-top: 8px;
+.messageText p:last-child {
+  margin-bottom: 0;
 }
 
 .messageTime {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-  padding: 0 4px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  text-align: right;
 }
 
-.loading .messageContent {
+.message.assistant .messageTime {
+  text-align: left;
+}
+
+.thinkingMessage {
   display: flex;
   align-items: center;
   gap: 8px;
   font-style: italic;
-  opacity: 0.8;
+  color: #6b7280;
 }
 
-.spinner {
-  animation: spin 1s linear infinite;
+.thinkingDots {
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+@keyframes pulse {
 
-.errorMessage {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fee2e2;
-  color: #dc2626;
-  border-radius: 8px;
-  font-size: 14px;
-  border: 1px solid #fecaca;
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .inputContainer {
-  border-top: 1px solid var(--border-color);
-  background: var(--background-primary);
+  border-top: 1px solid #e5e7eb;
+  padding: 16px;
+  background: white;
 }
 
-.inputActions {
-  padding: 8px 16px 0;
-  display: flex;
-  gap: 8px;
-}
-
-.actionBtn {
-  background: var(--background-secondary);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.actionBtn:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.inputRow {
+.inputWrapper {
   display: flex;
   gap: 12px;
-  padding: 12px 16px;
-  align-items: flex-end;
+  margin-bottom: 12px;
 }
 
-.chatInput {
+.messageInput {
   flex: 1;
-  border: 1px solid var(--border-color);
+  border: 1px solid #d1d5db;
   border-radius: 8px;
   padding: 12px;
-  font-family: inherit;
   font-size: 14px;
-  line-height: 1.4;
   resize: none;
-  background: var(--background-primary);
-  color: var(--text-primary);
-  transition: border-color 0.2s;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
 }
 
-.chatInput:focus {
+.messageInput:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(0, 123, 204, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.chatInput:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.messageInput:disabled {
+  background-color: #f9fafb;
+  color: #6b7280;
 }
 
-.sendBtn {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 12px;
-  cursor: pointer;
+.sendButton {
+  align-self: flex-end;
+  min-width: 80px;
+}
+
+.quickActions {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  min-width: 48px;
-  height: 48px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.sendBtn:hover:not(:disabled) {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+.quickActions button {
+  font-size: 0.875rem;
+  padding: 6px 12px;
 }
 
-.sendBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
+/* Scrollbar styling */
+.messagesContainer::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* Dark mode adjustments */
-[data-theme="dark"] .chatHeader {
-  background: var(--primary-color);
+.messagesContainer::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
 
-[data-theme="dark"] .assistant .messageContent {
-  background: var(--card-background);
-  border-color: var(--border-color);
+.messagesContainer::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
-[data-theme="dark"] .errorMessage {
-  background: rgba(220, 38, 38, 0.1);
-  border-color: rgba(220, 38, 38, 0.2);
-  color: #fca5a5;
-}
-
-[data-theme="dark"] .confidence {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .sources {
-  border-top-color: rgba(255, 255, 255, 0.1);
+.messagesContainer::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Responsive design */
@@ -317,57 +170,15 @@
     height: 400px;
   }
 
-  .message {
+  .messageContent {
     max-width: 90%;
   }
 
-  .inputRow {
-    padding: 8px 12px;
-    gap: 8px;
+  .quickActions {
+    flex-direction: column;
   }
 
-  .chatInput {
-    font-size: 16px; /* Prevents zoom on iOS */
+  .quickActions button {
+    width: 100%;
   }
-}
-
-/* Accessibility */
-.chatInput:focus,
-.sendBtn:focus,
-.actionBtn:focus,
-.reconnectBtn:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-/* Smooth scrolling for messages */
-.messagesContainer {
-  scroll-behavior: smooth;
-}
-
-/* Loading state for entire chat */
-.chatContainer.loading {
-  pointer-events: none;
-  opacity: 0.8;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .messageContent {
-    border-width: 2px;
-  }
-
-  .statusDot {
-    border: 1px solid currentColor;
-  }
-}
-/* Add spi
-nner animation for loading states */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
 }

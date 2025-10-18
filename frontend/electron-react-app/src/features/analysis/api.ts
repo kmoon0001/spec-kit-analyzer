@@ -39,13 +39,16 @@ export type Rubric = {
 };
 
 export const analyzeDocument = async (
-  payload: { file: File; discipline: string; analysisMode: string; strictness: 'lenient' | 'standard' | 'strict' },
+  payload: { file: File; discipline: string; analysisMode: string; strictness: 'lenient' | 'standard' | 'strict'; rubric?: string },
 ): Promise<AnalysisStartResponse> => {
   const formData = new FormData();
   formData.append('file', payload.file);
   formData.append('discipline', payload.discipline);
   formData.append('analysis_mode', payload.analysisMode);
   formData.append('strictness', payload.strictness);
+  if (payload.rubric) {
+    formData.append('rubric', payload.rubric);
+  }
 
   const { data } = await apiClient.post<AnalysisStartResponse>('/analysis/analyze', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

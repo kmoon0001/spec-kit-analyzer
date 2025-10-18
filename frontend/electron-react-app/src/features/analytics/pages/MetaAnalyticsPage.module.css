@@ -1,436 +1,354 @@
-.container {
-  padding: 20px;
+.wrapper {
+  padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
-}
-
-.loading,
-.error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 400px;
-  gap: 16px;
-  color: #666;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  min-height: 100vh;
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 20px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
   color: white;
+  box-shadow: 0 8px 32px rgba(14, 165, 233, 0.3);
 }
 
 .headerContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.headerContent h2 {
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  background: linear-gradient(45deg, #fff, #bae6fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 1.1rem;
   margin: 0;
-  font-size: 18px;
-  font-weight: bold;
+  opacity: 0.9;
+  font-weight: 300;
 }
 
 .controls {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .controlGroup {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
-  font-size: 12px;
 }
 
-.controlGroup label {
+.controlLabel {
+  font-size: 0.9rem;
   font-weight: 500;
+  opacity: 0.9;
 }
 
-.daysInput {
-  width: 60px;
-  padding: 4px 8px;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.disciplineSelect {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
+.controlSelect {
   background: white;
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #dee2e6;
-}
-
-.tab {
-  background: none;
   border: none;
-  padding: 12px 20px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #666;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  color: #374151;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
 }
 
-.tab:hover {
-  color: #007acc;
-  background: rgba(0, 122, 204, 0.05);
+.controlSelect:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.activeTab {
-  color: #007acc !important;
-  border-bottom-color: #007acc !important;
-  background: rgba(0, 122, 204, 0.05) !important;
+.controlSelect:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
-.content {
-  min-height: 600px;
+.overviewGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
-.tabContent {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.noData {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: #666;
-  font-size: 14px;
-}
-
-/* Overview Tab */
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 20px;
 }
 
-.metricCard {
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
+.metricItem {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  border-radius: 12px;
   padding: 20px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.metricLabel {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 8px;
-  font-weight: 500;
+  color: white;
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.2);
 }
 
 .metricValue {
-  font-size: 24px;
-  font-weight: bold;
-  color: #2c3e50;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(45deg, #fff, #bae6fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.chartsGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
+.metricLabel {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: 500;
 }
 
-.chartCard {
-  min-height: 350px;
-}
-
-.insightsCard {
-  margin-bottom: 20px;
-}
-
-.insightsList {
+.trendIndicator {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
-}
-
-.insightItem {
   padding: 16px;
-  border-radius: 8px;
-  border-left: 4px solid;
+  background: #f8fafc;
+  border-radius: 12px;
+  border-left: 4px solid #0ea5e9;
 }
 
-.insightItem.positive {
-  background: #f8fff8;
-  border-left-color: #28a745;
+.trendLabel {
+  font-weight: 500;
+  color: #374151;
 }
 
-.insightItem.concern {
-  background: #fff8f8;
-  border-left-color: #dc3545;
+.activitySummary {
+  margin-top: 16px;
 }
 
-.insightItem.action_required {
-  background: #fff9f0;
-  border-left-color: #ffc107;
-}
-
-.insightItem.neutral {
-  background: #f8f9fa;
-  border-left-color: #6c757d;
-}
-
-.insightTitle {
-  font-size: 12px;
-  font-weight: bold;
-  color: #2c3e50;
-  margin-bottom: 6px;
-}
-
-.insightDescription {
-  font-size: 11px;
-  color: #555;
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-
-.insightRecommendation {
-  font-size: 10px;
-  color: #2E8B57;
-  line-height: 1.4;
-}
-
-/* Training Tab */
-.trainingChartCard {
-  margin-bottom: 20px;
-  min-height: 450px;
-}
-
-.trainingRecsCard {
-  margin-bottom: 20px;
-}
-
-.trainingRecommendations {
+.activityItem {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 16px;
-}
-
-.trainingRec {
   padding: 16px;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  background: white;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 12px;
 }
 
-.trainingRecHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
+.activityIcon {
+  font-size: 2rem;
+  flex-shrink: 0;
 }
 
-.trainingRecTitle {
-  font-size: 12px;
-  font-weight: bold;
-  color: #2c3e50;
+.activityContent {
   flex: 1;
 }
 
-.trainingRecPriority {
-  font-size: 9px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.5px;
+.activityValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0ea5e9;
+  margin-bottom: 4px;
 }
 
-.trainingRecPriority.high {
-  background: #dc3545;
-  color: white;
+.activityLabel {
+  font-size: 0.9rem;
+  color: #6b7280;
 }
 
-.trainingRecPriority.medium {
-  background: #ffc107;
-  color: #2c3e50;
+.disciplineComparison {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 16px;
 }
 
-.trainingRecPriority.low {
-  background: #28a745;
-  color: white;
+.disciplineCard {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
 }
 
-.trainingRecStats {
+.disciplineCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-color: #0ea5e9;
+}
+
+.disciplineHeader {
   display: flex;
-  gap: 16px;
-  font-size: 10px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.trainingRecFocus {
-  font-size: 10px;
-  color: #555;
-  line-height: 1.4;
-}
-
-/* Trends Tab */
-.trendsCard {
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
-  min-height: 400px;
 }
 
-.trendsChart {
-  padding: 20px 0;
+.disciplineTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0ea5e9;
+  margin: 0;
 }
 
-.trendsTable {
+.disciplineMetrics {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: #dee2e6;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.disciplineMetric {
+  text-align: center;
+}
+
+.disciplineMetricValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.disciplineMetricLabel {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.disciplineBar {
+  height: 8px;
+  background: #e5e7eb;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.trendsHeader {
+.disciplineBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.trainingGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  background: #f8f9fa;
-  padding: 12px;
-  font-size: 11px;
-  font-weight: bold;
-  color: #2c3e50;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
-.trendsRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  background: white;
-  padding: 10px 12px;
-  font-size: 10px;
-  color: #555;
+.trainingList {
+  margin-top: 16px;
 }
 
-.trendsRow:nth-child(even) {
-  background: #f8f9fa;
+.trainingItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 4px solid #0ea5e9;
 }
 
-/* Benchmarks Tab */
-.benchmarksCard {
-  margin-bottom: 20px;
-  min-height: 400px;
+.trainingIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
-.benchmarksContent {
-  padding: 20px 0;
-}
-
-.benchmarksSummary {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.benchmarksTitle {
-  font-size: 14px;
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.percentilesGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.percentileCard {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-}
-
-.percentileLabel {
-  font-size: 11px;
-  color: #666;
-  margin-bottom: 8px;
+.trainingText {
+  flex: 1;
+  color: #374151;
   font-weight: 500;
 }
 
-.percentileValue {
-  font-size: 20px;
-  font-weight: bold;
-  color: #007acc;
+.benchmarkGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 16px;
 }
 
-.benchmarksNote {
+.benchmarkItem {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   text-align: center;
-  font-size: 11px;
-  color: #666;
-  font-style: italic;
+}
+
+.benchmarkLabel {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.benchmarkValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0ea5e9;
+  margin-bottom: 16px;
+}
+
+.benchmarkComparison {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.benchmarkIndustry {
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
-  .chartsGrid {
+@media (max-width: 1200px) {
+  .overviewGrid {
     grid-template-columns: 1fr;
   }
 
-  .percentilesGrid {
-    grid-template-columns: repeat(2, 1fr);
+  .disciplineComparison {
+    grid-template-columns: 1fr;
+  }
+
+  .trainingGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .benchmarkGrid {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .container {
-    padding: 12px;
+  .wrapper {
+    padding: 16px;
   }
 
-  .headerContent {
-    flex-direction: column;
-    align-items: flex-start;
+  .header {
+    padding: 24px;
+  }
+
+  .title {
+    font-size: 2rem;
   }
 
   .controls {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: stretch;
   }
 
   .metricsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .percentilesGrid {
     grid-template-columns: 1fr;
-  }
-
-  .trainingRecHeader {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .trainingRecStats {
-    flex-direction: column;
-    gap: 4px;
   }
 }

@@ -1,8 +1,71 @@
-.wrapper {
+/* Auto-detection styles */
+.autoDetected {
+  font-size: 0.875rem;
+  color: var(--color-success);
+  background: var(--color-success-light);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  margin-left: 0.5rem;
+  font-weight: 500;
+}
+
+.rubricSuggestions {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-background-subtle);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.suggestionLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.suggestionList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestionItem {
+  margin-bottom: 0.5rem;
+}
+
+.suggestionButton {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xxl);
-  padding-bottom: var(--spacing-xxl);
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.suggestionButton:hover {
+  background: var(--color-background-hover);
+  border-color: var(--color-primary);
+}
+
+.confidence {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
 }
 
 .overviewStrip {
@@ -461,7 +524,7 @@
   gap: var(--spacing-lg);
 }
 
-.exportSection > * {
+.exportSection>* {
   width: 100%;
 }
 
@@ -496,4 +559,39 @@
 /* Chat assistant container */
 .chatContainer {
   min-height: 400px;
+}
+
+/* Help System */
+.helpSection {
+  margin-top: 32px;
+}
+
+/* Report Actions */
+.reportActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Dialog Overlay */
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.safeguardActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
 }

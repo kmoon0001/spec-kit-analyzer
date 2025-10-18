@@ -58,6 +58,10 @@ export const useAnalysisController = () => {
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [discipline, setDiscipline] = useState('pt');
+  const [selectedRubric, setSelectedRubric] = useState<string>('default');
+  const [autoDetectedDiscipline, setAutoDetectedDiscipline] = useState<string | null>(null);
+  const [autoDetectedRubric, setAutoDetectedRubric] = useState<string | null>(null);
+  const [rubricSuggestions, setRubricSuggestions] = useState<any[]>([]);
   const [analysisMode] = useState('rubric');
   const [strictness, setStrictnessState] = useState<StrictnessLevel>(1);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -84,6 +88,7 @@ export const useAnalysisController = () => {
         discipline,
         analysisMode,
         strictness: strictnessLevel,
+        rubric: selectedRubric,
       });
     },
     onSuccess: (response) => {
@@ -287,6 +292,7 @@ export const useAnalysisController = () => {
         discipline,
         analysisMode,
         strictness: strictnessLevel,
+        rubric: selectedRubric,
       };
 
       const response = await window.desktopApi.tasks.startAnalysis(payload, {
@@ -319,7 +325,7 @@ export const useAnalysisController = () => {
       });
       throw err;
     }
-  }, [analysisMode, config.apiBaseUrl, desktopEnabled, discipline, selectedFile, strictnessLevel, token]);
+  }, [analysisMode, config.apiBaseUrl, desktopEnabled, discipline, selectedFile, strictnessLevel, selectedRubric, token]);
 
   const startAnalysis = useCallback(() => {
     if (desktopEnabled) {
@@ -351,9 +357,53 @@ export const useAnalysisController = () => {
   }, [desktopEnabled, desktopState.jobId, queryClient, taskId]);
 
   const dropzone = useDropzone({
-    onDrop: (files: File[]) => {
+    onDrop: async (files: File[]) => {
       if (files?.length) {
-        setSelectedFile(files[0]);
+        const file = files[0];
+        setSelectedFile(file);
+
+        // Auto-detect rubric and discipline when file is selected
+        try {
+          const text = await file.text();
+          // Simple keyword detection for demo - in real implementation, this would call the backend
+          const textLower = text.toLowerCase();
+
+          // Detect discipline
+          if (textLower.includes('physical therapy') || textLower.includes('pt ') || textLower.includes('mobility') || textLower.includes('strength')) {
+            setAutoDetectedDiscipline('pt');
+          } else if (textLower.includes('occupational therapy') || textLower.includes('ot ') || textLower.includes('adl') || textLower.includes('fine motor')) {
+            setAutoDetectedDiscipline('ot');
+          } else if (textLower.includes('speech therapy') || textLower.includes('slp') || textLower.includes('swallowing') || textLower.includes('communication')) {
+            setAutoDetectedDiscipline('slp');
+          }
+
+          // Detect rubric
+          if (textLower.includes('part b') || textLower.includes('outpatient therapy')) {
+            setAutoDetectedRubric('Medicare Part B Outpatient Therapy Guidelines');
+            setSelectedRubric('medicare_part_b');
+          } else if (textLower.includes('cms-1500') || textLower.includes('claim form')) {
+            setAutoDetectedRubric('CMS-1500 Documentation Requirements');
+            setSelectedRubric('cms_1500');
+          } else if (textLower.includes('therapy cap') || textLower.includes('exception')) {
+            setAutoDetectedRubric('Medicare Therapy Cap & Exception Guidelines');
+            setSelectedRubric('therapy_cap');
+          } else if (textLower.includes('skilled therapy') || textLower.includes('medical necessity')) {
+            setAutoDetectedRubric('Skilled Therapy Documentation Standards');
+            setSelectedRubric('skilled_therapy');
+          }
+
+          // Generate suggestions
+          const suggestions = [
+            { rubric_id: 'medicare_part_b', confidence: 0.8 },
+            { rubric_id: 'apta_pt', confidence: 0.6 },
+            { rubric_id: 'skilled_therapy', confidence: 0.4 },
+            { rubric_id: 'default', confidence: 0.2 }
+          ];
+          setRubricSuggestions(suggestions);
+
+        } catch (error) {
+          console.warn('Could not read file for auto-detection:', error);
+        }
       }
     },
     multiple: false,
@@ -423,6 +473,11 @@ export const useAnalysisController = () => {
     dropzone,
     discipline,
     setDiscipline,
+    selectedRubric,
+    setSelectedRubric,
+    autoDetectedDiscipline,
+    autoDetectedRubric,
+    rubricSuggestions,
     strictness,
     strictnessLevel,
     setStrictness,

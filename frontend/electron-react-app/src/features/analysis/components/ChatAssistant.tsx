@@ -1,147 +1,139 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Loader2, AlertCircle, RefreshCw } from '../../../components/ui/Icons';
-import { useAppStore } from '../../../store/useAppStore';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+
 import styles from './ChatAssistant.module.css';
 
 interface ChatMessage {
-  id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  confidence?: number;
-  sources?: string[];
 }
 
 interface ChatAssistantProps {
-  analysisContext?: {
-    documentName?: string;
-    findings?: any[];
-    complianceScore?: number;
-  };
+  initialContext?: string;
+  onClose?: () => void;
+  className?: string;
 }
 
-export const ChatAssistant: React.FC<ChatAssistantProps> = ({ analysisContext }) => {
+const THINKING_MESSAGE = "🤔 Thinking...";
+
+export function ChatAssistant({ initialContext, onClose, className }: ChatAssistantProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const token = useAppStore((state) => state.auth.token);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
 
-  // Initialize WebSocket connection
   useEffect(() => {
-    if (!token) return;
-
-    const connectWebSocket = () => {
-      try {
-        const wsUrl = `ws://localhost:8000/api/chat/ws?token=${token}`;
-        const ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-          setIsConnected(true);
-          setError(null);
-          console.log('Chat WebSocket connected');
-
-          // Send initial context if available
-          if (analysisContext) {
-            ws.send(JSON.stringify({
-              type: 'context',
-              data: analysisContext
-            }));
-          }
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'message') {
-              const newMessage: ChatMessage = {
-                id: Date.now().toString(),
-                role: 'assistant',
-                content: data.content,
-                timestamp: new Date(),
-                confidence: data.confidence,
-                sources: data.sources
-              };
-
-              setMessages(prev => [...prev, newMessage]);
-              setIsLoading(false);
-            } else if (data.type === 'error') {
-              setError(data.message);
-              setIsLoading(false);
-            }
-          } catch (err) {
-            console.error('Failed to parse WebSocket message:', err);
-            setError('Failed to parse response');
-            setIsLoading(false);
-          }
-        };
-
-        ws.onclose = () => {
-          setIsConnected(false);
-          console.log('Chat WebSocket disconnected');
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setError('Connection error');
-          setIsConnected(false);
-          setIsLoading(false);
-        };
-
-        wsRef.current = ws;
-      } catch (err) {
-        console.error('Failed to create WebSocket:', err);
-        setError('Failed to connect');
-      }
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [token, analysisContext]);
+    if (initialContext) {
+      setMessages([
+        {
+          role: 'assistant',
+          content: "Hello! I'm your AI compliance assistant. How can I help you today?",
+          timestamp: new Date()
+        },
+        {
+          role: 'user',
+          content: initialContext,
+          timestamp: new Date()
+        }
+      ]);
+    } else {
+      setMessages([
+        {
+          role: 'assistant',
+          content: "Hello! I'm your AI compliance assistant. How can I help you today?",
+          timestamp: new Date()
+        }
+      ]);
+    }
+  }, [initialContext]);
 
   const sendMessage = async () => {
-    if (!inputValue.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      return;
-    }
+    if (!inputValue.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
       role: 'user',
       content: inputValue.trim(),
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
     setIsLoading(true);
-    setError(null);
+
+    // Add thinking message
+    const thinkingMessage: ChatMessage = {
+      role: 'assistant',
+      content: THINKING_MESSAGE,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, thinkingMessage]);
 
     try {
-      wsRef.current.send(JSON.stringify({
-        type: 'message',
-        content: inputValue.trim(),
-        context: analysisContext
-      }));
+      // Simulate API call - replace with actual chat API
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      setInputValue('');
-    } catch (err) {
-      console.error('Failed to send message:', err);
-      setError('Failed to send message');
+      const aiResponse: ChatMessage = {
+        role: 'assistant',
+        content: generateMockResponse(userMessage.content),
+        timestamp: new Date()
+      };
+
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = aiResponse;
+        return newMessages;
+      });
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: "I apologize, but I'm having trouble processing your request right now. Please try again.",
+        timestamp: new Date()
+      };
+
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = errorMessage;
+        return newMessages;
+      });
+    } finally {
       setIsLoading(false);
     }
+  };
+
+  const generateMockResponse = (userInput: string): string => {
+    const input = userInput.toLowerCase();
+
+    if (input.includes('compliance') || input.includes('medicare')) {
+      return "Based on Medicare guidelines, compliance documentation should include specific, measurable goals, objective findings, and clear medical necessity justification. Each visit should document progress toward functional outcomes.";
+    }
+
+    if (input.includes('documentation') || input.includes('note')) {
+      return "Effective therapy documentation follows the SOAP format: Subjective (patient report), Objective (measurable findings), Assessment (clinical judgment), and Plan (next steps). Include functional outcome measures and patient response to treatment.";
+    }
+
+    if (input.includes('goal') || input.includes('objective')) {
+      return "Goals should be SMART: Specific, Measurable, Achievable, Relevant, and Time-bound. Examples: 'Patient will ambulate 100 feet independently within 4 weeks' or 'Patient will improve grip strength by 20% in 6 weeks'.";
+    }
+
+    if (input.includes('billing') || input.includes('claim')) {
+      return "For billing compliance, ensure documentation supports the CPT codes used, includes proper modifiers when applicable, and demonstrates medical necessity for each service provided. Document time spent and specific interventions.";
+    }
+
+    if (input.includes('progress') || input.includes('improvement')) {
+      return "Progress notes should clearly demonstrate functional improvement or maintenance. Use objective measures like ROM, strength, balance scores, or functional assessments. Document setbacks and plan modifications.";
+    }
+
+    return "I can help you with compliance questions, documentation best practices, Medicare guidelines, billing requirements, and clinical documentation standards. What specific area would you like to know more about?";
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -151,130 +143,76 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ analysisContext })
     }
   };
 
-  const insertLatestFinding = () => {
-    if (analysisContext?.findings && analysisContext.findings.length > 0) {
-      const latestFinding = analysisContext.findings[0];
-      const findingText = `Please explain this finding: "${latestFinding.issue || latestFinding.description || 'Latest compliance finding'}"`;
-      setInputValue(findingText);
-    }
-  };
-
-  const reconnect = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-    // The useEffect will automatically reconnect
-  };
-
   return (
-    <div className={styles.chatContainer}>
-      <div className={styles.chatHeader}>
-        <div className={styles.headerLeft}>
-          <MessageSquare size={20} />
-          <span>Compliance Copilot</span>
-        </div>
-        <div className={styles.headerRight}>
-          <div className={`${styles.connectionStatus} ${isConnected ? styles.connected : styles.disconnected}`}>
-            <div className={styles.statusDot} />
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </div>
-          {!isConnected && (
-            <button onClick={reconnect} className={styles.reconnectBtn} title="Reconnect">
-              <RefreshCw size={16} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className={styles.messagesContainer}>
-        {messages.length === 0 && (
-          <div className={styles.welcomeMessage}>
-            <MessageSquare size={48} className={styles.welcomeIcon} />
-            <h3>Ask me about compliance!</h3>
-            <p>I can help explain findings, suggest improvements, and answer documentation questions.</p>
-            {analysisContext?.documentName && (
-              <p className={styles.contextInfo}>
-                Currently analyzing: <strong>{analysisContext.documentName}</strong>
-              </p>
-            )}
-          </div>
-        )}
-
-        {messages.map((message) => (
-          <div key={message.id} className={`${styles.message} ${styles[message.role]}`}>
-            <div className={styles.messageContent}>
-              <div className={styles.messageText}>{message.content}</div>
-              {message.confidence && (
-                <div className={styles.messageMetadata}>
-                  <span className={styles.confidence}>
-                    Confidence: {Math.round(message.confidence * 100)}%
-                  </span>
+    <Card title="🤖 AI Compliance Assistant" subtitle="Ask questions about documentation, compliance, and best practices" className={className}>
+      <div className={styles.chatContainer}>
+        <div className={styles.messagesContainer}>
+          {messages.map((message, index) => (
+            <div key={index} className={`${styles.message} ${styles[message.role]}`}>
+              <div className={styles.messageContent}>
+                {message.content === THINKING_MESSAGE ? (
+                  <div className={styles.thinkingMessage}>
+                    <span className={styles.thinkingDots}>...</span>
+                    {message.content}
+                  </div>
+                ) : (
+                  <div className={styles.messageText}>
+                    {message.content.split('\n').map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                )}
+                <div className={styles.messageTime}>
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
-              )}
-              {message.sources && message.sources.length > 0 && (
-                <div className={styles.sources}>
-                  <strong>Sources:</strong> {message.sources.join(', ')}
-                </div>
-              )}
+              </div>
             </div>
-            <div className={styles.messageTime}>
-              {message.timestamp.toLocaleTimeString()}
-            </div>
-          </div>
-        ))}
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
 
-        {isLoading && (
-          <div className={`${styles.message} ${styles.assistant} ${styles.loading}`}>
-            <div className={styles.messageContent}>
-              <Loader2 size={16} className={styles.spinner} />
-              <span>Thinking...</span>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className={styles.errorMessage}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className={styles.inputContainer}>
-        <div className={styles.inputActions}>
-          {analysisContext?.findings && analysisContext.findings.length > 0 && (
-            <button
-              onClick={insertLatestFinding}
-              className={styles.actionBtn}
-              title="Insert latest finding"
+        <div className={styles.inputContainer}>
+          <div className={styles.inputWrapper}>
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask about compliance, documentation tips, or specific findings..."
+              className={styles.messageInput}
+              rows={2}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={!inputValue.trim() || isLoading}
+              className={styles.sendButton}
             >
-              Insert Latest Finding
-            </button>
-          )}
-        </div>
+              {isLoading ? 'Sending...' : 'Send'}
+            </Button>
+          </div>
 
-        <div className={styles.inputRow}>
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask about documentation gaps, compliance requirements, or specific findings..."
-            className={styles.chatInput}
-            rows={3}
-            disabled={!isConnected || isLoading}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!inputValue.trim() || !isConnected || isLoading}
-            className={styles.sendBtn}
-            title="Send message"
-          >
-            <Send size={20} />
-          </button>
+          <div className={styles.quickActions}>
+            <Button
+              variant="ghost"
+              onClick={() => setInputValue("What are the key Medicare documentation requirements?")}
+            >
+              Medicare Requirements
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setInputValue("How should I write effective therapy goals?")}
+            >
+              Writing Goals
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setInputValue("What makes documentation compliant for billing?")}
+            >
+              Billing Compliance
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
-};
+}

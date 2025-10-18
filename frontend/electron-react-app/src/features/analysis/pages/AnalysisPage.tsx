@@ -1,16 +1,15 @@
-import { useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { StatusChip } from '../../../components/ui/StatusChip';
-import { fetchRubrics } from '../api';
 import { useAnalysisController } from '../hooks/useAnalysisController';
 import { useDesktopTelemetry } from '../../system/hooks/useDesktopTelemetry';
-// import { ChatAssistant } from '../components/ChatAssistant';
-// import { ReasoningSteps } from '../../ai/components/ReasoningSteps';
-// import { PDFExportButton } from '../../reports/components/PDFExportButton';
-// import { ReportBuilder } from '../../reports/components/ReportBuilder';
+import { ChatAssistant } from '../components/ChatAssistant';
+import { HelpSystem } from '../components/HelpSystem';
+import { ReportDialog } from '../components/ReportDialog';
+import { LibrarySelectionDialog } from '../components/LibrarySelectionDialog';
+import { CitationManager } from '../components/CitationManager';
 
 import styles from './AnalysisPage.module.css';
 
@@ -41,23 +40,10 @@ const MODEL_STATUS = [
 export default function AnalysisPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const controller = useAnalysisController();
-  const rubricsQuery = useQuery({ queryKey: ['rubrics'], queryFn: fetchRubrics });
-  const rubricsData = rubricsQuery.data;
   const telemetry = useDesktopTelemetry();
-
-  const disciplineOptions = useMemo(() => {
-    if (!rubricsData || rubricsData.length === 0) {
-      return [
-        { value: 'pt', label: 'Physical Therapy - Medicare Part B' },
-        { value: 'ot', label: 'Occupational Therapy - Medicare Part A' },
-        { value: 'slp', label: 'Speech-Language Pathology' },
-      ];
-    }
-    return rubricsData.map((rubric) => ({
-      value: rubric.discipline,
-      label: `${rubric.name} - ${rubric.discipline.toUpperCase()}`,
-    }));
-  }, [rubricsData]);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showLibraryDialog, setShowLibraryDialog] = useState(false);
+  const [showCitationManager, setShowCitationManager] = useState(false);
 
   const findings = controller.summary?.findings ?? [];
   const complianceScore = controller.summary?.complianceScore ?? null;
@@ -213,19 +199,81 @@ export default function AnalysisPage() {
             </p>
           </Card>
 
-          <Card title="Discipline" subtitle="Aligns with backend rubric catalog">
+          <Card title="Discipline & Rubrics" subtitle="Auto-detected based on document content">
             <div className={styles.selectRow}>
+              <label className={styles.label}>Therapy Discipline:</label>
               <select
                 className={styles.selectControl}
                 value={controller.discipline}
                 onChange={(event) => controller.setDiscipline(event.target.value)}
               >
-                {disciplineOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+                <option value="all">All Disciplines</option>
+                <option value="pt">Physical Therapy (PT)</option>
+                <option value="ot">Occupational Therapy (OT)</option>
+                <option value="slp">Speech-Language Pathology (SLP)</option>
               </select>
+              {controller.autoDetectedDiscipline && (
+                <span className={styles.autoDetected}>
+                  🤖 Auto-detected: {controller.autoDetectedDiscipline.toUpperCase()}
+                </span>
+              )}
+            </div>
+
+            <div className={styles.selectRow}>
+              <label className={styles.label}>Compliance Rubric:</label>
+              <select
+                className={styles.selectControl}
+                value={controller.selectedRubric || 'default'}
+                onChange={(event) => controller.setSelectedRubric(event.target.value)}
+              >
+                <option value="default">📋 Medicare Benefits Policy Manual - Chapter 15</option>
+                <option value="medicare_part_b">📋 Medicare Part B Outpatient Therapy Guidelines</option>
+                <option value="cms_1500">📋 CMS-1500 Documentation Requirements</option>
+                <option value="therapy_cap">📋 Medicare Therapy Cap & Exception Guidelines</option>
+                <option value="skilled_therapy">📋 Skilled Therapy Documentation Standards</option>
+                <option value="apta_pt">🏃 Physical Therapy - APTA Guidelines</option>
+                <option value="aota_ot">🖐️ Occupational Therapy - AOTA Standards</option>
+                <option value="asha_slp">🗣️ Speech-Language Pathology - ASHA Guidelines</option>
+              </select>
+              {controller.autoDetectedRubric && (
+                <span className={styles.autoDetected}>
+                  🎯 Auto-detected: {controller.autoDetectedRubric}
+                </span>
+              )}
+            </div>
+
+            <div className={styles.rubricDescription}>
+              <p className={styles.description}>
+                {controller.selectedRubric === 'default' && 'Comprehensive Medicare coverage policies for medical services including therapy requirements.'}
+                {controller.selectedRubric === 'medicare_part_b' && 'Specific guidelines for outpatient therapy services under Medicare Part B.'}
+                {controller.selectedRubric === 'cms_1500' && 'Documentation standards required for CMS-1500 claim forms.'}
+                {controller.selectedRubric === 'therapy_cap' && 'Guidelines for therapy cap exceptions and documentation requirements.'}
+                {controller.selectedRubric === 'skilled_therapy' && 'Standards for documenting skilled therapy services and medical necessity.'}
+                {controller.selectedRubric === 'apta_pt' && 'American Physical Therapy Association clinical practice guidelines.'}
+                {controller.selectedRubric === 'aota_ot' && 'American Occupational Therapy Association practice standards.'}
+                {controller.selectedRubric === 'asha_slp' && 'American Speech-Language-Hearing Association clinical guidelines.'}
+              </p>
+              {controller.rubricSuggestions && controller.rubricSuggestions.length > 1 && (
+                <div className={styles.rubricSuggestions}>
+                  <p className={styles.suggestionLabel}>Other suggested rubrics:</p>
+                  <ul className={styles.suggestionList}>
+                    {controller.rubricSuggestions.slice(1, 4).map((suggestion, index) => (
+                      <li key={index} className={styles.suggestionItem}>
+                        <button
+                          type="button"
+                          className={styles.suggestionButton}
+                          onClick={() => controller.setSelectedRubric(suggestion.rubric_id)}
+                        >
+                          {suggestion.rubric_id.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                          <span className={styles.confidence}>
+                            ({Math.round(suggestion.confidence * 100)}% match)
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -272,7 +320,14 @@ export default function AnalysisPage() {
             <p className={styles.description}>
               Electron reuses backend license checks and audit logging. Background workers surface crash signals so desktop ops stay stable.
             </p>
-            <Button variant="outline">Manage Feature Flags</Button>
+            <div className={styles.safeguardActions}>
+              <Button variant="outline" onClick={() => setShowLibraryDialog(true)}>
+                📚 Manage Rubric Library
+              </Button>
+              <Button variant="outline" onClick={() => setShowCitationManager(true)}>
+                📖 Citation Manager
+              </Button>
+            </div>
           </Card>
         </div>
 
@@ -323,33 +378,84 @@ export default function AnalysisPage() {
               </ul>
             )}
             {controller.summary?.reportHtml && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const blob = new Blob([controller.summary?.reportHtml ?? ''], { type: 'text/html' });
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, '_blank');
-                }}
-              >
-                Open Detailed Report
-              </Button>
+              <div className={styles.reportActions}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReportDialog(true)}
+                >
+                  📊 Open Detailed Report
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const blob = new Blob([controller.summary?.reportHtml ?? ''], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                  }}
+                >
+                  🔗 View in Browser
+                </Button>
+              </div>
             )}
           </Card>
 
-          <Card title="Compliance Copilot" subtitle="Chat assistant placeholder">
-            <div className={styles.chatPlaceholder}>
-              <p>
-                The conversational assistant will connect to <code>src/api/routers/chat.py</code> via WebSocket streaming just like the PySide chat dialog.
-              </p>
-              <textarea className={styles.chatInput} placeholder="Ask about documentation gaps..." rows={3} />
-              <div className={styles.chatActions}>
-                <button>Send Prompt</button>
-                <button>Insert Latest Finding</button>
-              </div>
-            </div>
-          </Card>
+          <ChatAssistant
+            initialContext={controller.summary ?
+              `I just analyzed a ${controller.discipline.toUpperCase()} document with a compliance score of ${controller.summary.complianceScore?.toFixed(1)}%. Can you help me understand the findings?`
+              : undefined
+            }
+          />
         </div>
       </section>
+
+      {/* Help System */}
+      <section className={styles.helpSection}>
+        <HelpSystem />
+      </section>
+
+      {/* Report Dialog */}
+      {showReportDialog && controller.summary && (
+        <div className={styles.dialogOverlay}>
+          <ReportDialog
+            reportHtml={controller.summary.reportHtml || ''}
+            reportData={{
+              complianceScore: controller.summary.complianceScore || 0,
+              findings: controller.summary.findings || [],
+              documentName: controller.selectedFile?.name || 'Unknown Document',
+              analysisDate: new Date().toISOString(),
+              discipline: controller.discipline,
+              rubric: controller.selectedRubric || 'default'
+            }}
+            onClose={() => setShowReportDialog(false)}
+          />
+        </div>
+      )}
+
+      {/* Library Selection Dialog */}
+      {showLibraryDialog && (
+        <LibrarySelectionDialog
+          onSelect={(rubric) => {
+            controller.setSelectedRubric(rubric.id);
+            setShowLibraryDialog(false);
+          }}
+          onClose={() => setShowLibraryDialog(false)}
+        />
+      )}
+
+      {/* Citation Manager */}
+      {showCitationManager && (
+        <div className={styles.dialogOverlay}>
+          <CitationManager
+            onSelect={(citation) => {
+              console.log('Selected citation:', citation);
+            }}
+            onInsert={(citation) => {
+              console.log('Inserting citation:', citation);
+            }}
+            onClose={() => setShowCitationManager(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

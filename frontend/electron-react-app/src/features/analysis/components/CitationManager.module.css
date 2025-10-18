@@ -1,0 +1,318 @@
+.citationManager {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.filtersSection {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.filterRow {
+    display: flex;
+    gap: 24px;
+    align-items: flex-end;
+}
+
+.filterGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.filterLabel {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.filterButtons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.filterButton {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filterButton:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.filterButton.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.filterIcon {
+    font-size: 12px;
+}
+
+.filterText {
+    font-size: 12px;
+}
+
+.searchGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 200px;
+}
+
+.searchInput {
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    color: #374151;
+    transition: border-color 0.2s ease;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.citationList {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.listHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+
+.headerText {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.citationItems {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.citationItem {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.citationItem:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.citationItem.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.citationHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.citationTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.typeIcon,
+.categoryIcon,
+.disciplineIcon {
+    font-size: 14px;
+}
+
+.citationType {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.citationMeta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lastUsed {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.citationContent {
+    margin-bottom: 12px;
+}
+
+.citationText {
+    font-size: 14px;
+    color: #1f2937;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    font-style: italic;
+    background: #f9fafb;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 3px solid #3b82f6;
+}
+
+.citationSource {
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.4;
+}
+
+.citationTags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.tag {
+    padding: 3px 6px;
+    background: #f3f4f6;
+    color: #6b7280;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.actionsSection {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 20px;
+}
+
+.selectedInfo {
+    flex: 1;
+}
+
+.selectedCitation {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.selectedLabel {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.selectedName {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.noSelection {
+    font-size: 14px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 12px;
+}
+
+/* Scrollbar styling */
+.citationItems::-webkit-scrollbar {
+    width: 6px;
+}
+
+.citationItems::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.citationItems::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.citationItems::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .filterRow {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .filterButtons {
+        flex-direction: column;
+    }
+
+    .filterButton {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .citationHeader {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .actionsSection {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+
+    .actionButtons {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
