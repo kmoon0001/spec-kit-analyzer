@@ -6,12 +6,33 @@
   background: linear-gradient(120deg, rgba(30, 64, 175, 0.92), rgba(15, 23, 42, 0.9));
   border-bottom: 1px solid rgba(30, 64, 175, 0.35);
   box-shadow: 0 24px 36px -32px rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
 }
 
 .branding {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logoIcon {
+  color: #60a5fa;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .logo {
@@ -27,6 +48,12 @@
   letter-spacing: 0.08em;
   color: #dbeafe;
   box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.35);
+  transition: all 0.3s ease;
+}
+
+.logo:hover {
+  background: rgba(59, 130, 246, 0.35);
+  transform: scale(1.05);
 }
 
 .title {
@@ -34,6 +61,7 @@
   color: #f8fafc;
   font-size: 1.4rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
@@ -50,9 +78,37 @@
 }
 
 .userBadge {
-  padding: 0.4rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 0.9rem;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.15);
   color: #f8fafc;
   font-size: 0.85rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+}
+
+.userDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.buttonText {
+  margin-left: 6px;
+}
+
+@media (max-width: 768px) {
+  .buttonText {
+    display: none;
+  }
+
+  .subtitle {
+    display: none;
+  }
 }
