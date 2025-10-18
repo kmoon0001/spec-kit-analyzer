@@ -313,7 +313,7 @@ async def disconnect_ehr_system(current_user: User = Depends(get_current_user)) 
 
 
 @router.get("/supported-systems")
-async def get_supported_ehr_systems() -> dict[str, Any]:
+async def get_supported_ehr_systems(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
     """Get list of supported EHR systems."""
     return {
         "supported_systems": [

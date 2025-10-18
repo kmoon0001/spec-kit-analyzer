@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from ...core.compliance_service import ComplianceService
 from ...core.domain_models import TherapyDocument
+from ...auth import get_current_active_user
+from ...database import models
 
 router = APIRouter(prefix="/compliance", tags=["Compliance"])
 service = ComplianceService()
@@ -43,7 +45,7 @@ class ComplianceResultModel(BaseModel):
 
 
 @router.get("/rubrics")
-async def get_rubrics():
+async def get_rubrics(current_user: models.User = Depends(get_current_active_user)):
     """Get available compliance rubrics"""
     return {
         "rubrics": [
@@ -70,7 +72,10 @@ async def get_rubrics():
 
 
 @router.post("/evaluate", response_model=ComplianceResultModel)
-async def evaluate_document(payload: TherapyDocumentRequest) -> ComplianceResultModel:
+async def evaluate_document(
+    payload: TherapyDocumentRequest, 
+    current_user: models.User = Depends(get_current_active_user)
+) -> ComplianceResultModel:
     if not payload.text or not payload.discipline or not payload.document_type:
         raise HTTPException(status_code=400, detail="Document text, discipline, and document_type are required.")
 
