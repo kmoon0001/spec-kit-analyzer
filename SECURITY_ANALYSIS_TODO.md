@@ -1,0 +1,157 @@
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\main.py
+  - [ ] Investigate data flow from WebSocketLogHandler on line 77
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\dependencies.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\error_handling.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\global_exception_handler.py
+  - [ ] Investigate data flow from ApplicationError details on line 47
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\limiter.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\rate_limiter.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\task_registry.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\admin.py
+  - [ ] Investigate configuration degradation in POST /settings on line 69
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\advanced_analytics.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\analysis.py
+  - [ ] Investigate IDOR in /status/{task_id} and /export-pdf/{task_id} on lines 342 and 371
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\auth.py
+  - [ ] Investigate lack of password complexity rules in POST /users/change-password on line 103
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\chat.py
+  - [ ] Investigate prompt injection in POST / on line 20
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\compliance.py
+  - [ ] Investigate missing authentication on all endpoints
+  - [ ] Investigate lack of input validation on `discipline` and `document_type` fields in POST /evaluate on line 60
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\dashboard.py
+  - [ ] Investigate IDOR in GET /reports/{report_id} on line 131
+  - [ ] Investigate prompt injection in POST /coaching-focus on line 182
+  - [ ] Investigate XSS in GET /reports/{report_id} on line 131
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\ehr_integration.py
+  - [ ] Investigate insecure handling of client_secret in POST /connect on line 77
+  - [ ] Investigate IDOR in GET /sync/{sync_task_id}/status on line 201
+  - [ ] Investigate IDOR in POST /documents/{document_id}/analyze on line 241
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\feedback.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\habits.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\health_check.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\health.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\individual_habits.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\meta_analytics.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\plugins.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\preferences.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\rubric_router.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\users.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\websocket.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\auth.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\config.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\logging_config.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\mock_api.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\advanced_cache_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\advanced_performance_optimizer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ai_guardrails_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\alert_router.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_diagnostics.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_error_handler.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_status_tracker.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_utils.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_workflow_logger.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analytics_agent.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analytics_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\async_file_handler.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\auto_updater.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\build_bm25_index.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\cache_integration_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\cache_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\calibration_trainer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\chat_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\checklist_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_analyzer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_sync_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\confidence_calibrator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\create_db.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_aggregator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_integration_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_purging_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_maintenance_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_optimizer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_classifier.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_processing_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\domain_models.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ehr_connector.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\embedding_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\enhanced_error_handler.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\enhanced_habit_mapper.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\error_handlers.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\exceptions.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\explanation.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\export_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\fact_checker_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\feature_config.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\guideline_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habit_mapper.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habit_progression_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\habits_education_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\hybrid_retriever.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\individual_habit_tracker.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\intelligent_report_generator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\license_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\llm_analyzer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\llm_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\memory_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\meta_analytics_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\metrics_collector.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ml_scheduler.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ml_trend_predictor.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\mock_analysis_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\model_resource_factory.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\model_selection_utils.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\multi_agent_orchestrator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ner.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\nlg_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\parsing.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\pdf_export_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\performance_integration.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\performance_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\performance_metrics_collector.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\performance_monitor.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\performance_optimizer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\performance_test_orchestrator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\phi_scrubber.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\plugin_system.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\preprocessing_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\presidio_wrapper.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\prompt_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\query_expander.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\rag_fact_checker.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_branding_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_config_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_data_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_generation_engine.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_generator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_models.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\report_template_engine.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\resource_pool.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\retriever.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\risk_scoring_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src.core\rubric_loader.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\rule_loader.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\security_hardening.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\security_validator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\smart_chunker.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\system_integration_service.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\system_validator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\template_renderer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\template_system.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\text_utils.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\vector_store.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\worker_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\workflow_automation.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\database\crud.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\database\database.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\database\models.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\database\schemas.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\ml\trainer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\utils\config_validator.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\utils\file_utils.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\utils\performance_optimizer.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\utils\prompt_manager.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\utils\text_utils.py
+- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\config.yaml

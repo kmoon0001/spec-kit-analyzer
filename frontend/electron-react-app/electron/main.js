@@ -189,7 +189,7 @@ const createMainWindow = () => {
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:3000';
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:3001';
 
   if (isDev) {
     mainWindow.loadURL(rendererUrl);
