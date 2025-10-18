@@ -221,11 +221,21 @@ class AnalysisService:
                 temp_file_path.write_bytes(file_content)
                 chunks = parse_document_content(str(temp_file_path))
                 text_to_process = " ".join(c.get("sentence", "") for c in chunks if isinstance(c, dict)).strip()
+
+                # Clean up temp file immediately after parsing
+                try:
+                    temp_file_path.unlink()
+                    logger.info("Cleaned up temporary file: %s", temp_file_path)
+                except Exception as e:
+                    logger.warning("Failed to clean up temp file %s: %s", temp_file_path, e)
             else:  # document_text must exist
                 text_to_process = document_text or ""
 
             if not text_to_process:
+                logger.error("Could not extract any text from the provided document.")
                 raise ValueError("Could not extract any text from the provided document.")
+
+            logger.info("Successfully extracted %d characters of text for analysis", len(text_to_process))
 
             # Automatic rubric detection based on content
             _update_progress(8, "Detecting appropriate compliance rubric...")
@@ -283,14 +293,25 @@ class AnalysisService:
             _update_progress(60, "Running compliance analysis...")
             # Add timeout to the entire compliance analysis
             try:
+                logger.info("Starting compliance analysis with %d characters of scrubbed text", len(scrubbed_text))
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(
                             document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
                         )
                     ),
-                    timeout=600.0,  # 10 minute timeout for entire analysis
+                    timeout=300.0,  # 5 minute timeout for entire analysis
                 )
+                logger.info("Compliance analysis completed successfully")
+            except asyncio.TimeoutError:
+                logger.error("Compliance analysis timed out after 5 minutes")
+                analysis_result = {
+                    "findings": [],
+                    "summary": "Analysis timed out - document may be too complex or system resources limited.",
+                    "error": "Analysis timeout",
+                    "exception": True,
+                    "compliance_score": 0.0,
+                }
             except Exception as e:
                 logger.exception("Compliance analysis failed: %s", e)
                 analysis_result = {
@@ -362,11 +383,15 @@ class AnalysisService:
     ) -> AnalysisOutput:
         """Fast-path analysis used when USE_AI_MOCKS is enabled."""
 
+        logger.info("Running mock analysis pipeline with %d characters of text", len(text_to_process))
+
         update_progress(10, "Preprocessing document text...")
         await asyncio.sleep(0.2)
         sanitized_text = sanitize_human_text(text_to_process) or "Clinical document"
         doc_length = len(sanitized_text)
         doc_hash = hashlib.sha1(sanitized_text.encode("utf-8")).hexdigest()
+
+        logger.info("Mock pipeline: processed %d characters, discipline: %s", doc_length, discipline)
 
         update_progress(30, "Performing PHI redaction (mock)...")
         await asyncio.sleep(0.2)

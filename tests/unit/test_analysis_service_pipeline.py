@@ -59,6 +59,10 @@ async def test_analysis_service_uses_analysis_utils(monkeypatch):
     service.compliance_analyzer = SimpleNamespace(analyze_document=fake_analyze_document)
     service.report_generator = SimpleNamespace(generate_report=fake_generate_report)
     service.checklist_service = SimpleNamespace(evaluate=fake_checklist)
+    service.rubric_detector = SimpleNamespace(
+        detect_rubric=lambda text, filename: ("default", 0.8, {}),
+        detect_discipline=lambda text: ("pt", 0.7)
+    )
 
     result = await service.analyze_document(document_text="original text", discipline="PT")
 

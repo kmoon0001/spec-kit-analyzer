@@ -77,17 +77,17 @@ async def run_analysis_and_save(
                 strictness=strictness,
                 progress_callback=_update_progress,
             )
+            # The result from analyze_document is already the analysis payload
             analysis_payload = result if isinstance(result, dict) else {}
-            analysis_details = {}
-            if isinstance(analysis_payload, dict):
-                candidate = analysis_payload.get("analysis")
-                if isinstance(candidate, dict):
-                    analysis_details = candidate
 
-            findings = analysis_details.get("findings", []) if isinstance(analysis_details, dict) else []
-            compliance_score = analysis_details.get("compliance_score") if isinstance(analysis_details, dict) else None
-            document_type = analysis_details.get("document_type") if isinstance(analysis_details, dict) else None
-            report_html = analysis_payload.get("report_html") if isinstance(analysis_payload, dict) else None
+            # Extract findings and other data directly from the result
+            findings = analysis_payload.get("findings", [])
+            compliance_score = analysis_payload.get("compliance_score")
+            document_type = analysis_payload.get("document_type")
+            report_html = analysis_payload.get("report_html")
+
+            logger.info("Analysis result structure: %s", list(analysis_payload.keys()) if isinstance(analysis_payload, dict) else "Not a dict")
+            logger.info("Found %d findings, compliance score: %s", len(findings), compliance_score)
 
             task_entry = tasks[task_id]
             task_entry["status"] = "analyzing"
@@ -102,7 +102,7 @@ async def run_analysis_and_save(
                     "timestamp": datetime.datetime.now(datetime.UTC),
                     "progress": 100,
                     "status_message": "Analysis complete.",
-                    "analysis": analysis_details,
+                    "analysis": analysis_payload,
                     "findings": findings,
                     "overall_score": compliance_score,
                     "document_type": document_type,
@@ -121,6 +121,10 @@ async def run_analysis_and_save(
                 "progress": 0,
                 "status_message": f"Analysis failed: {exc}",
                 "strictness": strictness,
+                "findings": [],
+                "overall_score": 0.0,
+                "document_type": "Unknown",
+                "report_html": None,
             }
 
     await analysis_task_registry.start(task_id, _async_analysis())

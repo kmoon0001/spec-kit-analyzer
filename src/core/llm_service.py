@@ -94,9 +94,14 @@ class LLMService:
                 model_kwargs[key] = value
         model_kwargs = {k: v for k, v in model_kwargs.items() if v not in (None, "")}
 
-        self.llm = AutoModelForCausalLM.from_pretrained(source, **model_kwargs)
-        self.tokenizer = None
-        self.seq2seq = False
+        try:
+            self.llm = AutoModelForCausalLM.from_pretrained(source, **model_kwargs)
+            self.tokenizer = None
+            self.seq2seq = False
+        except Exception as e:
+            logger.warning("ctransformers failed to load model, falling back to transformers: %s", e)
+            # Fall back to transformers backend
+            self._load_transformers_model()
 
     def _load_transformers_model(self) -> None:
         model_id, _ = self._resolve_model_source()

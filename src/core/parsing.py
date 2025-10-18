@@ -43,7 +43,10 @@ def _get_file_hash(file_path: str) -> str:
 
 def parse_document_content(file_path: str) -> list[dict[str, str]]:
     """Parse supported documents into sentence chunks with OCR support and content-based caching."""
+    logger.info("Parsing document: %s", file_path)
+
     if not os.path.exists(file_path):
+        logger.error("File not found: %s", file_path)
         return [
             {
                 "sentence": f"Error: File not found at {file_path}",
@@ -52,9 +55,11 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
         ]
 
     extension = os.path.splitext(file_path)[1].lower()
+    logger.info("File extension detected: %s", extension)
 
     if extension not in SUPPORTED_EXTENSIONS:
         supported_list = ", ".join(sorted(SUPPORTED_EXTENSIONS))
+        logger.error("Unsupported file type: %s. Supported: %s", extension, supported_list)
         return [
             {
                 "sentence": f"Error: Unsupported file type '{extension}'. Supported formats: {supported_list}",
@@ -84,10 +89,11 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
             result = []
 
         cache_service.set_to_disk(cache_key, result)
+        logger.info("Successfully parsed document: %s (%d chunks)", os.path.basename(file_path), len(result))
         return result
 
     except (FileNotFoundError, PermissionError, OSError) as e:
-        logger.exception("Error parsing %s: {e}", file_path)
+        logger.exception("Error parsing %s: %s", file_path, e)
         return [
             {
                 "sentence": f"Error parsing file: {e!s}",

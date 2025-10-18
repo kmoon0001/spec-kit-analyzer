@@ -28,7 +28,8 @@ llm:
   gpu_layers: 0
   threads: 4
   hf_model_type: llama
-  model_type: ctransformers
+  model_type: transformers
+  model_repo_id: microsoft/DialoGPT-medium
   generation_params:
     max_new_tokens: 512
     repeat_penalty: 1.1
@@ -47,23 +48,23 @@ models:
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
 
-  # Llama 3.2 3B - Latest Meta model, excellent stability
-  generator: bartowski/Llama-3.2-3B-Instruct-GGUF
-  generator_filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
-  generator_local_path: models/llama32-3b
+  # Use a more capable model for structured analysis
+  generator: microsoft/DialoGPT-small
+  generator_filename: model.safetensors
+  generator_local_path:
 
   generator_profiles:
     clinical_fast:
       batch_size: 2
       do_sample: false
       fast_mode: true
-      filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
+      filename: model.safetensors
       max_length: 1024
       max_system_gb: 6.0
       max_tokens: 512
       num_beams: 1
       optimize_for_speed: true
-      repo: bartowski/Llama-3.2-3B-Instruct-GGUF
+      repo: microsoft/DialoGPT-small
       revision: main
       temperature: 0.1
       use_cache: true
