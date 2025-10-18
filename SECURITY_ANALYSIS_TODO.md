@@ -29,48 +29,77 @@
   - [ ] Investigate IDOR in POST /documents/{document_id}/analyze on line 241
 - [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\feedback.py
 - [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\habits.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\health_check.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\health.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\individual_habits.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\meta_analytics.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\plugins.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\preferences.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\rubric_router.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\users.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\websocket.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\auth.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\config.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\logging_config.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\mock_api.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\advanced_cache_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\advanced_performance_optimizer.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ai_guardrails_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\alert_router.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_diagnostics.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_error_handler.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_status_tracker.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_utils.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_workflow_logger.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analytics_agent.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analytics_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\async_file_handler.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\auto_updater.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\build_bm25_index.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\cache_integration_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\cache_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\calibration_trainer.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\chat_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\checklist_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_analyzer.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_sync_service.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\confidence_calibrator.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\create_db.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_aggregator.py
-- [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_integration_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\health_check.py
+  - [ ] Investigate excessive information disclosure in GET /health/detailed and GET /health/metrics on lines 303 and 361
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\health.py
+  - [ ] Investigate excessive information disclosure in GET /health/system on line 20
+  - [ ] Investigate potential information disclosure in GET /health on line 34
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\individual_habits.py
+  - [ ] Investigate lack of input validation for `category` in GET /achievements on line 255
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\meta_analytics.py
+  - [ ] Investigate lack of input validation for `discipline` in GET /widget_data on line 33
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\plugins.py
+  - [ ] Investigate information disclosure in plugin endpoints on lines 131, 140, 146, 262, 271
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\preferences.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\rubric_router.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\users.py
+  - [ ] Investigate lack of password complexity rules in PUT /users/me/password on line 25
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\api\routers\websocket.py
+  - [ ] Investigate IDOR in /analysis/{task_id} websocket on line 124
+  - [ ] Investigate information disclosure in /health websocket on line 211
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\auth.py
+  - [ ] Investigate use of hardcoded fallback secret key on line 21
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\config.py
+  - [ ] Investigate use of hardcoded fallback secret key on line 272
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\logging_config.py
+  - [ ] Investigate use of `structlog.contextvars.merge_contextvars` on line 41
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\mock_api.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\advanced_cache_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\advanced_performance_optimizer.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\ai_guardrails_service.py
+  - [ ] Investigate potential for ReDoS in guardrail regex patterns on lines 162, 174, 238, 250, 262, 360, 372
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\alert_router.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_diagnostics.py
+  - [ ] Investigate information disclosure in `run_full_diagnostic` on line 58
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_error_handler.py
+  - [ ] Investigate information disclosure in `format_error_message` on line 415
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_service.py
+  - [ ] Investigate prompt injection in `analyze_document` on line 200
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_status_tracker.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_utils.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analysis_workflow_logger.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analytics_agent.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\analytics_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\async_file_handler.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\auto_updater.py
+  - [ ] Investigate insecure update process on line 178
+  - [ ] Investigate hardcoded update server URL on line 27
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\build_bm25_index.py
+  - [ ] Investigate use of pickle for deserialization on line 41
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\cache_integration_service.py
+  - [ ] Investigate potential for DoS due to unbounded cache size on line 19
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\cache_service.py
+  - [ ] Investigate insecure deserialization with pickle on line 60
+  - [ ] Investigate potential for DoS due to unbounded cache size on line 18
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\calibration_trainer.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\chat_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\checklist_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_analyzer.py
+  - [ ] Investigate insecure deserialization of confidence calibrator on line 112
+  - [ ] Investigate prompt injection in `analyze_document` on line 253
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_service.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\compliance_sync_service.py
+  - [ ] Investigate logging of patient_ids in `sync_ehr_documents` on line 30
+  - [ ] Investigate IDOR in `get_sync_status` on line 125
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\confidence_calibrator.py
+  - [ ] Investigate insecure deserialization with pickle on line 131
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\create_db.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_aggregator.py
+- [x] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_integration_service.py
+  - [ ] Investigate potential for DoS due to unbounded cache size in `BaseDataProvider` on line 193
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\data_purging_service.py
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_maintenance_service.py
+  - [ ] Investigate potential for SQL injection in `crud.delete_reports_older_than` on line 49
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\database_optimizer.py
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_classifier.py
 - [ ] SAST Recon on C:\Users\kevin\Desktop\ElectroAnalyzer\src\core\document_processing_service.py

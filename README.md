@@ -4,7 +4,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.118.0-green.svg)](https://fastapi.tiangolo.com/)
-[![PySide6](https://img.shields.io/badge/PySide6-6.9.3-orange.svg)](https://doc.qt.io/qtforpython/)
+[![React](https://img.shields.io/badge/React-19.2.0-blue.svg)](https://reactjs.org/)
+[![Electron](https://img.shields.io/badge/Electron-38.2.2-blue.svg)](https://www.electronjs.org/)
 [![License](https://img.shields.io/badge/license-Private-red.svg)]()
 
 ## ✨ Features
@@ -16,8 +17,8 @@
 - **Interactive Reports**: HTML reports with source highlighting
 
 ### 🎨 **Modern Interface**
-- **Professional UI**: Medical-themed design with blue branding
-- **Responsive Layout**: Scales from 900x600 to full screen
+- **Professional UI**: React-based medical-themed design with blue branding
+- **Responsive Layout**: Modern Electron desktop application
 - **Integrated Chat**: AI assistant for compliance questions
 - **Theme Support**: Light/Dark mode with persistent preferences
 
@@ -36,7 +37,8 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Python 3.11+** (Required)
+- **Python 3.11+** (Required for backend)
+- **Node.js 18+** (Required for frontend)
 - **4GB+ RAM** (Recommended for AI models)
 - **2GB+ Storage** (For models and data)
 
@@ -64,12 +66,12 @@
    ```bash
    # Terminal 1: Start API server
    python scripts/run_api.py
-   
+
    # Terminal 2: Start GUI
    python scripts/run_gui.py
    ```
 
-5. **Login**
+6. **Login**
    - Username: `admin`
    - Password: `admin123`
 
