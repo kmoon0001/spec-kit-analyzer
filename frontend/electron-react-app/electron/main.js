@@ -4,7 +4,7 @@ const path = require('node:path');
 const { taskManager } = require('./tasks');
 
 const isDev = process.env.ELECTRON_IS_DEV === '1' || !app.isPackaged;
-const defaultApiBaseUrl = process.env.COMPLIANCE_API_URL || 'http://127.0.0.1:8100';
+const defaultApiBaseUrl = process.env.COMPLIANCE_API_URL || 'http://127.0.0.1:8001';
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
