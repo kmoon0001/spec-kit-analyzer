@@ -15,6 +15,37 @@ enable_director_dashboard: true
 habits_framework:
   enabled: true
   visibility_level: moderate
+  ai_features:
+    use_ai_mapping: true
+    enable_gamification: true
+    privacy_mode: false
+  report_integration:
+    include_habits_section: true
+    show_habit_tags: true
+    habit_confidence_threshold: 0.7
+  dashboard_integration:
+    show_progress_tracking: true
+    show_achievements: true
+    show_recommendations: true
+
+# RAG System Configuration
+rag_system:
+  enabled: true
+  strictness_adaptive: true
+  knowledge_sources:
+    clinical_guidelines: true
+    compliance_rubrics: true
+    medical_dictionaries: true
+    fact_checking_database: true
+    historical_analyses: true
+    expert_rules: true
+  rag_caching:
+    enabled: true
+    cache_embeddings: true
+    cache_retrievals: true
+    cache_fact_checks: true
+    cache_knowledge: true
+    ttl_hours: 24
 llm:
   context_length: 4096
   gpu_layers: 0

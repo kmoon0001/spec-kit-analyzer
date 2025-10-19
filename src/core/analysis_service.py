@@ -246,7 +246,7 @@ class AnalysisService:
 
         _update_progress(0, "Starting analysis pipeline...")
 
-        normalized_strictness = (strictness or "standard").lower()
+        normalized_strictness = (strictness or AnalysisConstants.DEFAULT_STRICTNESS).lower()
         temp_file_path: Path | None = None
         try:
             if file_content:
