@@ -25,7 +25,7 @@ class SecurityValidator:
     ALLOWED_ANALYSIS_MODES: Final[set[str]] = {"rubric", "checklist", "hybrid"}
 
     # Strictness validation
-    ALLOWED_STRICTNESS_LEVELS: Final[set[str]] = {"lenient", "standard", "strict"}
+    ALLOWED_STRICTNESS_LEVELS: Final[set[str]] = {"ultra_fast", "balanced", "thorough", "clinical_grade"}
 
     # String length limits
     MAX_USERNAME_LENGTH: Final[int] = 50

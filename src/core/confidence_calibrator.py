@@ -110,9 +110,16 @@ class ConfidenceCalibrator:
 
     def load(self, path):
         """Load a calibrator from a file."""
-        with open(path, "rb") as f:
-            loaded_calibrator = pickle.load(f)
-            self.__dict__.update(loaded_calibrator.__dict__)
+        try:
+            with open(path, "rb") as f:
+                loaded_calibrator = pickle.load(f)
+                # Security: Validate that loaded object is expected type
+                if not isinstance(loaded_calibrator, ConfidenceCalibrator):
+                    logger.warning("Invalid calibrator type loaded, skipping update")
+                    return
+                self.__dict__.update(loaded_calibrator.__dict__)
+        except (pickle.UnpicklingError, EOFError, ImportError, AttributeError):
+            logger.warning("Failed to load calibrator safely, skipping update")
 
     def get_calibration_metrics(self):
         """Get calibration performance metrics."""

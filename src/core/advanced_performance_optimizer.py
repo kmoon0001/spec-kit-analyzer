@@ -18,7 +18,7 @@ _advanced_cache_service: Optional["AdvancedCacheService"] = None
 _memory_manager: Optional["MemoryManager"] = None
 
 try:
-    from src.core.performance_optimizer import PerformanceOptimizer
+    # PerformanceOptimizer is now integrated into this file
 
     _performance_optimizer = PerformanceOptimizer()
 except ImportError:

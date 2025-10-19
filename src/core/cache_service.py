@@ -50,7 +50,8 @@ class CacheService:
             try:
                 with open(cache_file, "rb") as handle:
                     return pickle.load(handle)
-            except (pickle.UnpicklingError, EOFError):
+            except (pickle.UnpicklingError, EOFError, ImportError):
+                # Security: Ignore unpickling errors to prevent code execution
                 return None
         return None
 

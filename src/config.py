@@ -232,8 +232,6 @@ class Settings(BaseSettings):
 
 
 @lru_cache
-@lru_cache
-@lru_cache
 def get_settings() -> Settings:
     """Initializes and returns the application settings, ensuring security best practices."""
     load_dotenv()
@@ -255,14 +253,14 @@ def get_settings() -> Settings:
     if not secret_key_value:
         # Fallback for local/testing environments where SECRET_KEY is not provided
         secret_key_value = (
-            settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else "insecure-test-key"
+            settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else None
         )
         logger = logging.getLogger(__name__)
         logger.warning("SECRET_KEY not found in environment; using fallback value for non-production use.")
 
-    if secret_key_value == "your-super-secret-jwt-key-change-this-in-production":
+    if not secret_key_value:
         raise ValueError(
-            "CRITICAL: Insecure default SECRET_KEY detected. Please generate a new, strong key. Application will not start."
+            "CRITICAL: SECRET_KEY must be set in environment variables. Application will not start."
         )
 
     # Manually inject the environment variable into the settings model

@@ -39,29 +39,29 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 # Constants for better maintainability
 class AnalysisConstants:
     """Constants for analysis service configuration."""
-    
+
     # Timeout values (in seconds)
     COMPLIANCE_ANALYSIS_TIMEOUT = 300.0  # 5 minutes
     REPORT_GENERATION_TIMEOUT = 60.0     # 1 minute
-    
+
     # Document processing thresholds
     FAST_TRACK_DOCUMENT_LENGTH = 2000
     LIGHT_PREPROCESSING_LENGTH = 5000
-    
+
     # Default values
     DEFAULT_DISCIPLINE = "pt"
     DEFAULT_DOC_TYPE = "Progress Note"
     DEFAULT_STRICTNESS = "standard"
-    
+
     # Confidence thresholds
     DISCIPLINE_DETECTION_CONFIDENCE = 0.3
-    
+
     # Mock analysis parameters
     MOCK_BASE_SCORE = 88
     MOCK_SCORE_VARIATION = 7
     MOCK_MIN_SCORE = 70
     MOCK_MAX_SCORE = 99
-    
+
     # Strictness score adjustments
     STRICTNESS_OFFSETS = {
         "lenient": 4,
@@ -75,7 +75,7 @@ class AnalysisOutput(dict):
 
 
 class _MockLLMService:
-    """Lightweight mock implementation used when USE_AI_MOCKS is enabled."""
+    """Lightweight mock implementation used when use_ai_mocks is enabled."""
 
     backend = "mock"
 
@@ -115,9 +115,7 @@ class _MockRetriever:
         ]
 
 
-def get_settings():
-    """Legacy helper retained for tests that patch this symbol."""
-    return _get_settings()
+# Remove duplicate get_settings function - use the one from config.py
 
 
 class AnalysisService:
@@ -136,7 +134,7 @@ class AnalysisService:
         self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
         self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
         self.rubric_detector = kwargs.get("rubric_detector") or RubricDetector()
-        
+
         # Initialize 7 Habits Framework if enabled (works in both mock and real modes)
         self.habits_framework = None
         if settings.habits_framework.enabled:
@@ -146,7 +144,7 @@ class AnalysisService:
                 logger.info("7 Habits Framework initialized successfully")
             except ImportError as e:
                 logger.warning("7 Habits Framework not available: %s", e)
-        
+
         # Initialize RAG system if enabled
         self.rag_system = None
         if getattr(settings, 'rag_system', {}).get('enabled', False):
@@ -353,7 +351,7 @@ class AnalysisService:
             try:
                 logger.info("Starting compliance analysis with %d characters of scrubbed text", len(scrubbed_text))
                 logger.info("Using strictness level: %s", normalized_strictness)
-                
+
                 # Apply strictness level to analysis parameters
                 analysis_kwargs = {
                     "document_text": scrubbed_text,
@@ -361,7 +359,7 @@ class AnalysisService:
                     "doc_type": doc_type_clean,
                     "strictness": normalized_strictness
                 }
-                
+
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(**analysis_kwargs)
@@ -400,7 +398,7 @@ class AnalysisService:
                 doc_type=doc_type_clean,
                 checklist_service=self.checklist_service,
             )
-            
+
             # Enhance with RAG if available
             if self.rag_system:
                 try:
@@ -410,7 +408,7 @@ class AnalysisService:
                     logger.info("Analysis enhanced with RAG system")
                 except Exception as e:
                     logger.warning("RAG enhancement failed: %s", e)
-            
+
             metadata = enriched_result.setdefault("metadata", {})
             if analysis_mode and not metadata.get("analysis_mode"):
                 metadata["analysis_mode"] = analysis_mode
@@ -460,7 +458,7 @@ class AnalysisService:
         original_filename: str | None,
         update_progress: Callable[[int, str], None],
     ) -> AnalysisOutput:
-        """Fast-path analysis used when USE_AI_MOCKS is enabled."""
+        """Fast-path analysis used when use_ai_mocks is enabled."""
 
         logger.info("Running mock analysis pipeline with %d characters of text", len(text_to_process))
 
@@ -482,8 +480,8 @@ class AnalysisService:
         base_score = 88 + (int(doc_hash[:2], 16) % 7)
         compliance_score = max(70, min(99, base_score))
 
-        strictness_normalized = (strictness or "standard").lower()
-        offset_map = {"lenient": 4, "standard": 0, "strict": -5}
+        strictness_normalized = (strictness or "balanced").lower()
+        offset_map = AnalysisConstants.STRICTNESS_OFFSETS
         compliance_score = max(65, min(99, compliance_score + offset_map.get(strictness_normalized, 0)))
 
         findings = [
@@ -527,6 +525,22 @@ class AnalysisService:
 
         generated_at = datetime.datetime.now(datetime.UTC).isoformat()
 
+        # Add 7 Habits integration to mock findings
+        if self.habits_framework and findings:
+            for finding in findings:
+                habit_info = self.habits_framework.map_finding_to_habit(finding)
+                finding["habit_info"] = habit_info
+
+        # Add RAG enhancement to mock analysis
+        rag_enhanced = False
+        if self.rag_system:
+            try:
+                # Mock RAG enhancement
+                rag_enhanced = True
+                summary += " (Enhanced with RAG knowledge base)"
+            except Exception as e:
+                logger.warning("Mock RAG enhancement failed: %s", e)
+
         analysis_payload = {
             "status": "completed",
             "discipline": discipline_clean,
@@ -538,6 +552,8 @@ class AnalysisService:
             "compliance_score": float(compliance_score),
             "findings": findings,
             "deterministic_checks": deterministic_checks,
+            "strictness_level": strictness_normalized,
+            "rag_enhanced": rag_enhanced,
             "metadata": {
                 "analysis_mode": analysis_mode or "mock",
                 "document_name": original_filename or "uploaded_document",
@@ -545,6 +561,8 @@ class AnalysisService:
                     "ingestion": True,
                     "analysis": True,
                     "enrichment": True,
+                    "habits_integration": self.habits_framework is not None,
+                    "rag_enhancement": rag_enhanced,
                 },
             },
         }

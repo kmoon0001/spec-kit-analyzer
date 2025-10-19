@@ -28,8 +28,7 @@ SentenceTransformer = None
 _SentenceTransformer_override = None
 
 
-def get_settings():
-    return _get_settings()
+# Remove duplicate get_settings function - use the one from config.py
 
 
 def _fallback_hash_embed(text: str, dim: int = 768) -> np.ndarray:

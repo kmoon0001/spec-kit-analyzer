@@ -42,8 +42,13 @@ class TaskManager extends EventEmitter {
       const token = job.metadata?.token;
 
       // Make API call based on task type
+      let endpoint = '/analysis/upload';
+      if (job.type === 'analysis') {
+        endpoint = '/analysis/upload';
+      }
+      
       const response = await axios.post(
-        `${apiUrl}/analyze`,
+        `${apiUrl}${endpoint}`,
         job.payload,
         {
           headers: token ? { Authorization: `Bearer ${token}` } : {},

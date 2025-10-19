@@ -56,8 +56,6 @@ class AuthService:
 
 
 @lru_cache
-@lru_cache
-@lru_cache
 def get_auth_service() -> AuthService:
     return AuthService()
 
