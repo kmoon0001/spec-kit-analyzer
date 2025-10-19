@@ -190,6 +190,11 @@ class LLMService:
         repetition_penalty = float(gen_params.pop("repeat_penalty", 1.1))
         stop_sequences = gen_params.pop("stop_sequences", None)
 
+        # Safety limits to prevent infinite generation
+        max_new_tokens = min(max_new_tokens, 1024)  # Hard limit to prevent runaway generation
+        if not stop_sequences:
+            stop_sequences = ["</analysis>", "\n\n---", "\n\n\n", "###", "##", "#"]
+
         try:
             if self.backend == "ctransformers" and self.llm is not None:
                 output = self.llm(  # type: ignore[misc]
@@ -203,6 +208,12 @@ class LLMService:
                     **gen_params,
                 )
                 result = output.strip() if isinstance(output, str) else str(output)
+
+                # Safety check: prevent corrupted or infinite text
+                if len(result) > 2000:  # If response is too long, truncate it
+                    result = result[:2000] + "... [truncated]"
+                if result.count(result[:50]) > 3:  # If text repeats too much, clean it
+                    result = result[:500] + "... [repetitive content detected]"
 
                 # Cache the result for future use
                 generation_time = time.time() - start_time
@@ -275,6 +286,12 @@ class LLMService:
                 outputs = self.llm.generate(**inputs, **generate_kwargs)
 
             result = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+
+            # Safety check: prevent corrupted or infinite text
+            if len(result) > 2000:  # If response is too long, truncate it
+                result = result[:2000] + "... [truncated]"
+            if result.count(result[:50]) > 3:  # If text repeats too much, clean it
+                result = result[:500] + "... [repetitive content detected]"
 
             # Cache the result for future use
             generation_time = time.time() - start_time
