@@ -22,7 +22,7 @@ def get_cleanup_manager() -> CleanupManager:
 async def get_cleanup_health(
     cleanup_mgr: CleanupManager = Depends(get_cleanup_manager),
     request_id: str = RequestId,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> JSONResponse:
     """Get health status of all cleanup services."""
     log_with_request_id(request_id, f"Cleanup health check requested by user {current_user.id}")
@@ -46,7 +46,7 @@ async def get_cleanup_health(
 async def get_cleanup_stats(
     cleanup_mgr: CleanupManager = Depends(get_cleanup_manager),
     request_id: str = RequestId,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> JSONResponse:
     """Get statistics for all cleanup services."""
     log_with_request_id(request_id, f"Cleanup stats requested by user {current_user.id}")
@@ -71,7 +71,7 @@ async def run_cleanup_now(
     service_name: Optional[str] = None,
     cleanup_mgr: CleanupManager = Depends(get_cleanup_manager),
     request_id: str = RequestId,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> JSONResponse:
     """Run cleanup immediately for specified service or all services."""
     log_with_request_id(request_id, f"Manual cleanup requested by user {current_user.id} for service: {service_name}")
@@ -95,7 +95,7 @@ async def run_cleanup_now(
 async def start_cleanup_services(
     cleanup_mgr: CleanupManager = Depends(get_cleanup_manager),
     request_id: str = RequestId,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> JSONResponse:
     """Start all cleanup services."""
     log_with_request_id(request_id, f"Start cleanup services requested by user {current_user.id}")
@@ -119,7 +119,7 @@ async def start_cleanup_services(
 async def stop_cleanup_services(
     cleanup_mgr: CleanupManager = Depends(get_cleanup_manager),
     request_id: str = RequestId,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ) -> JSONResponse:
     """Stop all cleanup services."""
     log_with_request_id(request_id, f"Stop cleanup services requested by user {current_user.id}")

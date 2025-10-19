@@ -48,8 +48,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
             status_code=_get_status_code_for_error(exc),
             content={
                 "error": exc.error_code,
-                "message": exc.message,
-                "details": exc.details,
+                "message": _sanitize_error_message(exc.message),
+                "details": _sanitize_error_details(exc.details),
             },
         )
 
@@ -123,7 +123,67 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         status_code=exc.status_code,
         content={
             "error": f"HTTP_{exc.status_code}",
-            "message": exc.detail,
+            "message": _sanitize_error_message(exc.detail),
             "details": {"path": request.url.path, "method": request.method},
         },
     )
+
+
+def _sanitize_error_message(message: str) -> str:
+    """Sanitize error message to prevent information disclosure."""
+    if not message:
+        return "An error occurred"
+
+    # Remove sensitive information patterns
+    import re
+
+    # Remove file paths
+    message = re.sub(r'/[^\s]*', '[PATH]', message)
+
+    # Remove email addresses
+    message = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', message)
+
+    # Remove IP addresses
+    message = re.sub(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', '[IP]', message)
+
+    # Remove database connection strings
+    message = re.sub(r'(?:sqlite|postgresql|mysql)://[^\s]*', '[DB_CONNECTION]', message)
+
+    # Remove API keys and tokens
+    message = re.sub(r'(?:api[_-]?key|token|secret|password)[=:]\s*[^\s]+', '[CREDENTIAL]', message, flags=re.IGNORECASE)
+
+    # Remove stack trace information
+    message = re.sub(r'File "[^"]*", line \d+', 'File "[PATH]", line [NUMBER]', message)
+
+    # Limit message length
+    if len(message) > 500:
+        message = message[:500] + "..."
+
+    return message
+
+
+def _sanitize_error_details(details: dict) -> dict:
+    """Sanitize error details to prevent information disclosure."""
+    if not details:
+        return {}
+
+    sanitized = {}
+    sensitive_keys = {
+        'password', 'secret', 'key', 'token', 'credential', 'auth',
+        'file_path', 'path', 'url', 'connection', 'database'
+    }
+
+    for key, value in details.items():
+        key_lower = key.lower()
+
+        # Skip sensitive keys
+        if any(sensitive in key_lower for sensitive in sensitive_keys):
+            sanitized[key] = '[REDACTED]'
+        elif isinstance(value, str):
+            sanitized[key] = _sanitize_error_message(value)
+        elif isinstance(value, dict):
+            sanitized[key] = _sanitize_error_details(value)
+        else:
+            sanitized[key] = value
+
+    return sanitized

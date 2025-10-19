@@ -38,14 +38,19 @@ class AuthService:
 
     @staticmethod
     def verify_password(plain_password, hashed_password):
+        """Verify password using bcrypt. No fallback to weak hashing."""
         try:
             return pwd_context.verify(plain_password, hashed_password)
-        except (ValueError, TypeError):
-            # Fallback for legacy simple hashes; unknown/invalid hashes should not 500
-            import hashlib
+        except (ValueError, TypeError) as e:
+            # Log the error for security monitoring
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Password verification failed: {e}")
 
-            simple_hash = hashlib.sha256(plain_password.encode()).hexdigest()
-            return simple_hash == (hashed_password or "")
+            # Force password reset instead of fallback
+            raise ValueError(
+                "Password format outdated or invalid. Please reset your password."
+            )
 
     @staticmethod
     def get_password_hash(password: str) -> str:

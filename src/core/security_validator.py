@@ -35,12 +35,49 @@ class SecurityValidator:
 
     # Patterns considered unsafe in free-form text
     DANGEROUS_PATTERNS: Final[tuple[str, ...]] = (
-        r"<script",
-        r"javascript:",
-        r"onerror=",
+        r"<script[^>]*>.*?</script>",  # Script tags
+        r"javascript:",  # JavaScript protocol
+        r"onerror=",  # Event handlers
         r"onload=",
+        r"onclick=",
+        r"onmouseover=",
+        r"onfocus=",
+        r"onblur=",
+        r"onchange=",
+        r"onsubmit=",
+        r"onreset=",
+        r"onkeydown=",
+        r"onkeyup=",
+        r"onkeypress=",
         r"\.\./",  # Path traversal
         r"\.\.\\",  # Path traversal (Windows)
+        r"<iframe",  # Iframe injection
+        r"<object",  # Object injection
+        r"<embed",  # Embed injection
+        r"<link",  # Link injection
+        r"<meta",  # Meta injection
+        r"<style",  # Style injection
+        r"expression\s*\(",  # CSS expression
+        r"url\s*\(",  # CSS url
+        r"@import",  # CSS import
+        r"vbscript:",  # VBScript protocol
+        r"data:text/html",  # Data URI HTML
+        r"data:application/javascript",  # Data URI JS
+        r"blob:",  # Blob URL
+        r"file:",  # File protocol
+        r"ftp:",  # FTP protocol
+        r"gopher:",  # Gopher protocol
+        r"jar:",  # JAR protocol
+        r"ldap:",  # LDAP protocol
+        r"ldaps:",  # LDAPS protocol
+        r"mailto:",  # Mailto protocol
+        r"news:",  # News protocol
+        r"nntp:",  # NNTP protocol
+        r"tel:",  # Tel protocol
+        r"telnet:",  # Telnet protocol
+        r"tftp:",  # TFTP protocol
+        r"ws:",  # WebSocket protocol
+        r"wss:",  # Secure WebSocket protocol
     )
 
     @staticmethod
@@ -157,24 +194,54 @@ class SecurityValidator:
 
     @staticmethod
     def validate_password_strength(password: str) -> tuple[bool, str | None]:
-        """Enforce baseline password complexity requirements."""
+        """Enforce strong password complexity requirements."""
         if not password:
             return False, "Password is required"
 
-        if len(password) < 8:
-            return False, "Password must be at least 8 characters long"
+        if len(password) < 12:  # Increased minimum length
+            return False, "Password must be at least 12 characters long"
 
         if len(password) > SecurityValidator.MAX_PASSWORD_LENGTH:
             return False, f"Password exceeds maximum length of {SecurityValidator.MAX_PASSWORD_LENGTH}"
 
+        # Check for uppercase letter
         if not re.search(r"[A-Z]", password):
             return False, "Password must contain at least one uppercase letter"
 
+        # Check for lowercase letter
         if not re.search(r"[a-z]", password):
             return False, "Password must contain at least one lowercase letter"
 
+        # Check for digit
         if not re.search(r"\d", password):
             return False, "Password must contain at least one digit"
+
+        # Check for special character
+        if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password):
+            return False, "Password must contain at least one special character"
+
+        # Check for common patterns
+        common_patterns = [
+            r"(.)\1{2,}",  # Repeated characters
+            r"(012|123|234|345|456|567|678|789|890)",  # Sequential numbers
+            r"(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)",  # Sequential letters
+            r"(qwerty|asdfgh|zxcvbn|password|123456|admin|user|login)",  # Common passwords
+        ]
+
+        for pattern in common_patterns:
+            if re.search(pattern, password.lower()):
+                return False, "Password contains common patterns or sequences"
+
+        # Check for dictionary words (basic check)
+        common_words = [
+            "password", "admin", "user", "login", "welcome", "hello", "test",
+            "demo", "sample", "example", "default", "guest", "public"
+        ]
+
+        password_lower = password.lower()
+        for word in common_words:
+            if word in password_lower:
+                return False, f"Password contains common word: {word}"
 
         return True, None
 

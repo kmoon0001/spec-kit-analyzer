@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...config import get_settings
 from ...core.security_validator import SecurityValidator
-from ...core.session_manager import get_session_manager
+from ...core.enhanced_session_manager import get_session_manager
 from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
 from ..error_handling import (
@@ -83,7 +83,13 @@ async def register_user(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> schemas.User:
     """Register a new user and return basic user info."""
+    # Validate username
     is_valid, error_msg = SecurityValidator.validate_username(user_data.username)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+
+    # Validate password strength
+    is_valid, error_msg = SecurityValidator.validate_password_strength(user_data.password)
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
@@ -98,6 +104,7 @@ async def register_user(
         logger.exception("User registration failed: %s", exc)
         raise HTTPException(status_code=400, detail="Registration failed") from exc
 
+    logger.info(f"User registered successfully: {user_data.username}", user_id=created_user.id)
     return schemas.User.model_validate(created_user)
 
 
@@ -127,6 +134,27 @@ async def change_password(
     """Change password for the current user."""
     if not password_data.new_password:
         raise HTTPException(status_code=400, detail="New password required")
+
+    # Validate new password strength
+    is_valid, error_msg = SecurityValidator.validate_password_strength(password_data.new_password)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+
+    # Verify current password
+    if not auth_service.verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+
+    # Hash new password
     new_hash = auth_service.get_password_hash(password_data.new_password)
+
+    # Update password in database
     await crud.change_user_password(db, current_user, new_hash)
-    return {"status": "ok"}
+
+    # Invalidate all existing sessions for security
+    session_manager = get_session_manager()
+    invalidated_count = session_manager.invalidate_password_change_sessions(current_user.id)
+
+    logger.info(f"Password changed for user {current_user.username}",
+               user_id=current_user.id, sessions_invalidated=invalidated_count)
+
+    return {"status": "ok", "sessions_invalidated": invalidated_count}

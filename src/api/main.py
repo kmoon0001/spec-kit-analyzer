@@ -58,6 +58,8 @@ except ImportError:
 
 from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
+from src.api.middleware.csrf_protection import CSRFProtectionMiddleware
+from src.api.middleware.enhanced_rate_limiting import EnhancedRateLimitMiddleware
 from src.api.error_handling import get_error_handler
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
@@ -374,6 +376,15 @@ if ENHANCED_FEATURES_AVAILABLE:
 else:
     logger.warning("Enhanced middleware not available, using basic setup")
 
+# Add enhanced rate limiting middleware
+app.add_middleware(EnhancedRateLimitMiddleware)
+
+# Add CSRF protection middleware
+app.add_middleware(lambda app: CSRFProtectionMiddleware(
+    app,
+    settings.auth.secret_key.get_secret_value()
+))
+
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(RequestIdMiddleware)
 
@@ -381,11 +392,37 @@ app.add_middleware(RequestIdMiddleware)
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     response = await call_next(request)
+
+    # Essential security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+
+    # Content Security Policy
+    csp_policy = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Allow inline scripts for Electron
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' ws: wss:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    response.headers["Content-Security-Policy"] = csp_policy
+
+    # Strict Transport Security (HTTPS only)
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+
+    # Additional security headers
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+
     return response
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]

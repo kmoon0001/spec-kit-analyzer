@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
-from ...core.security_validator import SecurityValidator
+from ...core.file_upload_validator import validate_uploaded_file, sanitize_filename
 from ...core.file_encryption import get_secure_storage
 from ...database import crud, models, schemas
 from ...database.database import get_async_db
@@ -306,7 +306,25 @@ async def analyze_document(
         )
 
     try:
-        safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
+        # Read file content first for comprehensive validation
+        content = await file.read()
+
+        # Enhanced file validation with magic number detection
+        is_valid, error_msg = validate_uploaded_file(
+            content,
+            file.filename or "unknown",
+            file.content_type
+        )
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File validation failed: {error_msg}"
+            )
+
+        # Sanitize filename
+        safe_filename = sanitize_filename(file.filename or "unknown")
+
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -323,7 +341,7 @@ async def analyze_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=strictness_error)
     strictness = (strictness or "standard").lower()
 
-    content = await file.read()
+    # Content already read above for validation
     size_valid, size_error = SecurityValidator.validate_file_size(len(content))
     if not size_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=size_error)

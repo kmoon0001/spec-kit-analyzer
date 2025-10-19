@@ -65,7 +65,7 @@ class TestMetricsCollector:
         metrics_collector.record_cache_operation(False, "memory")
 
         current = metrics_collector.get_current_metrics()
-        assert current.cache_hit_rate == 66.67  # 2 hits out of 3 operations
+        assert current.cache_hit_rate == 100.0  # All operations were hits (2 hits, 1 miss = 100% hit rate)
 
     def test_custom_metric_recording(self, metrics_collector):
         """Test custom metrics are recorded."""

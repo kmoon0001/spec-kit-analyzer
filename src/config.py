@@ -246,7 +246,9 @@ def get_settings() -> Settings:
     if env_use_ai_mocks is not None:
         settings.use_ai_mocks = env_use_ai_mocks.strip().lower() in {"1", "true", "yes", "on"}
 
-    # --- Security Validation ---
+    # --- CRITICAL SECURITY VALIDATION ---
+    validate_environment_security()
+
     # The SECRET_KEY is the most critical security setting. It MUST be set in the
     # environment and MUST NOT be the insecure default.
     secret_key_value = os.environ.get("SECRET_KEY")
@@ -272,6 +274,51 @@ def get_settings() -> Settings:
     settings.auth.secret_key = SecretStr(secret_key_value)
 
     return settings
+
+
+def validate_environment_security():
+    """Validate critical security environment variables."""
+    logger = logging.getLogger(__name__)
+
+    # Required security environment variables
+    required_vars = {
+        'SECRET_KEY': 'JWT signing key',
+        'DATABASE_ENCRYPTION_KEY': 'Database field encryption key',
+        'FILE_ENCRYPTION_KEY': 'File encryption key'
+    }
+
+    # Check for required variables
+    missing_vars = []
+    for var, description in required_vars.items():
+        if not os.getenv(var):
+            missing_vars.append(f"{var} ({description})")
+
+    if missing_vars:
+        error_msg = f"CRITICAL SECURITY ERROR: Missing required environment variables:\n" + \
+                   "\n".join(f"  - {var}" for var in missing_vars) + \
+                   "\n\nApplication cannot start without these security variables."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    # Validate key strengths
+    secret_key = os.getenv("SECRET_KEY")
+    if secret_key and len(secret_key) < 32:
+        logger.warning("SECRET_KEY is shorter than recommended 32 characters")
+
+    # Check for default/insecure values
+    insecure_defaults = {
+        'DATABASE_ENCRYPTION_PASSWORD': 'default-db-password-change-in-production',
+        'DATABASE_ENCRYPTION_SALT': 'default-db-salt-change-in-production',
+        'FILE_ENCRYPTION_PASSWORD': 'default-password-change-in-production',
+        'FILE_ENCRYPTION_SALT': 'default-salt-change-in-production'
+    }
+
+    for var, default_value in insecure_defaults.items():
+        if os.getenv(var) == default_value:
+            logger.error(f"CRITICAL: {var} is using insecure default value!")
+            raise ValueError(f"CRITICAL: {var} must be changed from default value for security")
+
+    logger.info("Environment security validation passed")
 
 
 # Create the single settings instance used across the app
