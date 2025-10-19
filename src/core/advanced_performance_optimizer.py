@@ -23,7 +23,7 @@ class PerformanceMetrics:
     avg_response_time_ms: float = 0.0
     bottlenecks: list = None
     timestamp: datetime = None
-    
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now()
@@ -46,10 +46,10 @@ try:
             self.optimization_in_progress = False
             self.optimization_history = []
             self.optimization_count = 0
-        
+
         def optimize(self):
             return {"status": "optimized"}
-        
+
         async def analyze_performance(self):
             return PerformanceMetrics(
                 cpu_usage=25.0,
@@ -60,26 +60,26 @@ try:
                 avg_response_time_ms=150.0,
                 bottlenecks=["hit rate", "memory usage"]
             )
-        
+
         async def optimize_performance(self, aggressive=False, target_improvement=None):
             self.optimization_in_progress = True
             self.optimization_count += 1
             return {"status": "completed", "aggressive": aggressive, "target_improvement": target_improvement}
-        
+
         def _identify_bottlenecks(self, cache_stats):
             # Return mock bottlenecks for testing
             return ["hit rate", "memory usage"]
-        
+
         def _generate_optimization_recommendations(self, cache_stats, bottlenecks):
             # Return mock recommendations for testing
             return ["Base recommendation", "increase_cache_size", "optimize_memory_allocation"]
-        
+
         async def _optimize_memory_usage(self, aggressive=False):
             return {"status": "optimized", "aggressive": aggressive}
-        
+
         async def _execute_proactive_warming(self):
             return {"status": "warming_completed"}
-        
+
         def get_optimization_status(self):
             return {
                 "status": "active",
@@ -87,12 +87,12 @@ try:
                 "optimization_count": self.optimization_count,
                 "last_optimization": datetime.now().isoformat()
             }
-    
+
     class MockAdvancedCache:
         """Mock advanced cache for testing compatibility."""
         def __init__(self):
             self.cache_warming = MockCacheWarming()
-        
+
         def get_comprehensive_stats(self):
             return {
                 "hit_rate": 0.85,
@@ -100,16 +100,16 @@ try:
                 "memory_usage_mb": 500.0,
                 "total_requests": 1000
             }
-    
+
     class MockCacheWarming:
         """Mock cache warming for testing compatibility."""
         def __init__(self):
             self.status = "idle"
-        
+
         def schedule_warming(self, priority="normal"):
             self.status = "scheduled"
             return True
-        
+
         def execute_warming(self):
             self.status = "warming"
             return True
