@@ -36,6 +36,39 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
+# Constants for better maintainability
+class AnalysisConstants:
+    """Constants for analysis service configuration."""
+    
+    # Timeout values (in seconds)
+    COMPLIANCE_ANALYSIS_TIMEOUT = 300.0  # 5 minutes
+    REPORT_GENERATION_TIMEOUT = 60.0     # 1 minute
+    
+    # Document processing thresholds
+    FAST_TRACK_DOCUMENT_LENGTH = 2000
+    LIGHT_PREPROCESSING_LENGTH = 5000
+    
+    # Default values
+    DEFAULT_DISCIPLINE = "pt"
+    DEFAULT_DOC_TYPE = "Progress Note"
+    DEFAULT_STRICTNESS = "standard"
+    
+    # Confidence thresholds
+    DISCIPLINE_DETECTION_CONFIDENCE = 0.3
+    
+    # Mock analysis parameters
+    MOCK_BASE_SCORE = 88
+    MOCK_SCORE_VARIATION = 7
+    MOCK_MIN_SCORE = 70
+    MOCK_MAX_SCORE = 99
+    
+    # Strictness score adjustments
+    STRICTNESS_OFFSETS = {
+        "lenient": 4,
+        "standard": 0,
+        "strict": -5
+    }
+
 
 class AnalysisOutput(dict):
     """Dictionary wrapper for consistent analysis output."""
@@ -103,6 +136,27 @@ class AnalysisService:
         self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
         self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
         self.rubric_detector = kwargs.get("rubric_detector") or RubricDetector()
+        
+        # Initialize 7 Habits Framework if enabled (works in both mock and real modes)
+        self.habits_framework = None
+        if settings.habits_framework.enabled:
+            try:
+                from .enhanced_habit_mapper import SevenHabitsFramework
+                self.habits_framework = SevenHabitsFramework()
+                logger.info("7 Habits Framework initialized successfully")
+            except ImportError as e:
+                logger.warning("7 Habits Framework not available: %s", e)
+        
+        # Initialize RAG system if enabled
+        self.rag_system = None
+        if getattr(settings, 'rag_system', {}).get('enabled', False):
+            try:
+                from .rag_database_integration import RAGDatabaseManager, RAGModelIntegration
+                self.rag_db = RAGDatabaseManager()
+                self.rag_system = RAGModelIntegration(self.rag_db)
+                logger.info("RAG system initialized successfully")
+            except ImportError as e:
+                logger.warning("RAG system not available: %s", e)
 
         if self.use_mocks:
             # Lightweight substitutes to avoid heavyweight model loading during tests/CI runs.
@@ -115,7 +169,7 @@ class AnalysisService:
             self.fact_checker_service = kwargs.get("fact_checker_service") or None
             self.nlg_service = kwargs.get("nlg_service") or None
             self.compliance_analyzer = kwargs.get("compliance_analyzer") or None
-            self.report_generator = kwargs.get("report_generator") or None
+            self.report_generator = kwargs.get("report_generator") or ReportGenerator(llm_service=self.llm_service)
             return
 
         repo_id, filename, revision = select_generator_profile(settings.models.model_dump())
@@ -155,7 +209,7 @@ class AnalysisService:
         self.document_classifier = kwargs.get("document_classifier") or DocumentClassifier(
             llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt
         )
-        self.report_generator = kwargs.get("report_generator") or ReportGenerator()
+        self.report_generator = kwargs.get("report_generator") or ReportGenerator(llm_service=self.llm_service)
 
     async def _maybe_await(self, obj):
         if asyncio.iscoroutine(obj):
@@ -298,11 +352,19 @@ class AnalysisService:
             # Add timeout to the entire compliance analysis
             try:
                 logger.info("Starting compliance analysis with %d characters of scrubbed text", len(scrubbed_text))
+                logger.info("Using strictness level: %s", normalized_strictness)
+                
+                # Apply strictness level to analysis parameters
+                analysis_kwargs = {
+                    "document_text": scrubbed_text,
+                    "discipline": discipline_clean,
+                    "doc_type": doc_type_clean,
+                    "strictness": normalized_strictness
+                }
+                
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
-                        self.compliance_analyzer.analyze_document(
-                            document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
-                        )
+                        self.compliance_analyzer.analyze_document(**analysis_kwargs)
                     ),
                     timeout=300.0,  # 5 minute timeout for entire analysis
                 )
@@ -338,6 +400,17 @@ class AnalysisService:
                 doc_type=doc_type_clean,
                 checklist_service=self.checklist_service,
             )
+            
+            # Enhance with RAG if available
+            if self.rag_system:
+                try:
+                    enriched_result = self.rag_system.enhance_analysis_with_rag(
+                        scrubbed_text, enriched_result
+                    )
+                    logger.info("Analysis enhanced with RAG system")
+                except Exception as e:
+                    logger.warning("RAG enhancement failed: %s", e)
+            
             metadata = enriched_result.setdefault("metadata", {})
             if analysis_mode and not metadata.get("analysis_mode"):
                 metadata["analysis_mode"] = analysis_mode

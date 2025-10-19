@@ -44,6 +44,7 @@ from src.api.routers import (
     rubric_router,
     individual_habits,
     websocket as websocket_routes,
+    strictness,
 )
 
 try:
@@ -346,6 +347,7 @@ app.include_router(preferences.router)
 app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
 app.include_router(individual_habits.router)
 app.include_router(websocket_routes.router, tags=["WebSocket"])
+app.include_router(strictness.router, tags=["Strictness"])
 
 if EHR_AVAILABLE:
     app.include_router(ehr_integration.router, tags=["EHR Integration"])
