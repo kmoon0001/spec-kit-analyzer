@@ -6,7 +6,7 @@ export type ApiPreferences = {
   enable_beta_widgets: boolean;
   auto_start_backend: boolean;
   stream_analysis_logs: boolean;
-  default_strictness: 'lenient' | 'standard' | 'strict';
+  default_strictness: 'ultra_fast' | 'balanced' | 'thorough' | 'clinical_grade';
   auto_export_format: 'pdf' | 'pdf_html';
 };
 

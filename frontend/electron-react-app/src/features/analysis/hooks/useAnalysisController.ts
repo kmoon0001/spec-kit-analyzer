@@ -6,8 +6,8 @@ import { analyzeDocument, fetchAnalysisStatus, AnalysisStatus } from '../api';
 import { getConfig } from '../../../lib/config';
 import { useAppStore } from '../../../store/useAppStore';
 
-const STRICTNESS_OPTIONS = ['lenient', 'standard', 'strict'] as const;
-type StrictnessLevel = 0 | 1 | 2;
+const STRICTNESS_OPTIONS = ['ultra_fast', 'balanced', 'thorough', 'clinical_grade'] as const;
+type StrictnessLevel = 0 | 1 | 2 | 3;
 
 type DesktopAnalysisState = {
   jobId: string | null;

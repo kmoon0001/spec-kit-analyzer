@@ -535,7 +535,7 @@
     
     <!-- Executive Summary -->
     <section class="executive-summary no-break">
-        <h2>📊 Executive Summary</h2>
+        <h2>[CHART] Executive Summary</h2>
         
         <div class="metrics-grid">
             <div class="metric-card">
@@ -568,7 +568,7 @@
     {% if grouped_findings %}
         {% for group in grouped_findings %}
         <section class="findings-group">
-            <h2>📋 Findings (Group {{ group.group_index }})</h2>
+            <h2>[LIST] Findings (Group {{ group.group_index }})</h2>
             
             {% for finding in group.findings %}
             <div class="finding {{ finding.risk_level | lower }}-risk">
@@ -586,18 +586,18 @@
                     </div>
                     
                     <div class="issue-description">
-                        <h4>⚠️ Compliance Issue</h4>
+                        <h4>[WARNING] Compliance Issue</h4>
                         <p>{{ finding.issue | default("No issue description provided") }}</p>
                     </div>
                     
                     <div class="recommendation">
-                        <h4>💡 Recommendation</h4>
+                        <h4>[IDEA] Recommendation</h4>
                         <p>{{ finding.recommendation | default("No recommendation provided") }}</p>
                     </div>
                     
                     {% if finding.confidence_score %}
                     <div class="confidence">
-                        <h4>🎯 AI Confidence</h4>
+                        <h4>[TARGET] AI Confidence</h4>
                         <p>{{ (finding.confidence_score * 100) | round(1) }}% confidence in this finding</p>
                     </div>
                     {% endif %}
@@ -613,7 +613,7 @@
     {% else %}
         <!-- Fallback for ungrouped findings -->
         <section class="findings-section">
-            <h2>📋 Detailed Findings</h2>
+            <h2>[LIST] Detailed Findings</h2>
             
             {% for finding in findings %}
             <div class="finding {{ finding.risk_level | lower }}-risk">
@@ -631,18 +631,18 @@
                     </div>
                     
                     <div class="issue-description">
-                        <h4>⚠️ Compliance Issue</h4>
+                        <h4>[WARNING] Compliance Issue</h4>
                         <p>{{ finding.issue | default("No issue description provided") }}</p>
                     </div>
                     
                     <div class="recommendation">
-                        <h4>💡 Recommendation</h4>
+                        <h4>[IDEA] Recommendation</h4>
                         <p>{{ finding.recommendation | default("No recommendation provided") }}</p>
                     </div>
                     
                     {% if finding.confidence_score %}
                     <div class="confidence">
-                        <h4>🎯 AI Confidence</h4>
+                        <h4>[TARGET] AI Confidence</h4>
                         <p>{{ (finding.confidence_score * 100) | round(1) }}% confidence in this finding</p>
                     </div>
                     {% endif %}
@@ -659,7 +659,7 @@
     <!-- Charts and Visualizations -->
     {% if include_charts and charts %}
     <section class="charts-section page-break">
-        <h2>📈 Analysis Visualizations</h2>
+        <h2>[TREND] Analysis Visualizations</h2>
         
         {% for chart in charts %}
         <div class="chart-container no-break">
@@ -697,12 +697,12 @@
     <!-- Action Plan -->
     {% if action_plan %}
     <section class="action-plan-section page-break">
-        <h2>🎯 Recommended Action Plan</h2>
+        <h2>[TARGET] Recommended Action Plan</h2>
         
         <div class="action-categories">
             {% if action_plan.immediate %}
             <div class="action-category">
-                <h3>🚨 Immediate Actions (0-7 days)</h3>
+                <h3>[ALERT] Immediate Actions (0-7 days)</h3>
                 <ul>
                 {% for action in action_plan.immediate %}
                     <li>{{ action }}</li>
@@ -713,7 +713,7 @@
             
             {% if action_plan.short_term %}
             <div class="action-category">
-                <h3>⏰ Short-term Actions (1-4 weeks)</h3>
+                <h3>[CLOCK] Short-term Actions (1-4 weeks)</h3>
                 <ul>
                 {% for action in action_plan.short_term %}
                     <li>{{ action }}</li>
@@ -754,13 +754,13 @@
             
             <h3>Important Disclaimers</h3>
             <div class="disclaimers">
-                <p><strong>⚠️ Professional Review Required:</strong> This AI-generated analysis is intended to assist healthcare professionals in identifying potential compliance issues. All findings should be reviewed by qualified clinical and compliance staff before taking action.</p>
+                <p><strong>[WARNING] Professional Review Required:</strong> This AI-generated analysis is intended to assist healthcare professionals in identifying potential compliance issues. All findings should be reviewed by qualified clinical and compliance staff before taking action.</p>
                 
-                <p><strong>🔒 Data Privacy:</strong> All analysis was performed locally on your system. No patient data or document content was transmitted to external servers.</p>
+                <p><strong>[LOCK] Data Privacy:</strong> All analysis was performed locally on your system. No patient data or document content was transmitted to external servers.</p>
                 
-                <p><strong>📋 Regulatory Updates:</strong> Compliance requirements may change. Ensure you are using the most current regulatory guidelines and consult with compliance experts for the latest requirements.</p>
+                <p><strong>[LIST] Regulatory Updates:</strong> Compliance requirements may change. Ensure you are using the most current regulatory guidelines and consult with compliance experts for the latest requirements.</p>
                 
-                <p><strong>🎯 Accuracy Limitations:</strong> While our AI models are highly trained, they may not catch all compliance issues or may occasionally flag items that are actually compliant. Human expertise remains essential for final compliance determinations.</p>
+                <p><strong>[TARGET] Accuracy Limitations:</strong> While our AI models are highly trained, they may not catch all compliance issues or may occasionally flag items that are actually compliant. Human expertise remains essential for final compliance determinations.</p>
             </div>
         </div>
     </section>

@@ -43,7 +43,7 @@ files = {"file": ("test_note.txt", test_content.encode(), "text/plain")}
 data = {
     "discipline": "pt",
     "analysis_mode": "rubric",
-    "strictness": "standard"
+    "strictness": "balanced"
 }
 
 analyze_response = requests.post(

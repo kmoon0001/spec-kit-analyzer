@@ -22,9 +22,10 @@ const PERFORMANCE_FLAGS = [
 ];
 
 const strictnessLabels: Record<PreferencesForm['defaultStrictness'], string> = {
-  lenient: 'Clinical Essentials',
-  standard: 'Regulatory Audit',
-  strict: 'Director Review',
+  ultra_fast: 'Ultra Fast',
+  balanced: 'Balanced',
+  thorough: 'Thorough',
+  clinical_grade: 'Clinical Grade',
 };
 
 const exportFormatLabels: Record<PreferencesForm['autoExportFormat'], string> = {
@@ -143,9 +144,10 @@ export default function SettingsPage() {
               <div className={styles.settingItem}>
                 <span>Default rubric strictness</span>
                 <select value={formState.defaultStrictness} onChange={handleSelectChange('defaultStrictness')}>
-                  <option value="lenient">{strictnessLabels.lenient}</option>
-                  <option value="standard">{strictnessLabels.standard}</option>
-                  <option value="strict">{strictnessLabels.strict}</option>
+                  <option value="ultra_fast">{strictnessLabels.ultra_fast}</option>
+                  <option value="balanced">{strictnessLabels.balanced}</option>
+                  <option value="thorough">{strictnessLabels.thorough}</option>
+                  <option value="clinical_grade">{strictnessLabels.clinical_grade}</option>
                 </select>
               </div>
               <div className={styles.settingItem}>

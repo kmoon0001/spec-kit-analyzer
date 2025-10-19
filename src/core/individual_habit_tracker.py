@@ -362,7 +362,7 @@ class IndividualHabitTracker:
                         "id": f"analyses_{threshold}",
                         "name": f"{threshold} Analyses",
                         "description": f"Completed {threshold} compliance analyses",
-                        "icon": "📊",
+                        "icon": "[CHART]",
                         "achieved": True,
                         "points": threshold // 10,
                     }

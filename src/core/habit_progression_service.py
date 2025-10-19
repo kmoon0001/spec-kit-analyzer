@@ -291,7 +291,7 @@ class HabitProgressionService:
                         "id": f"analysis_{milestone}",
                         "title": f"{milestone} Analyses",
                         "description": f"Completed {milestone} compliance analyses",
-                        "icon": "📊",
+                        "icon": "[CHART]",
                         "earned_date": datetime.now(UTC).isoformat(),
                         "category": "milestone",
                     }
