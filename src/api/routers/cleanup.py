@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
 from src.core.cleanup_services import cleanup_manager, CleanupManager
-from src.api.dependencies.auth import get_current_user
+from src.auth import get_current_active_user
 from src.api.deps.request_tracking import RequestId, log_with_request_id
 from src.database.models import User
 
