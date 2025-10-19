@@ -20,9 +20,9 @@ class AuthService:
     def __init__(self):
         settings = get_settings()
         # Ensure a non-empty secret key to prevent runtime failures
-        self.secret_key = (
-            settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else "insecure-test-key"
-        )
+        if not settings.auth.secret_key:
+            raise ValueError("AUTH_SECRET_KEY environment variable must be set for security")
+        self.secret_key = settings.auth.secret_key.get_secret_value()
         self.algorithm = settings.auth.algorithm
         self.access_token_expire_minutes = settings.auth.access_token_expire_minutes
 

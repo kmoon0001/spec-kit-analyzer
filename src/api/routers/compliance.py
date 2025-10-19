@@ -73,7 +73,7 @@ async def get_rubrics(current_user: models.User = Depends(get_current_active_use
 
 @router.post("/evaluate", response_model=ComplianceResultModel)
 async def evaluate_document(
-    payload: TherapyDocumentRequest, 
+    payload: TherapyDocumentRequest,
     current_user: models.User = Depends(get_current_active_user)
 ) -> ComplianceResultModel:
     if not payload.text or not payload.discipline or not payload.document_type:

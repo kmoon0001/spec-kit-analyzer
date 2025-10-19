@@ -58,9 +58,22 @@ export const LoginOverlay = () => {
             />
           </label>
           {error && <p className={styles.error}>{error}</p>}
-          <Button type="submit" variant="primary" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Signing in...' : 'Sign In'}
-          </Button>
+          <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Signing in...' : 'Sign In'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                localStorage.removeItem('tca-app-store');
+                window.location.reload();
+              }}
+              style={{ fontSize: '0.8rem', padding: '4px 8px' }}
+            >
+              Clear Stored Data & Refresh
+            </Button>
+          </div>
         </form>
       </Card>
     </div>
