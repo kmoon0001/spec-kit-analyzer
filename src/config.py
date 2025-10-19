@@ -251,12 +251,17 @@ def get_settings() -> Settings:
     # environment and MUST NOT be the insecure default.
     secret_key_value = os.environ.get("SECRET_KEY")
     if not secret_key_value:
-        # Fallback for local/testing environments where SECRET_KEY is not provided
-        secret_key_value = (
-            settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else None
-        )
-        logger = logging.getLogger(__name__)
-        logger.warning("SECRET_KEY not found in environment; using fallback value for non-production use.")
+        # Only allow fallback in development/testing environments
+        if os.getenv("ENVIRONMENT", "production").lower() in ["development", "testing", "dev", "test"]:
+            secret_key_value = (
+                settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else None
+            )
+            logger = logging.getLogger(__name__)
+            logger.warning("SECRET_KEY not found in environment; using fallback value for development/testing only.")
+        else:
+            raise ValueError(
+                "CRITICAL: SECRET_KEY must be set in environment variables for production. Application will not start."
+            )
 
     if not secret_key_value:
         raise ValueError(

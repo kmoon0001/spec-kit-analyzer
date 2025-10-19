@@ -176,14 +176,35 @@ async def websocket_analysis_progress(websocket: WebSocket, task_id: str, db: Se
 
                 elif action == "cancel":
                     # Cancel analysis task
-                    # TODO: Implement task cancellation
-                    await websocket.send_json(
-                        {
-                            "type": "status",
-                            "message": "Cancellation requested",
-                            "timestamp": datetime.utcnow().isoformat(),
-                        }
-                    )
+                    try:
+                        from src.api.routers.analysis import tasks
+                        if task_id in tasks:
+                            tasks[task_id]["status"] = "cancelled"
+                            tasks[task_id]["cancelled_at"] = datetime.utcnow().isoformat()
+                            await websocket.send_json(
+                                {
+                                    "type": "status",
+                                    "message": "Analysis task cancelled successfully",
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                }
+                            )
+                        else:
+                            await websocket.send_json(
+                                {
+                                    "type": "error",
+                                    "message": "Task not found or already completed",
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                }
+                            )
+                    except Exception as e:
+                        logger.error(f"Failed to cancel task {task_id}: {e}")
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": f"Failed to cancel task: {str(e)}",
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
 
             except TimeoutError:
                 # Send heartbeat
@@ -225,6 +246,13 @@ async def websocket_health_monitoring(websocket: WebSocket):
             cpu_percent = psutil.cpu_percent(interval=0.1)
             memory = psutil.virtual_memory()
 
+            # Get active tasks count
+            try:
+                from src.api.routers.analysis import tasks
+                active_tasks = len([t for t in tasks.values() if t.get("status") in ["running", "queued"]])
+            except ImportError:
+                active_tasks = 0
+
             # Send health data
             await websocket.send_json(
                 {
@@ -233,7 +261,7 @@ async def websocket_health_monitoring(websocket: WebSocket):
                     "ram_percent": memory.percent,
                     "ram_available_mb": memory.available / (1024 * 1024),
                     "api_status": "running",
-                    "active_tasks": 0,  # TODO: Get from task manager
+                    "active_tasks": active_tasks,
                     "timestamp": datetime.utcnow().isoformat(),
                 }
             )

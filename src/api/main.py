@@ -54,14 +54,12 @@ try:
 except ImportError:
     EHR_AVAILABLE = False
 
-from src.api.global_exception_handler import global_exception_handler, http_exception_handler
-from src.config import get_settings
-from src.core.vector_store import get_vector_store
-from src.core.file_cleanup_service import start_cleanup_service, stop_cleanup_service
-from src.database import crud, get_async_db, models
-from src.database import init_db
-from src.database.database import AsyncSessionLocal
-from src.logging_config import CorrelationIdMiddleware, configure_logging
+from src.api.middleware.input_validation import InputValidationMiddleware
+from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.api.graceful_shutdown import lifespan_with_graceful_shutdown, register_background_task
+from src.api.enhanced_error_context import enhanced_exception_handler
+from src.api.documentation import create_custom_openapi, add_api_documentation_routes
+from src.core.performance_metrics_collector import metrics_collector, update_system_metrics_task
 
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
@@ -248,7 +246,7 @@ async def auto_warm_ai_models():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup and shutdown events."""
+    """Enhanced lifespan context manager with graceful shutdown and metrics."""
     configure_logging(settings.log_level)
     if "pytest" not in sys.modules:
         ws_handler = WebSocketLogHandler()
@@ -263,10 +261,9 @@ async def lifespan(app: FastAPI):
     await api_startup()
     await initialize_vector_store()
 
-    # Auto-warm AI models in background to reduce first-use latency
-    # Note: This runs as a background task and should not block startup
-    # DISABLED for faster startup - models will load on first use
-    # asyncio.create_task(auto_warm_ai_models())
+    # Start background metrics collection
+    metrics_task = asyncio.create_task(update_system_metrics_task())
+    register_background_task(metrics_task)
 
     run_maintenance_jobs()
     scheduler.add_job(run_maintenance_jobs, "interval", days=1)
@@ -312,10 +309,13 @@ ALLOWED_CORS_REGEX = r"^(app|file|capacitor|electron)://.*$"
 
 app = FastAPI(
     title="Therapy Compliance Analyzer API",
-    description="...",
+    description="AI-powered clinical documentation compliance analysis",
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Set custom OpenAPI schema
+app.openapi = lambda: create_custom_openapi(app)
 
 # CORS: allow localhost only (development)
 app.add_middleware(
@@ -327,7 +327,21 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
+# Add enhanced middleware stack
+app.add_middleware(InputValidationMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(CorrelationIdMiddleware)
+
+# Security headers middleware
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return response
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
@@ -336,6 +350,13 @@ app.add_exception_handler(Exception, global_exception_handler)
 # --- Routers --- #
 
 app.include_router(health.router, tags=["Health"])
+
+# Include enhanced health check router
+try:
+    from src.api.routers import health_advanced
+    app.include_router(health_advanced.router, tags=["Health"])
+except ImportError:
+    logger.warning("Enhanced health check router not available")
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analysis.router, tags=["Analysis"])
@@ -357,6 +378,15 @@ app.include_router(strictness.router, tags=["Strictness"])
 if EHR_AVAILABLE:
     app.include_router(ehr_integration.router, tags=["EHR Integration"])
     logging.info("EHR Integration API enabled")
+
+# Add documentation routes
+add_api_documentation_routes(app)
+
+# Add metrics endpoint
+@app.get("/metrics", tags=["Monitoring"])
+async def get_metrics():
+    """Get application performance metrics."""
+    return metrics_collector.get_metrics_summary()
 
 # Include plugin management
 try:

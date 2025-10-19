@@ -1,262 +1,349 @@
-"""API Documentation configuration and setup.
-Provides comprehensive API documentation with examples and security schemes.
+"""Enhanced API documentation and OpenAPI schema.
+
+Provides comprehensive API documentation including:
+- Detailed endpoint descriptions
+- Request/response schemas
+- Example requests and responses
+- Error code documentation
+- Interactive API explorer
 """
 
-import logging
-from typing import Any
-
+from typing import Any, Dict, List, Optional
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
-logger = logging.getLogger(__name__)
+def create_custom_openapi(app: FastAPI) -> Dict[str, Any]:
+    """Create enhanced OpenAPI schema with comprehensive documentation."""
 
-# Configuration for documentation features
-DOCUMENTATION_CONFIG = {
-    "enable_swagger": True,
-    "enable_redoc": True,
-    "enable_custom_docs": True,
-    "include_examples": True,
-    "include_security_info": True,
-}
-
-
-def setup_api_documentation(app: FastAPI) -> None:
-    """Setup comprehensive API documentation for the application.
-
-    Args:
-        app: FastAPI application instance
-
-    """
-
-    # Set custom OpenAPI schema
-    def custom_openapi():
-        return create_custom_openapi(app)
-
-    app.openapi = custom_openapi  # type: ignore[method-assign]
-
-    # Add custom documentation endpoint
-    @app.get("/docs/api", include_in_schema=False)
-    async def get_api_documentation():
-        """Get comprehensive API documentation as HTML."""
-        return generate_api_documentation_html()
-
-    logger.info("API documentation setup completed")
-
-
-def create_custom_openapi(app: FastAPI) -> dict[str, Any]:
-    """Generate enhanced OpenAPI schema with examples and security."""
     if app.openapi_schema:
         return app.openapi_schema
 
-    schema = get_openapi(
+    openapi_schema = get_openapi(
         title="Therapy Compliance Analyzer API",
         version="1.0.0",
-        description="Comprehensive API for clinical documentation compliance analysis",
+        description="""
+        # 🏥 Therapy Compliance Analyzer API
+
+        A comprehensive API for analyzing clinical documentation compliance with Medicare and regulatory guidelines.
+
+        ## Features
+
+        - **Document Analysis**: Upload and analyze PDF, DOCX, and TXT documents
+        - **Compliance Scoring**: AI-powered compliance analysis with confidence scores
+        - **Real-time Progress**: WebSocket-based progress tracking
+        - **User Management**: Secure authentication and user management
+        - **Analytics**: Comprehensive reporting and analytics
+        - **Health Monitoring**: System health and performance monitoring
+
+        ## Authentication
+
+        This API uses JWT-based authentication. Include the token in the Authorization header:
+
+        ```
+        Authorization: Bearer <your-jwt-token>
+        ```
+
+        ## Rate Limiting
+
+        API requests are rate-limited to 100 requests per minute per IP address.
+
+        ## Error Handling
+
+        The API returns detailed error information including:
+        - Error ID for tracking
+        - User-friendly error messages
+        - Suggested solutions
+        - Debug information (in development mode)
+
+        ## WebSocket Support
+
+        Real-time updates are available via WebSocket connections for:
+        - Analysis progress tracking
+        - System health monitoring
+        - Live log streaming
+        """,
         routes=app.routes,
     )
 
+    # Enhance the schema with additional information
+    openapi_schema["info"]["contact"] = {
+        "name": "Therapy Compliance Analyzer Support",
+        "email": "support@therapyanalyzer.com",
+        "url": "https://therapyanalyzer.com/support"
+    }
+
+    openapi_schema["info"]["license"] = {
+        "name": "Proprietary",
+        "url": "https://therapyanalyzer.com/license"
+    }
+
     # Add security schemes
-    _add_security_schemes(schema)
-
-    # Add common examples
-    _add_common_examples(schema)
-
-    # Add response examples
-    _add_response_examples(schema)
-
-    app.openapi_schema = schema
-    return schema
-
-
-def _add_security_schemes(schema: dict[str, Any]) -> None:
-    """Add security scheme definitions."""
-    if "components" not in schema:
-        schema["components"] = {}
-
-    schema["components"]["securitySchemes"] = {
+    openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "JWT token obtained from /auth/login endpoint",
+            "description": "JWT token obtained from /auth/login endpoint"
         },
+        "WebSocketAuth": {
+            "type": "apiKey",
+            "in": "query",
+            "name": "token",
+            "description": "JWT token for WebSocket authentication"
+        }
     }
 
-    # Add security requirements to protected endpoints
-    protected_paths = ["/api/analysis/", "/api/dashboard/", "/api/admin/"]
+    # Add global security
+    openapi_schema["security"] = [{"BearerAuth": []}]
 
-    if "paths" in schema:
-        for path_url, path_item in schema["paths"].items():
-            if any(protected in path_url for protected in protected_paths):
-                for _, operation in path_item.items():
-                    if isinstance(operation, dict):
-                        operation["security"] = [{"BearerAuth": []}]
-
-
-def _add_common_examples(schema: dict[str, Any]) -> None:
-    """Add common request/response examples for API endpoints."""
-    if "components" not in schema:
-        schema["components"] = {}
-
-    if "examples" not in schema["components"]:
-        schema["components"]["examples"] = {}
-
-    # Common examples
-    common_examples = {
-        "LoginRequest": {
-            "summary": "Example login request",
-            "description": "Standard user authentication",
-            "value": {
-                "username": "therapist@clinic.com",
-                "password": "secure_password",
-            },
+    # Add server information
+    openapi_schema["servers"] = [
+        {
+            "url": "http://127.0.0.1:8001",
+            "description": "Development server"
         },
-        "LoginResponse": {
-            "summary": "Successful login response",
-            "description": "JWT token obtained for authentication",
-            "value": {
-                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                "token_type": "bearer",
-                "expires_in": 3600,
-            },
+        {
+            "url": "https://api.therapyanalyzer.com",
+            "description": "Production server"
+        }
+    ]
+
+    # Add tags for better organization
+    openapi_schema["tags"] = [
+        {
+            "name": "Authentication",
+            "description": "User authentication and authorization"
         },
-        "ComplianceReport": {
-            "summary": "Example compliance analysis report",
-            "description": "Document analysis results with findings",
-            "value": {
-                "document_name": "progress_note_2024_01_15.pdf",
-                "analysis_date": "2024-01-15T10:30:00Z",
-                "compliance_score": 87.5,
-                "risk_distribution": {"High": 2, "Medium": 5, "Low": 12},
-            },
+        {
+            "name": "Analysis",
+            "description": "Document analysis and compliance checking"
         },
-    }
+        {
+            "name": "Dashboard",
+            "description": "Analytics and reporting dashboard"
+        },
+        {
+            "name": "Health",
+            "description": "System health monitoring and diagnostics"
+        },
+        {
+            "name": "WebSocket",
+            "description": "Real-time communication endpoints"
+        },
+        {
+            "name": "Admin",
+            "description": "Administrative functions"
+        },
+        {
+            "name": "Users",
+            "description": "User management"
+        },
+        {
+            "name": "Rubrics",
+            "description": "Compliance rubric management"
+        },
+        {
+            "name": "Habits",
+            "description": "Habit tracking and analytics"
+        },
+        {
+            "name": "Advanced Analytics",
+            "description": "Advanced analytics and insights"
+        },
+        {
+            "name": "Meta Analytics",
+            "description": "Meta-level analytics and system metrics"
+        },
+        {
+            "name": "Strictness",
+            "description": "Analysis strictness configuration"
+        }
+    ]
 
-    schema["components"]["examples"].update(common_examples)
-
-
-def _add_response_examples(schema: dict[str, Any]) -> None:
-    """Add detailed response examples for API endpoints."""
-    # Add examples for specific endpoints
-    if "paths" not in schema:
-        return
-
-    # Example for analysis endpoint
-    analyze_path = "/api/analysis/analyze"
-    if analyze_path in schema["paths"]:
-        if "post" in schema["paths"][analyze_path]:
-            schema["paths"][analyze_path]["post"]["requestBody"] = {
-                "content": {
-                    "multipart/form-data": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "file": {
-                                    "type": "string",
-                                    "format": "binary",
-                                    "description": "Document file to analyze (PDF, DOCX, or TXT)",
-                                },
-                                "rubric_id": {
-                                    "type": "string",
-                                    "description": "ID of compliance rubric to use",
-                                    "example": "pt_compliance_v1",
-                                },
-                            },
-                        },
-                    },
+    # Add common response schemas
+    openapi_schema["components"]["schemas"].update({
+        "ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "description": "User-friendly error message"
                 },
-            }
-
-
-def generate_api_documentation_html() -> str:
-    """Generate comprehensive API documentation as HTML string."""
-    html_template = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Therapy Compliance Analyzer API Documentation</title>
-        <style>
-        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-        .header { background: #f4f4f4; padding: 20px; margin: 20px 0; border-radius: 5px; }
-        .endpoint { margin: 20px 0; padding: 15px; border-left: 4px solid #007cba; }
-        .method { font-weight: bold; color: #007cba; }
-        .code { background: #f9f9f9; padding: 10px; border-radius: 3px; font-family: monospace; }
-        .example { background: #e8f5e8; padding: 10px; margin: 10px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Therapy Compliance Analyzer API</h1>
-            <p>Comprehensive API for clinical documentation compliance analysis with Medicare and regulatory guidelines.</p>
-        </div>
-
-        <h2>Authentication</h2>
-        <div class="endpoint">
-            <h3><span class="method">POST</span> /auth/login</h3>
-            <p>Authenticate user and obtain JWT token for API access.</p>
-            <div class="code">
-                {
-                    "username": "therapist@example.com",
-                    "password": "password"
+                "error_id": {
+                    "type": "string",
+                    "description": "Unique error identifier for tracking"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Error timestamp"
+                },
+                "suggestions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Suggested solutions"
                 }
-            </div>
-        </div>
-
-        <h2>Document Analysis</h2>
-        <div class="endpoint">
-            <h3><span class="method">POST</span> /api/analysis/analyze</h3>
-            <p>Upload and analyze a clinical document for compliance issues.</p>
-            <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
-            <p><strong>Content-Type:</strong> multipart/form-data</p>
-            <div class="code">
-                file: [document file]<br>
-                rubric_id: "pt_compliance_v1"
-            </div>
-        </div>
-
-        <h2>Dashboard & Analytics</h2>
-        <div class="endpoint">
-            <h3><span class="method">GET</span> /api/dashboard/trends</h3>
-            <p>Get compliance trends and analytics data.</p>
-            <p><strong>Parameters:</strong> days (optional), document_type (optional)</p>
-        </div>
-
-        <h2>Performance Settings</h2>
-        <div class="endpoint">
-            <h3><span class="method">GET</span> /api/system/performance</h3>
-            <p>Get current performance configuration and system status.</p>
-        </div>
-
-        <div class="endpoint">
-            <h3><span class="method">POST</span> /api/system/performance</h3>
-            <p>Update performance settings based on hardware capabilities.</p>
-            <div class="code">
-                {
-                    "profile": "balanced",
-                    "use_gpu": true,
-                    "cache_memory_mb": 2048
+            },
+            "required": ["error", "error_id", "timestamp"]
+        },
+        "SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Success message"
+                },
+                "data": {
+                    "type": "object",
+                    "description": "Response data"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Response timestamp"
                 }
-            </div>
-        </div>
+            },
+            "required": ["message", "timestamp"]
+        },
+        "AnalysisRequest": {
+            "type": "object",
+            "properties": {
+                "document_name": {
+                    "type": "string",
+                    "description": "Name of the document"
+                },
+                "rubric": {
+                    "type": "string",
+                    "description": "Compliance rubric to use"
+                },
+                "strictness": {
+                    "type": "string",
+                    "enum": ["lenient", "standard", "strict"],
+                    "description": "Analysis strictness level"
+                },
+                "discipline": {
+                    "type": "string",
+                    "enum": ["pt", "ot", "slp"],
+                    "description": "Clinical discipline"
+                }
+            },
+            "required": ["document_name", "rubric"]
+        },
+        "AnalysisResponse": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "Unique task identifier"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["queued", "running", "completed", "failed"],
+                    "description": "Analysis status"
+                },
+                "progress": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Progress percentage"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Status message"
+                }
+            },
+            "required": ["task_id", "status"]
+        }
+    })
 
-        <h2>Rate Limiting</h2>
-        <p>API endpoints are rate-limited to ensure system stability. See individual endpoint documentation for specific limits.</p>
-
-        <h2>Error Handling</h2>
-        <p>All endpoints return structured error responses with appropriate HTTP status codes and detailed error information.</p>
-        <div class="code">
-            {
-                "error": "ERROR_CODE",
-                "detail": "Detailed error information",
+    # Add common responses
+    openapi_schema["components"]["responses"] = {
+        "UnauthorizedError": {
+            "description": "Authentication required",
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/ErrorResponse"},
+                    "example": {
+                        "error": "Authentication failed",
+                        "error_id": "auth_001",
+                        "timestamp": "2024-01-01T00:00:00Z",
+                        "suggestions": ["Check JWT token validity", "Ensure proper authentication headers"]
+                    }
+                }
             }
-        </div>
-    </body>
-    </html>
-    """
+        },
+        "ValidationError": {
+            "description": "Validation error",
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/ErrorResponse"},
+                    "example": {
+                        "error": "There was an issue with the data you provided",
+                        "error_id": "val_001",
+                        "timestamp": "2024-01-01T00:00:00Z",
+                        "suggestions": ["Review input data format", "Check required fields"]
+                    }
+                }
+            }
+        },
+        "ServerError": {
+            "description": "Internal server error",
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/ErrorResponse"},
+                    "example": {
+                        "error": "A system error occurred",
+                        "error_id": "sys_001",
+                        "timestamp": "2024-01-01T00:00:00Z",
+                        "suggestions": ["Try again later", "Contact support if issue persists"]
+                    }
+                }
+            }
+        }
+    }
 
-    return html_template
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
 
+def add_api_documentation_routes(app: FastAPI):
+    """Add additional documentation routes."""
 
-def is_documentation_feature_enabled(feature: str) -> bool:
-    """Check if a documentation feature is enabled."""
-    return DOCUMENTATION_CONFIG.get(feature, False)
+    @app.get("/docs/custom", include_in_schema=False)
+    async def custom_docs():
+        """Custom documentation page."""
+        return {
+            "message": "Custom API documentation",
+            "endpoints": {
+                "openapi": "/openapi.json",
+                "swagger_ui": "/docs",
+                "redoc": "/redoc",
+                "health": "/health",
+                "metrics": "/metrics"
+            },
+            "examples": {
+                "analysis_request": {
+                    "document_name": "Patient Progress Note",
+                    "rubric": "pt_compliance_rubric",
+                    "strictness": "standard",
+                    "discipline": "pt"
+                },
+                "websocket_url": "ws://127.0.0.1:8001/ws/analysis/{task_id}?token={jwt_token}"
+            }
+        }
+
+    @app.get("/api/status", include_in_schema=False)
+    async def api_status():
+        """API status endpoint."""
+        return {
+            "status": "operational",
+            "version": "1.0.0",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "features": [
+                "Document Analysis",
+                "Real-time Progress",
+                "WebSocket Support",
+                "Health Monitoring",
+                "User Management",
+                "Analytics Dashboard"
+            ]
+        }

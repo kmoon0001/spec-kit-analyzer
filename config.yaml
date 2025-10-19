@@ -11,6 +11,12 @@ auth:
 database:
   echo: false
   url: sqlite:///./compliance.db
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+  sqlite_optimizations: true
+  connection_timeout: 20
 enable_director_dashboard: true
 habits_framework:
   enabled: true
@@ -64,6 +70,8 @@ llm:
 maintenance:
   purge_interval_days: 1
   purge_retention_days: 30
+  in_memory_retention_minutes: 60
+  in_memory_purge_interval_seconds: 300
 models:
   analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt

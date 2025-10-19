@@ -1,545 +1,316 @@
-"""Performance Metrics Collection System
-import requests
-from requests.exceptions import HTTPError
-from scipy import stats
+"""Performance metrics collection system.
 
-This module provides comprehensive performance metrics collection for baseline
-and optimization testing, including statistical analysis and validation.
+Provides comprehensive performance monitoring including:
+- Request/response timing
+- Memory usage tracking
+- Database query performance
+- AI model inference timing
+- System resource monitoring
+- Custom business metrics
 """
 
 import asyncio
 import logging
-import threading
 import time
-from collections.abc import Callable
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from datetime import datetime
-from statistics import mean, median, stdev
-from typing import Any
-
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from threading import Lock
 import psutil
-import requests
-import scipy.stats as stats
-from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
-class ResponseTimeMetrics:
-    """Response time performance metrics"""
-
-    average_ms: float
-    median_ms: float
-    min_ms: float
-    max_ms: float
-    p95_ms: float
-    p99_ms: float
-    std_dev_ms: float
-    sample_count: int
-
-
-@dataclass
-class MemoryMetrics:
-    """Memory usage performance metrics"""
-
-    peak_usage_mb: float
-    average_usage_mb: float
-    min_usage_mb: float
-    current_usage_mb: float
-    memory_efficiency: float  # Ratio of useful memory to total allocated
-    gc_collections: int
-    memory_leaks_detected: bool
-
-
-@dataclass
-class CacheMetrics:
-    """Cache performance metrics"""
-
-    hit_rate: float
-    miss_rate: float
-    total_requests: int
-    cache_size_mb: float
-    eviction_count: int
-    average_lookup_time_ms: float
-
-
-@dataclass
-class ResourceMetrics:
-    """System resource utilization metrics"""
-
-    cpu_usage_percent: float
-    memory_usage_percent: float
-    disk_io_mb_per_sec: float
-    network_io_mb_per_sec: float
-    thread_count: int
-    process_count: int
-
-
-@dataclass
-class ThroughputMetrics:
-    """System throughput metrics"""
-
-    documents_per_minute: float
-    requests_per_second: float
-    bytes_processed_per_second: float
-    concurrent_operations: int
-
-
-@dataclass
-class ErrorRateMetrics:
-    """Error rate and reliability metrics"""
-
-    error_rate_percent: float
-    timeout_rate_percent: float
-    retry_rate_percent: float
-    total_errors: int
-    error_types: dict[str, int]
-
+class MetricPoint:
+    """A single metric data point."""
+    timestamp: datetime
+    value: float
+    tags: Dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class PerformanceMetrics:
-    """Comprehensive performance metrics collection"""
+    """Container for performance metrics."""
+    request_count: int = 0
+    request_duration_ms: float = 0.0
+    memory_usage_mb: float = 0.0
+    cpu_usage_percent: float = 0.0
+    database_query_count: int = 0
+    database_query_duration_ms: float = 0.0
+    ai_inference_count: int = 0
+    ai_inference_duration_ms: float = 0.0
+    error_count: int = 0
+    cache_hit_rate: float = 0.0
 
-    timestamp: datetime
-    response_times: ResponseTimeMetrics | None = None
-    memory_usage: MemoryMetrics | None = None
-    cache_performance: CacheMetrics | None = None
-    resource_utilization: ResourceMetrics | None = None
-    throughput: ThroughputMetrics | None = None
-    error_rates: ErrorRateMetrics | None = None
-    custom_metrics: dict[str, Any] = field(default_factory=dict)
+class MetricsCollector:
+    """Collects and aggregates performance metrics."""
 
+    def __init__(self, max_history: int = 1000):
+        self.max_history = max_history
+        self.metrics_history: deque = deque(maxlen=max_history)
+        self.current_metrics = PerformanceMetrics()
+        self.lock = Lock()
+        self.start_time = time.time()
 
-class BaselineMetricsCollector:
-    """Collects performance metrics without optimizations enabled"""
+        # Custom metrics storage
+        self.custom_metrics: Dict[str, List[MetricPoint]] = defaultdict(list)
 
-    def __init__(self):
-        self.is_collecting = False
-        self.collection_thread: threading.Thread | None = None
-        self.metrics_history: list[PerformanceMetrics] = []
-        self.collection_interval = 1.0  # seconds
-        self._stop_event = threading.Event()
+        # Performance thresholds
+        self.thresholds = {
+            "slow_request_ms": 5000,  # 5 seconds
+            "high_memory_mb": 1000,   # 1GB
+            "high_cpu_percent": 80,   # 80%
+            "slow_db_query_ms": 1000, # 1 second
+            "slow_ai_inference_ms": 10000  # 10 seconds
+        }
 
-    def start_collection(self) -> None:
-        """Start continuous metrics collection"""
-        if self.is_collecting:
-            logger.warning("Metrics collection already running")
-            return
+    def record_request(self, duration_ms: float, status_code: int, endpoint: str):
+        """Record a request metric."""
+        with self.lock:
+            self.current_metrics.request_count += 1
+            self.current_metrics.request_duration_ms += duration_ms
 
-        self.is_collecting = True
-        self._stop_event.clear()
-        self.collection_thread = threading.Thread(target=self._collection_loop)
-        self.collection_thread.daemon = True
-        self.collection_thread.start()
-        logger.info("Started baseline metrics collection")
+            if status_code >= 400:
+                self.current_metrics.error_count += 1
 
-    def stop_collection(self) -> None:
-        """Stop metrics collection"""
-        if not self.is_collecting:
-            return
+            # Check for slow requests
+            if duration_ms > self.thresholds["slow_request_ms"]:
+                logger.warning(f"Slow request detected: {endpoint} took {duration_ms:.2f}ms")
 
-        self.is_collecting = False
-        self._stop_event.set()
+            # Add to history
+            self._add_to_history("request", duration_ms, {"endpoint": endpoint, "status": str(status_code)})
 
-        if self.collection_thread:
-            self.collection_thread.join(timeout=5.0)
+    def record_database_query(self, duration_ms: float, query_type: str = "unknown"):
+        """Record a database query metric."""
+        with self.lock:
+            self.current_metrics.database_query_count += 1
+            self.current_metrics.database_query_duration_ms += duration_ms
 
-        logger.info("Stopped baseline metrics collection")
+            # Check for slow queries
+            if duration_ms > self.thresholds["slow_db_query_ms"]:
+                logger.warning(f"Slow database query detected: {query_type} took {duration_ms:.2f}ms")
 
-    def _collection_loop(self) -> None:
-        """Main collection loop running in separate thread"""
-        while not self._stop_event.is_set():
-            try:
-                metrics = self.collect_current_metrics()
-                self.metrics_history.append(metrics)
+            # Add to history
+            self._add_to_history("db_query", duration_ms, {"query_type": query_type})
 
-                # Keep only recent metrics (last 1000 samples)
-                if len(self.metrics_history) > 1000:
-                    self.metrics_history = self.metrics_history[-1000:]
+    def record_ai_inference(self, duration_ms: float, model_type: str = "unknown"):
+        """Record an AI inference metric."""
+        with self.lock:
+            self.current_metrics.ai_inference_count += 1
+            self.current_metrics.ai_inference_duration_ms += duration_ms
 
-            except Exception as e:
-                logger.exception("Error collecting metrics: %s", e)
+            # Check for slow inference
+            if duration_ms > self.thresholds["slow_ai_inference_ms"]:
+                logger.warning(f"Slow AI inference detected: {model_type} took {duration_ms:.2f}ms")
 
-            self._stop_event.wait(self.collection_interval)
+            # Add to history
+            self._add_to_history("ai_inference", duration_ms, {"model_type": model_type})
 
-    def collect_current_metrics(self) -> PerformanceMetrics:
-        """Collect current system performance metrics"""
-        timestamp = datetime.now()
+    def record_cache_operation(self, hit: bool, cache_type: str = "unknown"):
+        """Record a cache operation."""
+        with self.lock:
+            # Calculate hit rate
+            total_ops = self.current_metrics.request_count
+            if total_ops > 0:
+                hits = int(self.current_metrics.cache_hit_rate * total_ops / 100)
+                if hit:
+                    hits += 1
+                self.current_metrics.cache_hit_rate = (hits / total_ops) * 100
 
-        # Collect system resource metrics
-        resource_metrics = self._collect_resource_metrics()
+            # Add to history
+            self._add_to_history("cache", 1 if hit else 0, {"cache_type": cache_type})
 
-        # Collect memory metrics
-        memory_metrics = self._collect_memory_metrics()
+    def record_custom_metric(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
+        """Record a custom metric."""
+        with self.lock:
+            metric_point = MetricPoint(
+                timestamp=datetime.now(timezone.utc),
+                value=value,
+                tags=tags or {}
+            )
+            self.custom_metrics[name].append(metric_point)
 
-        return PerformanceMetrics(
-            timestamp=timestamp, memory_usage=memory_metrics, resource_utilization=resource_metrics
-        )
+            # Keep only recent metrics
+            if len(self.custom_metrics[name]) > self.max_history:
+                self.custom_metrics[name] = self.custom_metrics[name][-self.max_history:]
 
-    def _collect_resource_metrics(self) -> ResourceMetrics:
-        """Collect system resource utilization metrics"""
+    def update_system_metrics(self):
+        """Update system resource metrics."""
         try:
+            # Memory usage
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            memory_mb = memory_info.rss / (1024 * 1024)
+
             # CPU usage
             cpu_percent = psutil.cpu_percent(interval=0.1)
 
-            # Memory usage
-            memory = psutil.virtual_memory()
-            memory_percent = memory.percent
+            with self.lock:
+                self.current_metrics.memory_usage_mb = memory_mb
+                self.current_metrics.cpu_usage_percent = cpu_percent
 
-            # Disk I/O
-            disk_io = psutil.disk_io_counters()
-            disk_io_mb = 0.0
-            if disk_io:
-                disk_io_mb = (disk_io.read_bytes + disk_io.write_bytes) / (1024 * 1024)
+                # Check thresholds
+                if memory_mb > self.thresholds["high_memory_mb"]:
+                    logger.warning(f"High memory usage detected: {memory_mb:.2f}MB")
 
-            # Network I/O
-            network_io = psutil.net_io_counters()
-            network_io_mb = 0.0
-            if network_io:
-                network_io_mb = (network_io.bytes_sent + network_io.bytes_recv) / (1024 * 1024)
+                if cpu_percent > self.thresholds["high_cpu_percent"]:
+                    logger.warning(f"High CPU usage detected: {cpu_percent:.2f}%")
 
-            # Process information
-            current_process = psutil.Process()
-            thread_count = current_process.num_threads()
-
-            return ResourceMetrics(
-                cpu_usage_percent=cpu_percent,
-                memory_usage_percent=memory_percent,
-                disk_io_mb_per_sec=disk_io_mb,
-                network_io_mb_per_sec=network_io_mb,
-                thread_count=thread_count,
-                process_count=len(psutil.pids()),
-            )
-
-        except (OSError, FileNotFoundError) as e:
-            logger.exception("Error collecting resource metrics: %s", e)
-            return ResourceMetrics(0, 0, 0, 0, 0, 0)
-
-    def _collect_memory_metrics(self) -> MemoryMetrics:
-        """Collect memory usage metrics"""
-        try:
-            current_process = psutil.Process()
-            memory_info = current_process.memory_info()
-
-            # Convert bytes to MB
-            current_usage_mb = memory_info.rss / (1024 * 1024)
-
-            # Get system memory info
-            memory = psutil.virtual_memory()
-
-            return MemoryMetrics(
-                peak_usage_mb=current_usage_mb,  # Will be updated with actual peak
-                average_usage_mb=current_usage_mb,  # Will be calculated from history
-                min_usage_mb=current_usage_mb,
-                current_usage_mb=current_usage_mb,
-                memory_efficiency=min(1.0, current_usage_mb / (memory.total / 1024 / 1024)),
-                gc_collections=0,  # Would need GC integration
-                memory_leaks_detected=False,
-            )
+                # Add to history
+                self._add_to_history("memory", memory_mb)
+                self._add_to_history("cpu", cpu_percent)
 
         except Exception as e:
-            logger.exception("Error collecting memory metrics: %s", e)
-            return MemoryMetrics(0, 0, 0, 0, 0, 0, False)
+            logger.error(f"Failed to update system metrics: {e}")
 
-    def get_baseline_summary(self) -> PerformanceMetrics | None:
-        """Get summarized baseline metrics"""
-        if not self.metrics_history:
-            return None
-
-        # Calculate averages and aggregates from history
-        memory_usage_values = [m.memory_usage.current_usage_mb for m in self.metrics_history if m.memory_usage]
-
-        cpu_usage_values = [
-            m.resource_utilization.cpu_usage_percent for m in self.metrics_history if m.resource_utilization
-        ]
-
-        if not memory_usage_values or not cpu_usage_values:
-            return self.metrics_history[-1]  # Return latest if no aggregation possible
-
-        # Create aggregated metrics
-        aggregated_memory = MemoryMetrics(
-            peak_usage_mb=max(memory_usage_values),
-            average_usage_mb=mean(memory_usage_values),
-            min_usage_mb=min(memory_usage_values),
-            current_usage_mb=memory_usage_values[-1],
-            memory_efficiency=0.85,
-            gc_collections=0,
-            memory_leaks_detected=False,
+    def _add_to_history(self, metric_name: str, value: float, tags: Optional[Dict[str, str]] = None):
+        """Add a metric point to history."""
+        metric_point = MetricPoint(
+            timestamp=datetime.now(timezone.utc),
+            value=value,
+            tags=tags or {}
         )
+        self.metrics_history.append((metric_name, metric_point))
 
-        aggregated_resources = ResourceMetrics(
-            cpu_usage_percent=mean(cpu_usage_values),
-            memory_usage_percent=mean(
-                [m.resource_utilization.memory_usage_percent for m in self.metrics_history if m.resource_utilization]
-            ),
-            disk_io_mb_per_sec=0.0,
-            network_io_mb_per_sec=0.0,
-            thread_count=self.metrics_history[-1].resource_utilization.thread_count
-            if self.metrics_history[-1].resource_utilization
-            else 0,
-            process_count=0,
-        )
-
-        return PerformanceMetrics(
-            timestamp=datetime.now(), memory_usage=aggregated_memory, resource_utilization=aggregated_resources
-        )
-
-
-class OptimizationMetricsCollector:
-    """Collects performance metrics with optimizations enabled"""
-
-    def __init__(self) -> None:
-        self.cache_service: Any = None
-        self.memory_manager: Any = None
-        self.optimization_enabled: bool = False
-        self.baseline_collector: Any = None  # Will be set when needed
-
-    def set_optimization_services(self, cache_service=None, memory_manager=None):
-        """Set optimization services for metrics collection"""
-        self.cache_service = cache_service
-        self.memory_manager = memory_manager
-
-    def enable_optimizations(self) -> None:
-        """Enable optimization systems for testing"""
-        self.optimization_enabled = True
-        logger.info("Optimizations enabled for metrics collection")
-
-    def disable_optimizations(self) -> None:
-        """Disable optimization systems"""
-        self.optimization_enabled = False
-        logger.info("Optimizations disabled for metrics collection")
-
-    def collect_optimization_metrics(self) -> PerformanceMetrics:
-        """Collect metrics with optimizations enabled"""
-        base_metrics = self.baseline_collector.collect_current_metrics()
-
-        # Collect cache metrics if available
-        cache_metrics = None
-        if self.cache_service and self.optimization_enabled:
-            cache_metrics = self._collect_cache_metrics()
-
-        # Update base metrics with optimization-specific data
-        base_metrics.cache_performance = cache_metrics
-
-        return base_metrics
-
-    def _collect_cache_metrics(self) -> CacheMetrics:
-        """Collect cache performance metrics"""
-        try:
-            # This would integrate with actual cache service
-            # For now, return simulated metrics
-            return CacheMetrics(
-                hit_rate=0.75,  # 75% hit rate
-                miss_rate=0.25,
-                total_requests=1000,
-                cache_size_mb=128.0,
-                eviction_count=10,
-                average_lookup_time_ms=2.5,
+    def get_current_metrics(self) -> PerformanceMetrics:
+        """Get current metrics snapshot."""
+        with self.lock:
+            return PerformanceMetrics(
+                request_count=self.current_metrics.request_count,
+                request_duration_ms=self.current_metrics.request_duration_ms,
+                memory_usage_mb=self.current_metrics.memory_usage_mb,
+                cpu_usage_percent=self.current_metrics.cpu_usage_percent,
+                database_query_count=self.current_metrics.database_query_count,
+                database_query_duration_ms=self.current_metrics.database_query_duration_ms,
+                ai_inference_count=self.current_metrics.ai_inference_count,
+                ai_inference_duration_ms=self.current_metrics.ai_inference_duration_ms,
+                error_count=self.current_metrics.error_count,
+                cache_hit_rate=self.current_metrics.cache_hit_rate
             )
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-            logger.exception("Error collecting cache metrics: %s", e)
-            return CacheMetrics(0, 0, 0, 0, 0, 0)
 
-    async def measure_response_times(self, operation: Callable, iterations: int = 10) -> ResponseTimeMetrics:
-        """Measure response times for a specific operation"""
-        response_times = []
+    def get_metrics_summary(self) -> Dict[str, Any]:
+        """Get a comprehensive metrics summary."""
+        current = self.get_current_metrics()
+        uptime = time.time() - self.start_time
 
-        for _i in range(iterations):
-            start_time = time.perf_counter()
-            try:
-                if asyncio.iscoroutinefunction(operation):
-                    await operation()
-                else:
-                    operation()
-
-                end_time = time.perf_counter()
-                response_time_ms = (end_time - start_time) * 1000
-                response_times.append(response_time_ms)
-
-            except Exception as e:
-                logger.exception("Error during operation measurement: %s", e)
-                continue
-
-        if not response_times:
-            return ResponseTimeMetrics(0, 0, 0, 0, 0, 0, 0, 0)
-
-        response_times.sort()
-
-        return ResponseTimeMetrics(
-            average_ms=mean(response_times),
-            median_ms=median(response_times),
-            min_ms=min(response_times),
-            max_ms=max(response_times),
-            p95_ms=response_times[int(0.95 * len(response_times))],
-            p99_ms=response_times[int(0.99 * len(response_times))],
-            std_dev_ms=stdev(response_times) if len(response_times) > 1 else 0,
-            sample_count=len(response_times),
+        # Calculate averages
+        avg_request_duration = (
+            current.request_duration_ms / current.request_count
+            if current.request_count > 0 else 0
         )
 
+        avg_db_query_duration = (
+            current.database_query_duration_ms / current.database_query_count
+            if current.database_query_count > 0 else 0
+        )
 
-class StatisticalAnalysisEngine:
-    """Provides statistical analysis of performance metrics"""
+        avg_ai_inference_duration = (
+            current.ai_inference_duration_ms / current.ai_inference_count
+            if current.ai_inference_count > 0 else 0
+        )
 
-    @staticmethod
-    def calculate_improvement_percentage(baseline: float, optimized: float) -> float:
-        """Calculate percentage improvement from baseline to optimized"""
-        if baseline == 0:
-            return 0.0
-        return ((baseline - optimized) / baseline) * 100
+        error_rate = (
+            (current.error_count / current.request_count) * 100
+            if current.request_count > 0 else 0
+        )
 
-    @staticmethod
-    def calculate_confidence_interval(values: list[float], confidence: float = 0.95) -> tuple:
-        """Calculate confidence interval for a list of values"""
-        if len(values) < 2:
-            return (0.0, 0.0)
-
-        import scipy.stats as stats
-
-        mean_val = mean(values)
-        std_err = stdev(values) / (len(values) ** 0.5)
-
-        # Use t-distribution for small samples
-        t_value = stats.t.ppf((1 + confidence) / 2, len(values) - 1)
-        margin_error = t_value * std_err
-
-        return (mean_val - margin_error, mean_val + margin_error)
-
-    @staticmethod
-    def is_statistically_significant(
-        baseline_values: list[float], optimized_values: list[float], alpha: float = 0.05
-    ) -> tuple:
-        """Perform statistical significance test between baseline and optimized metrics"""
-        if len(baseline_values) < 2 or len(optimized_values) < 2:
-            return False, 1.0
-
-        try:
-            # Perform two-sample t-test
-            t_stat, p_value = stats.ttest_ind(baseline_values, optimized_values)
-
-            is_significant = p_value < alpha
-            return is_significant, p_value
-
-        except ImportError:
-            logger.warning("scipy not available for statistical testing")
-            # Fallback to simple comparison
-            baseline_mean = mean(baseline_values)
-            optimized_mean = mean(optimized_values)
-
-            # Simple threshold-based significance
-            improvement = abs(baseline_mean - optimized_mean) / baseline_mean
-            return improvement > 0.05, 0.05  # 5% improvement threshold
-
-    @staticmethod
-    def analyze_performance_comparison(
-        baseline_metrics: PerformanceMetrics, optimized_metrics: PerformanceMetrics
-    ) -> dict[str, Any]:
-        """Analyze performance comparison between baseline and optimized metrics"""
-        analysis: dict[str, Any] = {
-            "timestamp": datetime.now(),
-            "improvements": {},
-            "regressions": {},
-            "statistical_significance": {},
-        }
-
-        # Compare response times if available
-        if baseline_metrics.response_times and optimized_metrics.response_times:
-            baseline_avg = baseline_metrics.response_times.average_ms
-            optimized_avg = optimized_metrics.response_times.average_ms
-
-            improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(baseline_avg, optimized_avg)
-
-            if improvement > 0:
-                analysis["improvements"]["response_time"] = {
-                    "improvement_percent": improvement,
-                    "baseline_ms": baseline_avg,
-                    "optimized_ms": optimized_avg,
-                }
-            elif improvement < 0:
-                analysis["regressions"]["response_time"] = {
-                    "regression_percent": abs(improvement),
-                    "baseline_ms": baseline_avg,
-                    "optimized_ms": optimized_avg,
-                }
-
-        # Compare memory usage
-        if baseline_metrics.memory_usage and optimized_metrics.memory_usage:
-            baseline_memory = baseline_metrics.memory_usage.average_usage_mb
-            optimized_memory = optimized_metrics.memory_usage.average_usage_mb
-
-            improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(baseline_memory, optimized_memory)
-
-            if improvement > 0:
-                analysis["improvements"]["memory_usage"] = {
-                    "improvement_percent": improvement,
-                    "baseline_mb": baseline_memory,
-                    "optimized_mb": optimized_memory,
-                }
-            elif improvement < 0:
-                analysis["regressions"]["memory_usage"] = {
-                    "regression_percent": abs(improvement),
-                    "baseline_mb": baseline_memory,
-                    "optimized_mb": optimized_memory,
-                }
-
-        # Add cache performance if available
-        if optimized_metrics.cache_performance:
-            cache_metrics = optimized_metrics.cache_performance
-            analysis["improvements"]["cache_performance"] = {
-                "hit_rate": cache_metrics.hit_rate,
-                "average_lookup_time_ms": cache_metrics.average_lookup_time_ms,
-                "cache_size_mb": cache_metrics.cache_size_mb,
+        return {
+            "uptime_seconds": round(uptime, 2),
+            "requests": {
+                "total": current.request_count,
+                "avg_duration_ms": round(avg_request_duration, 2),
+                "error_count": current.error_count,
+                "error_rate_percent": round(error_rate, 2)
+            },
+            "database": {
+                "query_count": current.database_query_count,
+                "avg_duration_ms": round(avg_db_query_duration, 2)
+            },
+            "ai_inference": {
+                "count": current.ai_inference_count,
+                "avg_duration_ms": round(avg_ai_inference_duration, 2)
+            },
+            "system": {
+                "memory_usage_mb": round(current.memory_usage_mb, 2),
+                "cpu_usage_percent": round(current.cpu_usage_percent, 2)
+            },
+            "cache": {
+                "hit_rate_percent": round(current.cache_hit_rate, 2)
+            },
+            "custom_metrics": {
+                name: len(metrics) for name, metrics in self.custom_metrics.items()
             }
-
-        return analysis
-
-    @staticmethod
-    def validate_metrics_accuracy(metrics: PerformanceMetrics) -> dict[str, bool]:
-        """Validate the accuracy and consistency of collected metrics"""
-        validation_results = {
-            "response_times_valid": True,
-            "memory_metrics_valid": True,
-            "resource_metrics_valid": True,
-            "cache_metrics_valid": True,
-            "overall_valid": True,
         }
 
-        # Validate response times
-        if metrics.response_times:
-            rt = metrics.response_times
-            if rt.min_ms > rt.max_ms or rt.average_ms < 0:
-                validation_results["response_times_valid"] = False
+    def reset_metrics(self):
+        """Reset all metrics."""
+        with self.lock:
+            self.current_metrics = PerformanceMetrics()
+            self.metrics_history.clear()
+            self.custom_metrics.clear()
+            self.start_time = time.time()
+            logger.info("Metrics reset")
 
-        # Validate memory metrics
-        if metrics.memory_usage:
-            mem = metrics.memory_usage
-            if mem.current_usage_mb < 0 or mem.peak_usage_mb < mem.current_usage_mb:
-                validation_results["memory_metrics_valid"] = False
+# Global metrics collector
+metrics_collector = MetricsCollector()
 
-        # Validate resource metrics
-        if metrics.resource_utilization:
-            res = metrics.resource_utilization
-            if (
-                res.cpu_usage_percent < 0
-                or res.cpu_usage_percent > 100
-                or res.memory_usage_percent < 0
-                or res.memory_usage_percent > 100
-            ):
-                validation_results["resource_metrics_valid"] = False
+# Context managers for easy metric collection
+class RequestTimer:
+    """Context manager for timing requests."""
 
-        # Validate cache metrics
-        if metrics.cache_performance:
-            cache = metrics.cache_performance
-            if (
-                cache.hit_rate < 0
-                or cache.hit_rate > 1
-                or cache.miss_rate < 0
-                or cache.miss_rate > 1
-                or abs(cache.hit_rate + cache.miss_rate - 1.0) > 0.01
-            ):
-                validation_results["cache_metrics_valid"] = False
+    def __init__(self, endpoint: str, status_code: int = 200):
+        self.endpoint = endpoint
+        self.status_code = status_code
+        self.start_time = None
 
-        # Overall validation
-        validation_results["overall_valid"] = all(validation_results.values())
+    def __enter__(self):
+        self.start_time = time.time()
+        return self
 
-        return validation_results
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.start_time:
+            duration_ms = (time.time() - self.start_time) * 1000
+            metrics_collector.record_request(duration_ms, self.status_code, self.endpoint)
+
+class DatabaseQueryTimer:
+    """Context manager for timing database queries."""
+
+    def __init__(self, query_type: str = "unknown"):
+        self.query_type = query_type
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = time.time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.start_time:
+            duration_ms = (time.time() - self.start_time) * 1000
+            metrics_collector.record_database_query(duration_ms, self.query_type)
+
+class AIInferenceTimer:
+    """Context manager for timing AI inference."""
+
+    def __init__(self, model_type: str = "unknown"):
+        self.model_type = model_type
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = time.time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.start_time:
+            duration_ms = (time.time() - self.start_time) * 1000
+            metrics_collector.record_ai_inference(duration_ms, self.model_type)
+
+# Background task for updating system metrics
+async def update_system_metrics_task():
+    """Background task to update system metrics periodically."""
+    while True:
+        try:
+            metrics_collector.update_system_metrics()
+            await asyncio.sleep(10)  # Update every 10 seconds
+        except Exception as e:
+            logger.error(f"System metrics update failed: {e}")
+            await asyncio.sleep(30)  # Wait longer on error
