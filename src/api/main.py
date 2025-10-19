@@ -204,6 +204,10 @@ async def auto_warm_ai_models():
         # Initialize analysis service
         analysis_service = AnalysisService(retriever=retriever)
 
+        # Store in app state for dependency injection
+        from src.api.dependencies import app_state
+        app_state["analysis_service"] = analysis_service
+
         # Skip auto-warming if using mocks
         if analysis_service.use_mocks:
             logger.info("Skipping AI model auto-warming (mocks enabled)")

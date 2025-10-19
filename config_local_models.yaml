@@ -1,0 +1,142 @@
+# ElectroAnalyzer Configuration - Local Models
+# This configuration uses models from the local models/ folder instead of HuggingFace cache
+
+# Application Settings
+app_name: "Therapy Compliance Analyzer"
+version: "2.0.0"
+debug: false
+
+# AI Configuration
+use_ai_mocks: false  # REAL AI with local models
+
+# Database Configuration
+database:
+  url: "sqlite:///./compliance.db"
+  echo: false
+
+# LLM Configuration - Using local models
+llm:
+  context_length: 4096
+  gpu_layers: 0
+  threads: 6
+  hf_model_type: meditron
+  model_type: ctransformers
+  model_repo_id: TheBloke/meditron-7B-GGUF
+  local_model_path: "models/meditron7b/meditron-7b.Q4_K_M.gguf"
+  generation_params:
+    max_new_tokens: 1024
+    repeat_penalty: 1.1
+    stop_sequences:
+    - </analysis>
+    - "\n\n---"
+    temperature: 0.1
+    top_p: 0.9
+
+# Alternative LLM Configurations (uncomment to use)
+# For DialoGPT Medium (conversational AI)
+# llm:
+#   context_length: 1024
+#   gpu_layers: 0
+#   threads: 4
+#   hf_model_type: gpt2
+#   model_type: transformers
+#   model_repo_id: microsoft/DialoGPT-medium
+#   local_model_path: "models/dialogpt-medium"
+#   generation_params:
+#     max_new_tokens: 512
+#     repeat_penalty: 1.1
+#     temperature: 0.7
+#     top_p: 0.9
+
+# For Flan-T5 Base (instruction following)
+# llm:
+#   context_length: 2048
+#   gpu_layers: 0
+#   threads: 4
+#   hf_model_type: t5
+#   model_type: transformers
+#   model_repo_id: google/flan-t5-base
+#   local_model_path: "models/flan-t5-base"
+#   generation_params:
+#     max_new_tokens: 512
+#     repeat_penalty: 1.1
+#     temperature: 0.1
+#     top_p: 0.9
+
+# Generator Profiles - Local Models
+generator_profiles:
+  clinical_standard:
+    name: "Clinical Standard Analysis"
+    description: "Standard clinical compliance analysis using Meditron 7B"
+    generator: "meditron-7b"
+    local_path: "models/meditron7b"
+    repo: "TheBloke/meditron-7B-GGUF"
+    model_file: "meditron-7b.Q4_K_M.gguf"
+    context_length: 4096
+    max_tokens: 1024
+    temperature: 0.1
+
+  clinical_fast:
+    name: "Fast Clinical Analysis"
+    description: "Fast analysis using DialoGPT Medium"
+    generator: "dialogpt-medium"
+    local_path: "models/dialogpt-medium"
+    repo: "microsoft/DialoGPT-medium"
+    context_length: 1024
+    max_tokens: 512
+    temperature: 0.7
+
+  instruction_following:
+    name: "Instruction Following"
+    description: "Flan-T5 Base for instruction following"
+    generator: "flan-t5-base"
+    local_path: "models/flan-t5-base"
+    repo: "google/flan-t5-base"
+    context_length: 2048
+    max_tokens: 512
+    temperature: 0.1
+
+# NER Models - Local
+ner_models:
+  biomedical:
+    name: "Biomedical NER"
+    model_id: "d4data/biomedical-ner-all"
+    local_path: "models/biomedical-ner"
+
+  pathology:
+    name: "Pathology Detection"
+    model_id: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    local_path: "models/openmed-ner"
+
+# Embedding Models - Local
+embedding_models:
+  sentence_transformer:
+    name: "Sentence Transformers MiniLM"
+    model_id: "sentence-transformers/all-MiniLM-L6-v2"
+    local_path: "models/sentence-transformers-minilm"
+    dimension: 384
+
+# Analysis Settings
+analysis:
+  max_file_size_mb: 50
+  supported_formats: ["pdf", "docx", "txt", "html"]
+  phi_redaction: true
+  confidence_threshold: 0.7
+
+# API Settings
+api:
+  host: "127.0.0.1"
+  port: 8001
+  cors_origins: ["http://127.0.0.1:3001", "http://localhost:3001"]
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: "logs/app.log"
+
+# Cache Settings
+cache:
+  enabled: true
+  ttl_seconds: 3600
+  max_size_mb: 1000

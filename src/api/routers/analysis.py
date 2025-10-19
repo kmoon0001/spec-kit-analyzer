@@ -77,13 +77,16 @@ async def run_analysis_and_save(
                 strictness=strictness,
                 progress_callback=_update_progress,
             )
-            # The result from analyze_document is already the analysis payload
+            # The result from analyze_document has nested structure: {analysis: {...}, report_html: ...}
             analysis_payload = result if isinstance(result, dict) else {}
 
-            # Extract findings and other data directly from the result
-            findings = analysis_payload.get("findings", [])
-            compliance_score = analysis_payload.get("compliance_score")
-            document_type = analysis_payload.get("document_type")
+            # Extract the analysis data (may be nested under "analysis" key)
+            analysis_data = analysis_payload.get("analysis", analysis_payload)
+
+            # Extract findings and other data
+            findings = analysis_data.get("findings", [])
+            compliance_score = analysis_data.get("compliance_score") or analysis_payload.get("compliance_score")
+            document_type = analysis_data.get("document_type") or analysis_payload.get("document_type")
             report_html = analysis_payload.get("report_html")
 
             logger.info("Analysis result structure: %s", list(analysis_payload.keys()) if isinstance(analysis_payload, dict) else "Not a dict")

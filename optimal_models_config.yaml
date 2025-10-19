@@ -1,0 +1,117 @@
+# Optimal Model Configuration for Clinical Document Analyzer
+# This configuration uses only the essential models for best performance
+
+# Application Settings
+app_name: "Therapy Compliance Analyzer"
+version: "2.0.0"
+debug: false
+
+# AI Configuration
+use_ai_mocks: false  # REAL AI with optimized model selection
+
+# Database Configuration
+database:
+  url: "sqlite:///./compliance.db"
+  echo: false
+
+# LLM Configuration - Meditron 7B (Primary)
+llm:
+  context_length: 4096
+  gpu_layers: 0
+  threads: 6
+  hf_model_type: meditron
+  model_type: ctransformers
+  model_repo_id: TheBloke/meditron-7B-GGUF
+  local_model_path: "models/meditron7b/meditron-7b.Q4_K_M.gguf"
+  generation_params:
+    max_new_tokens: 1024
+    repeat_penalty: 1.1
+    stop_sequences:
+    - </analysis>
+    - "\n\n---"
+    temperature: 0.1
+    top_p: 0.9
+
+# Generator Profiles - Optimized Selection
+generator_profiles:
+  clinical_primary:
+    name: "Meditron 7B - Primary Medical Analysis"
+    description: "Main medical compliance analysis using Meditron 7B"
+    generator: "meditron-7b"
+    local_path: "models/meditron7b"
+    repo: "TheBloke/meditron-7B-GGUF"
+    model_file: "meditron-7b.Q4_K_M.gguf"
+    context_length: 4096
+    max_tokens: 1024
+    temperature: 0.1
+
+  clinical_backup:
+    name: "DialoGPT Medium - Backup Analysis"
+    description: "Backup conversational analysis using DialoGPT Medium"
+    generator: "dialogpt-medium"
+    local_path: "models/dialogpt-medium"
+    repo: "microsoft/DialoGPT-medium"
+    context_length: 1024
+    max_tokens: 512
+    temperature: 0.7
+
+# NER Models - Essential Medical Entity Recognition
+ner_models:
+  biomedical:
+    name: "Biomedical NER - Primary"
+    model_id: "d4data/biomedical-ner-all"
+    local_path: "models/biomedical-ner"
+    priority: 1  # Primary NER model
+
+  pathology:
+    name: "Pathology Detection - Secondary"
+    model_id: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    local_path: "models/openmed-ner"
+    priority: 2  # Secondary for specialized detection
+
+# Embedding Models - Document Similarity
+embedding_models:
+  sentence_transformer:
+    name: "Sentence Transformers - Document Embeddings"
+    model_id: "sentence-transformers/all-MiniLM-L6-v2"
+    local_path: "models/sentence-transformers-minilm"
+    dimension: 384
+
+# Analysis Settings
+analysis:
+  max_file_size_mb: 50
+  supported_formats: ["pdf", "docx", "txt", "html"]
+  phi_redaction: true
+  confidence_threshold: 0.7
+
+# API Settings
+api:
+  host: "127.0.0.1"
+  port: 8001
+  cors_origins: ["http://127.0.0.1:3001", "http://localhost:3001"]
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: "logs/app.log"
+
+# Cache Settings
+cache:
+  enabled: true
+  ttl_seconds: 3600
+  max_size_mb: 1000
+
+# Model Selection Strategy
+model_selection:
+  primary_llm: "meditron-7b"
+  backup_llm: "dialogpt-medium"
+  ner_models: ["biomedical", "pathology"]
+  embedding_model: "sentence_transformer"
+
+# Performance Optimization
+performance:
+  enable_model_caching: true
+  parallel_ner_processing: true
+  batch_size: 2
+  max_concurrent_analyses: 3

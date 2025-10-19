@@ -83,7 +83,11 @@ class ModelsSettings(BaseModel):
 
 class LLMSettings(BaseModel):
     model_type: str
+    model_repo_id: str
     context_length: int
+    gpu_layers: int = 0
+    threads: int = 4
+    hf_model_type: str = "llama"
     generation_params: dict[str, Any] = {
         "temperature": 0.1,
         "max_new_tokens": 1024,

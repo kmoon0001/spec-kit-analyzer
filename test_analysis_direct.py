@@ -18,7 +18,7 @@ if login_response.status_code != 200:
 
 token = login_response.json()["access_token"]
 headers = {"Authorization": f"Bearer {token}"}
-print(f"✓ Logged in successfully")
+print(f"[OK] Logged in successfully")
 
 # Create a test document
 print("\n2. Creating test document...")
@@ -59,7 +59,7 @@ if analyze_response.status_code != 202:
     exit(1)
 
 task_id = analyze_response.json()["task_id"]
-print(f"✓ Analysis started: {task_id}")
+print(f"[OK] Analysis started: {task_id}")
 
 # Poll for status
 print("\n4. Monitoring progress...")
@@ -95,7 +95,7 @@ while True:
 
     if status == "completed":
         print("-" * 60)
-        print("✓ ANALYSIS COMPLETED SUCCESSFULLY")
+        print("[OK] ANALYSIS COMPLETED SUCCESSFULLY")
 
         # Show results
         if "analysis" in status_data:

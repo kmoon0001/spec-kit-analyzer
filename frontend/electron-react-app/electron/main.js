@@ -191,7 +191,7 @@ const createMainWindow = () => {
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://localhost:3001';
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://127.0.0.1:3001';
 
   if (isDev) {
     mainWindow.loadURL(rendererUrl);
@@ -232,7 +232,7 @@ const createMainWindow = () => {
     mainWindow = null;
   });
 
-  setTimeout(() => {}, 5000);
+  setTimeout(() => { }, 5000);
 };
 
 const setupAppEvents = () => {

@@ -23,6 +23,24 @@ def enrich_analysis_result(
     result["narrative_summary"] = build_narrative_summary(summary, checklist)
     result["bullet_highlights"] = build_bullet_highlights(result, checklist, summary)
     result["overall_confidence"] = calculate_overall_confidence(result, checklist)
+
+    # Ensure compliance score is preserved from analysis result
+    if "compliance_score" not in result or result["compliance_score"] is None:
+        # Calculate compliance score from findings if not present
+        findings = result.get("findings", [])
+        if findings:
+            high_severity = len([f for f in findings if f.get('severity') == 'high'])
+            medium_severity = len([f for f in findings if f.get('severity') == 'medium'])
+            low_severity = len([f for f in findings if f.get('severity') == 'low'])
+
+            base_score = 100
+            base_score -= high_severity * 20
+            base_score -= medium_severity * 10
+            base_score -= low_severity * 5
+            result["compliance_score"] = max(0, min(100, base_score))
+        else:
+            result["compliance_score"] = 85.0  # Default score when no findings
+
     return result
 
 

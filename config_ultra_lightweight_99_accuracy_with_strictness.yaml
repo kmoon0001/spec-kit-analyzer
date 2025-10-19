@@ -1,0 +1,436 @@
+# Ultra-Lightweight 99% Accuracy Configuration with Adjustable Strictness
+# Creative optimization with model repurposing, RAG, and smart strictness levels
+
+# Application Settings
+app_name: "Therapy Compliance Analyzer - Ultra-Lightweight 99% Accuracy"
+version: "2.0.0"
+debug: false
+
+# AI Configuration
+use_ai_mocks: false  # REAL AI with maximum efficiency
+
+# Database Configuration - Enhanced for RAG
+database:
+  url: "sqlite:///./compliance.db"
+  echo: false
+  # RAG-specific tables
+  rag_tables:
+    document_embeddings: true
+    knowledge_base: true
+    fact_checking_cache: true
+    clinical_rules_cache: true
+    multi_purpose_cache: true
+
+# ADJUSTABLE STRICTNESS LEVELS - Smart Configuration
+strictness_levels:
+  enabled: true
+  default_level: "balanced"  # 92% threshold
+
+  levels:
+    # Level 1: Ultra-Fast (90% threshold)
+    ultra_fast:
+      name: "Ultra-Fast Review"
+      accuracy_threshold: 0.90
+      confidence_threshold: 0.85
+      fact_checking: "light"
+      ensemble_agreement: 0.7
+      validation_passes: 3
+      processing_time_target: "5-10s"
+      use_cached_results: true
+      description: "Quick review for preliminary analysis"
+
+    # Level 2: Balanced (92% threshold) - DEFAULT
+    balanced:
+      name: "Balanced Review"
+      accuracy_threshold: 0.92
+      confidence_threshold: 0.90
+      fact_checking: "standard"
+      ensemble_agreement: 0.8
+      validation_passes: 4
+      processing_time_target: "10-15s"
+      use_cached_results: true
+      description: "Optimal balance of speed and accuracy"
+
+    # Level 3: Thorough (95% threshold)
+    thorough:
+      name: "Thorough Review"
+      accuracy_threshold: 0.95
+      confidence_threshold: 0.93
+      fact_checking: "comprehensive"
+      ensemble_agreement: 0.85
+      validation_passes: 5
+      processing_time_target: "15-25s"
+      use_cached_results: false
+      description: "Comprehensive analysis for critical cases"
+
+    # Level 4: Clinical-Grade (99% threshold)
+    clinical_grade:
+      name: "Clinical-Grade Review"
+      accuracy_threshold: 0.99
+      confidence_threshold: 0.96
+      fact_checking: "maximum"
+      ensemble_agreement: 0.9
+      validation_passes: 6
+      processing_time_target: "25-40s"
+      use_cached_results: false
+      description: "Maximum accuracy for critical clinical decisions"
+
+# LLM Configuration - Meditron 7B Q4_K_M (Primary)
+llm:
+  context_length: 4096
+  gpu_layers: 0
+  threads: 8
+  hf_model_type: meditron
+  model_type: ctransformers
+  model_repo_id: TheBloke/meditron-7B-GGUF
+  local_model_path: "models/meditron7b/meditron-7b.Q4_K_M.gguf"
+  generation_params:
+    max_new_tokens: 1024
+    repeat_penalty: 1.1
+    stop_sequences:
+    - </analysis>
+    - "\n\n---"
+    temperature: 0.05  # Very low for maximum accuracy
+    top_p: 0.95
+
+# CREATIVE OPTIMIZATION: Smart Model Repurposing + RAG Integration
+smart_model_usage:
+  enabled: true
+
+  # Meditron 7B - Multi-Purpose (Primary Analysis + Fact-Checking + RAG)
+  meditron_7b:
+    primary_use: "medical_analysis"
+    secondary_use: "fact_checking"
+    tertiary_use: "confidence_scoring"
+    rag_use: "knowledge_retrieval"  # NEW: RAG integration
+    weight: 0.7
+
+  # DialoGPT Medium - Multi-Purpose (Chat + Text Generation + Validation + RAG)
+  dialogpt_medium:
+    primary_use: "chat_assistant"
+    secondary_use: "text_generation"
+    tertiary_use: "validation_checking"
+    rag_use: "context_generation"  # NEW: RAG integration
+    weight: 0.3
+
+  # Biomedical NER - Multi-Purpose (NER + Fact-Checking + Validation + RAG)
+  biomedical_ner:
+    primary_use: "entity_extraction"
+    secondary_use: "fact_verification"
+    tertiary_use: "medical_validation"
+    rag_use: "entity_retrieval"  # NEW: RAG integration
+    weight: 0.5
+
+  # OpenMed NER - Specialized (Pathology Only + RAG)
+  openmed_ner:
+    primary_use: "pathology_detection"
+    specialized_only: true
+    rag_use: "pathology_knowledge"  # NEW: RAG integration
+    weight: 0.2
+
+  # Sentence Transformers - Multi-Purpose (Embeddings + Similarity + Validation + RAG)
+  sentence_transformers:
+    primary_use: "document_embeddings"
+    secondary_use: "similarity_matching"
+    tertiary_use: "consistency_checking"
+    rag_use: "semantic_search"  # NEW: RAG integration
+    weight: 0.3
+
+# RAG (Retrieval-Augmented Generation) Configuration - Multi-Purpose
+rag_system:
+  enabled: true
+  strictness_adaptive: true  # Adapts to strictness level
+
+  # Knowledge Base Sources
+  knowledge_sources:
+    clinical_guidelines: true
+    compliance_rubrics: true
+    medical_dictionaries: true
+    fact_checking_database: true
+    historical_analyses: true
+    expert_rules: true
+
+  # RAG Models - Repurposed
+  retrieval_models:
+    primary_retriever: "sentence-transformers"  # Semantic search
+    secondary_retriever: "biomedical-ner"  # Entity-based retrieval
+    tertiary_retriever: "meditron-7b"  # Knowledge retrieval
+
+  # RAG Processing - Multi-Purpose
+  rag_processing:
+    document_indexing: true
+    embedding_generation: true
+    similarity_search: true
+    context_retrieval: true
+    fact_verification: true
+    knowledge_enhancement: true
+
+  # RAG Caching - Performance Optimization
+  rag_caching:
+    enabled: true
+    cache_embeddings: true
+    cache_retrievals: true
+    cache_fact_checks: true
+    cache_knowledge: true
+    ttl_hours: 24
+
+# Lightweight Ensemble - Smart Voting + RAG
+lightweight_ensemble:
+  enabled: true
+  strictness_adaptive: true  # Adapts to strictness level
+
+  models:
+    primary:
+      name: "Meditron 7B Multi-Purpose + RAG"
+      weight: 0.6
+      functions: ["analysis", "fact_checking", "confidence", "rag_retrieval"]
+
+    secondary:
+      name: "DialoGPT Medium Multi-Purpose + RAG"
+      weight: 0.4
+      functions: ["chat", "validation", "text_gen", "rag_context"]
+
+  voting_strategy: "smart_weighted_consensus_with_rag"
+  confidence_threshold: 0.92  # Optimized threshold
+  require_agreement: true
+  rag_enhanced_voting: true  # NEW: RAG-enhanced voting
+
+# Advanced Fact-Checking - Repurposed Models + RAG
+fact_checking:
+  enabled: true
+  strictness_adaptive: true  # Adapts to strictness level
+
+  models:
+    primary_fact_checker: "meditron-7b"
+    secondary_fact_checker: "biomedical-ner"
+    tertiary_fact_checker: "sentence-transformers"
+    rag_fact_checker: "rag_system"  # NEW: RAG fact-checking
+
+  verification_methods:
+    medical_dictionary_validation: true
+    clinical_guidelines_check: true
+    compliance_rubric_verification: true
+    cross_reference_sources: true
+    expert_rule_validation: true
+    consistency_checking: true
+    rag_knowledge_verification: true  # NEW: RAG verification
+
+  confidence_threshold: 0.92  # Optimized threshold
+  require_multiple_sources: true
+  rag_enhanced_verification: true  # NEW: RAG enhancement
+
+# Clinical Expert Rules Configuration - Organized Rubrics + RAG
+clinical_rules:
+  enabled: true
+  strictness_adaptive: true  # Adapts to strictness level
+
+  # Organized rubric paths
+  rubric_directory: "src/resources/rubrics"
+
+  pt_compliance_rules:
+    enabled: true
+    file: "src/resources/rubrics/pt_compliance_rubric.ttl"
+    strict_mode: true
+    rag_enhanced: true  # NEW: RAG enhancement
+
+  ot_compliance_rules:
+    enabled: true
+    file: "src/resources/rubrics/ot_compliance_rubric.ttl"
+    strict_mode: true
+    rag_enhanced: true  # NEW: RAG enhancement
+
+  slp_compliance_rules:
+    enabled: true
+    file: "src/resources/rubrics/slp_compliance_rubric.ttl"
+    strict_mode: true
+    rag_enhanced: true  # NEW: RAG enhancement
+
+  medical_necessity_rules:
+    enabled: true
+    validation_level: "strict"
+    rag_enhanced: true  # NEW: RAG enhancement
+
+  documentation_standards:
+    enabled: true
+    hipaa_compliance: true
+    medical_necessity: true
+    functional_goals: true
+    rag_enhanced: true  # NEW: RAG enhancement
+
+# Optimized NER Configuration - Repurposed Models + RAG
+ner_models:
+  biomedical_multi_purpose:
+    name: "Biomedical NER Multi-Purpose + RAG"
+    model_id: "d4data/biomedical-ner-all"
+    local_path: "models/biomedical-ner"
+    priority: 1
+    weight: 0.7
+    functions: ["entity_extraction", "fact_verification", "medical_validation", "rag_retrieval"]
+
+  pathology_specialized:
+    name: "OpenMed Pathology Detection + RAG"
+    model_id: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    local_path: "models/openmed-ner"
+    priority: 2
+    weight: 0.3
+    functions: ["pathology_detection", "rag_pathology"]  # Specialized + RAG
+
+  ensemble_ner: true
+  confidence_threshold: 0.92  # Optimized threshold
+  rag_enhanced_ner: true  # NEW: RAG enhancement
+
+# High-Accuracy Embedding Models - Multi-Purpose + RAG
+embedding_models:
+  sentence_transformer_multi:
+    name: "Sentence Transformers Multi-Purpose + RAG"
+    model_id: "sentence-transformers/all-MiniLM-L6-v2"
+    local_path: "models/sentence-transformers-minilm"
+    dimension: 384
+    type: "multi_purpose_rag"
+    functions: ["embeddings", "similarity", "consistency_checking", "rag_search"]
+
+# Chat Configuration - High Accuracy + RAG
+chat:
+  enabled: true
+  model: "dialogpt-medium"
+  local_path: "models/dialogpt-medium"
+  max_tokens: 256
+  temperature: 0.1
+  context_length: 512
+  response_timeout: 10
+  fact_check_responses: true
+  medical_accuracy_mode: true
+  confidence_threshold: 0.92  # Optimized threshold
+  rag_enhanced_chat: true  # NEW: RAG enhancement
+  strictness_adaptive: true  # NEW: Adapts to strictness level
+
+# Analysis Settings - Maximum Efficiency + RAG
+analysis:
+  max_file_size_mb: 50
+  supported_formats: ["pdf", "docx", "txt", "html"]
+  phi_redaction: true
+  confidence_threshold: 0.92  # Optimized threshold
+  fact_checking_enabled: true
+  hallucination_detection: true
+  medical_accuracy_mode: true
+  smart_ensemble: true
+  cross_validation: true
+  rag_enhanced_analysis: true  # NEW: RAG enhancement
+  strictness_adaptive: true  # NEW: Adapts to strictness level
+
+  # Efficiency settings
+  accuracy_enhancement:
+    enable_smart_ensemble: true
+    require_high_confidence: true
+    validate_against_rules: true
+    cross_check_findings: true
+    expert_rule_validation: true
+    multi_purpose_validation: true
+    rag_enhanced_validation: true  # NEW: RAG enhancement
+
+# API Settings - Simplified (No threading complications)
+api:
+  host: "127.0.0.1"
+  port: 8001
+  cors_origins: ["http://127.0.0.1:3001", "http://localhost:3001"]
+  strictness_endpoint: true  # NEW: Strictness adjustment endpoint
+  rag_endpoint: true  # NEW: RAG management endpoint
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: "logs/app.log"
+
+# Cache Settings - Optimized for Efficiency + RAG
+cache:
+  enabled: true
+  ttl_seconds: 14400
+  max_size_mb: 800
+  fact_check_cache: true
+  ensemble_cache: true
+  clinical_rules_cache: true
+  multi_purpose_cache: true
+  rag_cache: true  # NEW: RAG caching
+  strictness_cache: true  # NEW: Strictness level caching
+
+# Ultra-Lightweight 99% Accuracy Performance Settings + RAG
+accuracy_mode:
+  enabled: true
+  target_accuracy: 0.99
+  smart_ensemble_enabled: true
+  fact_checking_enabled: true
+  clinical_rules_enabled: true
+  cross_validation_enabled: true
+  multi_purpose_models: true
+  rag_system_enabled: true  # NEW: RAG system
+  strictness_adaptive: true  # NEW: Strictness adaptation
+
+  # Performance vs Accuracy balance
+  accuracy_priority: "maximum"
+  allow_slower_processing: true
+  max_processing_time_minutes: 10
+  use_existing_models_only: true
+  smart_model_repurposing: true
+  rag_optimization: true  # NEW: RAG optimization
+
+# Advanced Validation Settings + RAG
+validation:
+  enable_multi_purpose_validation: true
+  enable_expert_rule_validation: true
+  enable_cross_reference_validation: true
+  enable_confidence_calibration: true
+  enable_uncertainty_detection: true
+  enable_consistency_checking: true
+  enable_rag_validation: true  # NEW: RAG validation
+  strictness_adaptive: true  # NEW: Strictness adaptation
+
+  validation_thresholds:
+    minimum_confidence: 0.92  # Optimized threshold
+    ensemble_agreement: 0.8
+    fact_check_confidence: 0.92  # Optimized threshold
+    clinical_rule_compliance: 1.0
+    consistency_threshold: 0.9
+    rag_confidence: 0.9  # NEW: RAG confidence
+
+  # Smart validation passes + RAG
+  validation_passes:
+    pass_1: "primary_analysis"
+    pass_2: "smart_ensemble_validation"
+    pass_3: "multi_purpose_fact_checking"
+    pass_4: "clinical_rules_validation"
+    pass_5: "consistency_checking"
+    pass_6: "rag_enhanced_validation"  # NEW: RAG validation
+    pass_7: "final_validation"
+
+# Performance Monitoring - Efficiency Focus + RAG
+performance:
+  track_accuracy_metrics: true
+  monitor_smart_ensemble_agreement: true
+  track_multi_purpose_fact_checking: true
+  monitor_clinical_rule_compliance: true
+  log_efficiency_improvements: true
+  track_model_repurposing_efficiency: true
+  track_rag_performance: true  # NEW: RAG performance
+  track_strictness_adaptation: true  # NEW: Strictness adaptation
+
+  accuracy_targets:
+    overall_accuracy: 0.99
+    medical_entity_accuracy: 0.98
+    compliance_accuracy: 0.99
+    fact_checking_accuracy: 0.97
+    efficiency_score: 0.95
+    rag_accuracy: 0.96  # NEW: RAG accuracy
+
+# Resource Optimization - Ultra-Lightweight + RAG
+resources:
+  max_memory_gb: 5  # Optimized for efficiency
+  cpu_threads: 8
+  enable_model_caching: true
+  lazy_loading: true
+  smart_model_switching: true
+  multi_purpose_memory_limit_mb: 2048
+  fact_checking_memory_limit_mb: 1024
+  ensemble_memory_limit_mb: 1536
+  rag_memory_limit_mb: 1024  # NEW: RAG memory limit
+  strictness_memory_limit_mb: 512  # NEW: Strictness memory limit

@@ -83,11 +83,26 @@ class LLMService:
             raise ValueError("Model repository ID is required for ctransformers backend.")
 
         source, model_file = self._resolve_model_source()
+
+        # For GGUF models, use local file path if available
+        if self.local_model_path and self.local_model_path.exists():
+            if self.local_model_path.is_file():
+                source = str(self.local_model_path)
+                model_file = None  # Don't specify model_file when using direct file path
+            else:
+                # Directory with model file
+                source = str(self.local_model_path)
+                model_file = model_file or "*.gguf"  # Let ctransformers find the GGUF file
+
         model_kwargs: dict[str, Any] = {
-            "model_file": model_file,
             "model_type": self.settings.get("hf_model_type", "llama"),
             "context_length": self.settings.get("context_length", 2048),
         }
+
+        # Only add model_file if we have a specific file
+        if model_file and model_file != "*.gguf":
+            model_kwargs["model_file"] = model_file
+
         for key in ("gpu_layers", "threads", "batch_size"):
             value = self.settings.get(key)
             if value is not None:
@@ -95,6 +110,7 @@ class LLMService:
         model_kwargs = {k: v for k, v in model_kwargs.items() if v not in (None, "")}
 
         try:
+            logger.info(f"Loading ctransformers model from: {source}")
             self.llm = AutoModelForCausalLM.from_pretrained(source, **model_kwargs)
             self.tokenizer = None
             self.seq2seq = False
