@@ -46,7 +46,7 @@ class TaskManager extends EventEmitter {
       if (job.type === 'analysis') {
         endpoint = '/analysis/upload';
       }
-      
+
       const response = await axios.post(
         `${apiUrl}${endpoint}`,
         job.payload,
