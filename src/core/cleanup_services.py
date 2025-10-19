@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.core.interfaces import BaseService
+from src.core.service_interfaces import BaseService
 from src.core.session_manager import get_session_manager
 from src.core.file_encryption import get_secure_storage
 
