@@ -80,7 +80,7 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
         # Add overall timeout protection for document parsing
         import threading
         import queue
-        
+
         def parse_with_timeout():
             try:
                 if extension == ".pdf":
@@ -101,14 +101,14 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
                         "source": "parser",
                     },
                 ]
-        
+
         # Run parsing with 2-minute timeout
         result_queue = queue.Queue()
         parse_thread = threading.Thread(target=lambda: result_queue.put(parse_with_timeout()))
         parse_thread.daemon = True
         parse_thread.start()
         parse_thread.join(timeout=120)  # 2 minutes timeout
-        
+
         if parse_thread.is_alive():
             logger.warning("Document parsing timed out for %s after 2 minutes", file_path)
             result = [
@@ -209,21 +209,21 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
         import signal
         import threading
         import queue
-        
+
         def ocr_with_timeout():
             try:
                 return pytesseract.image_to_string(processed_image, config=custom_config)
             except Exception as e:
                 logger.warning("OCR failed for image %s: %s", file_path, e)
                 return ""
-        
+
         # Run OCR with 30-second timeout
         result_queue = queue.Queue()
         ocr_thread = threading.Thread(target=lambda: result_queue.put(ocr_with_timeout()))
         ocr_thread.daemon = True
         ocr_thread.start()
         ocr_thread.join(timeout=30)
-        
+
         if ocr_thread.is_alive():
             logger.warning("OCR timed out for image %s after 30 seconds", file_path)
             text = ""
@@ -296,26 +296,26 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                             # Preprocess and OCR with timeout protection
                             processed_image = _preprocess_image_for_ocr(pil_image)
                             custom_config = r"--oem 3 --psm 6"
-                            
+
                             # Add timeout protection to prevent hanging
                             import signal
                             import threading
                             import queue
-                            
+
                             def ocr_with_timeout():
                                 try:
                                     return pytesseract.image_to_string(processed_image, config=custom_config)
                                 except Exception as e:
                                     logger.warning("OCR failed for page %s: %s", page_num + 1, e)
                                     return ""
-                            
+
                             # Run OCR with 30-second timeout
                             result_queue = queue.Queue()
                             ocr_thread = threading.Thread(target=lambda: result_queue.put(ocr_with_timeout()))
                             ocr_thread.daemon = True
                             ocr_thread.start()
                             ocr_thread.join(timeout=30)
-                            
+
                             if ocr_thread.is_alive():
                                 logger.warning("OCR timed out for page %s after 30 seconds", page_num + 1)
                                 ocr_text = ""
