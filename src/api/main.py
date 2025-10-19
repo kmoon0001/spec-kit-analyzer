@@ -33,6 +33,7 @@ from src.api.routers import (
     analysis,
     auth,
     chat,
+    cleanup,
     compliance,
     dashboard,
     feedback,
@@ -57,10 +58,12 @@ except ImportError:
 
 from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
+from src.api.error_handling import get_error_handler
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
 from src.core.file_cleanup_service import start_cleanup_service, stop_cleanup_service
 from src.core.document_cleanup_service import start_cleanup_service as start_doc_cleanup, stop_cleanup_service as stop_doc_cleanup
+from src.core.cleanup_services import start_cleanup_services, stop_cleanup_services
 from src.database import crud, get_async_db, models
 from src.database import init_db
 from src.database.database import AsyncSessionLocal
@@ -299,6 +302,9 @@ async def lifespan(app: FastAPI):
     # Start document cleanup service
     await start_doc_cleanup()
 
+    # Start comprehensive cleanup services
+    await start_cleanup_services()
+
     # Initialize request tracker
     request_tracker = get_request_tracker()
     logger.info("Request tracking initialized")
@@ -314,6 +320,7 @@ async def lifespan(app: FastAPI):
     in_memory_task_purge_service.stop()
     stop_cleanup_service()
     await stop_doc_cleanup()
+    await stop_cleanup_services()
 
 
 # --- FastAPI App Initialization --- #
@@ -388,6 +395,7 @@ app.add_exception_handler(Exception, global_exception_handler)
 # --- Routers --- #
 
 app.include_router(health.router, tags=["Health"])
+app.include_router(cleanup.router, tags=["Cleanup"])
 
 # Include enhanced health check router (if available)
 if ENHANCED_FEATURES_AVAILABLE:
