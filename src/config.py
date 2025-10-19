@@ -322,6 +322,4 @@ def validate_environment_security():
 
 
 # Create the single settings instance used across the app
-# Create the single settings instance used across the app
-# Create the single settings instance used across the app
 settings = get_settings()

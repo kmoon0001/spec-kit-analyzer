@@ -40,6 +40,7 @@ from src.api.routers import (
     habits,
     health,
     meta_analytics,
+    performance,
     preferences,
     sessions,
     users,
@@ -60,6 +61,8 @@ from src.api.global_exception_handler import global_exception_handler, http_exce
 from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
 from src.api.middleware.csrf_protection import CSRFProtectionMiddleware
 from src.api.middleware.enhanced_rate_limiting import EnhancedRateLimitMiddleware
+from src.api.middleware.performance_monitoring import PerformanceMonitoringMiddleware
+from src.core.enhanced_logging import initialize_logging
 from src.api.error_handling import get_error_handler
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
@@ -376,6 +379,12 @@ if ENHANCED_FEATURES_AVAILABLE:
 else:
     logger.warning("Enhanced middleware not available, using basic setup")
 
+# Initialize enhanced logging
+initialize_logging()
+
+# Add performance monitoring middleware
+app.add_middleware(PerformanceMonitoringMiddleware)
+
 # Add enhanced rate limiting middleware
 app.add_middleware(EnhancedRateLimitMiddleware)
 
@@ -433,6 +442,7 @@ app.add_exception_handler(Exception, global_exception_handler)
 
 app.include_router(health.router, tags=["Health"])
 app.include_router(cleanup.router, tags=["Cleanup"])
+app.include_router(performance.router, tags=["Performance"])
 
 # Include enhanced health check router (if available)
 if ENHANCED_FEATURES_AVAILABLE:

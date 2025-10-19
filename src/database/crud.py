@@ -102,11 +102,18 @@ async def create_user(
 
 
 async def change_user_password(db: AsyncSession, user: models.User, new_hashed_password: str) -> models.User:
-    user.hashed_password = new_hashed_password  # type: ignore[attr-defined]
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
+    """Change user password with proper error handling."""
+    try:
+        user.hashed_password = new_hashed_password  # type: ignore[attr-defined]
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        logger.info(f"Password changed for user: {user.username}")
+        return user
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        await db.rollback()
+        logger.error(f"Failed to change password for user {user.username}: {e}")
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -520,11 +527,11 @@ async def get_benchmark_data(
 
 
 async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
-    """Return all analysis reports that have an embedding stored."""
+    """Return all analysis reports that have an embedding stored efficiently."""
     query = (
         select(models.AnalysisReport)
-        .options(selectinload(models.AnalysisReport.findings))
         .where(models.AnalysisReport.document_embedding.isnot(None))
+        .order_by(models.AnalysisReport.analysis_date.desc())
     )
     try:
         result = await db.execute(query)
