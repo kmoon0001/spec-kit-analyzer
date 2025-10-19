@@ -303,6 +303,10 @@ async def lifespan(app: FastAPI):
     request_tracker = get_request_tracker()
     logger.info("Request tracking initialized")
 
+    # Initialize error handler
+    error_handler = get_error_handler()
+    logger.info("Error handling initialized")
+
     yield
 
     await api_shutdown()
@@ -393,6 +397,7 @@ if ENHANCED_FEATURES_AVAILABLE:
     except ImportError:
         logger.warning("Enhanced health check router not available")
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+app.include_router(sessions.router, tags=["Sessions"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analysis.router, tags=["Analysis"])
 app.include_router(analysis.legacy_router, tags=["Analysis Legacy"])

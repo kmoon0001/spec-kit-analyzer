@@ -50,7 +50,7 @@ async def create_session(
 ) -> SessionResponse:
     """Create a new session for the current user."""
     session_manager = get_session_manager()
-    
+
     # Extract client information from request
     client_info = {
         'ip': http_request.client.host if http_request.client else 'unknown',
@@ -58,23 +58,23 @@ async def create_session(
         'created_via': 'api',
         **request.client_info,
     }
-    
+
     # Create session
     session_id = session_manager.create_session(current_user, client_info)
     session = session_manager.validate_session(session_id)
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create session"
         )
-    
+
     logger.info(f"Session created for user {current_user.username}", extra={
         'session_id': session_id,
         'user_id': current_user.id,
         'client_ip': client_info['ip'],
     })
-    
+
     return SessionResponse(
         session_id=session['session_id'],
         created_at=session['created_at'],
@@ -94,36 +94,36 @@ async def refresh_session(
     """Refresh a session to extend its expiration."""
     session_manager = get_session_manager()
     security_validator = get_session_security_validator()
-    
+
     # Extract client information
     client_info = {
         'ip': http_request.client.host if http_request.client else 'unknown',
         'user_agent': http_request.headers.get('user-agent', 'unknown'),
     }
-    
+
     # Validate session security
     if not security_validator.validate_session_security(session_id, client_info):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session security validation failed"
         )
-    
+
     # Refresh session
     refreshed_session_id = session_manager.refresh_session(session_id)
-    
+
     if not refreshed_session_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session refresh failed or session expired"
         )
-    
+
     session = session_manager.validate_session(refreshed_session_id)
-    
+
     logger.info(f"Session refreshed for user {current_user.username}", extra={
         'session_id': refreshed_session_id,
         'user_id': current_user.id,
     })
-    
+
     return {
         'session_id': refreshed_session_id,
         'expires_at': session['expires_at'],
@@ -138,7 +138,7 @@ async def invalidate_session(
 ) -> Dict[str, Any]:
     """Invalidate a specific session."""
     session_manager = get_session_manager()
-    
+
     # Check if user owns the session
     session = session_manager.validate_session(session_id)
     if not session or session['user_id'] != current_user.id:
@@ -146,21 +146,21 @@ async def invalidate_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found or not owned by user"
         )
-    
+
     # Invalidate session
     success = session_manager.invalidate_session(session_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found"
         )
-    
+
     logger.info(f"Session invalidated by user {current_user.username}", extra={
         'session_id': session_id,
         'user_id': current_user.id,
     })
-    
+
     return {'message': 'Session invalidated successfully'}
 
 
@@ -170,15 +170,15 @@ async def invalidate_all_sessions(
 ) -> Dict[str, Any]:
     """Invalidate all sessions for the current user."""
     session_manager = get_session_manager()
-    
+
     # Invalidate all user sessions
     invalidated_count = session_manager.invalidate_user_sessions(current_user.id)
-    
+
     logger.info(f"All sessions invalidated for user {current_user.username}", extra={
         'user_id': current_user.id,
         'invalidated_count': invalidated_count,
     })
-    
+
     return {
         'message': f'Invalidated {invalidated_count} sessions',
         'invalidated_count': invalidated_count,
@@ -191,9 +191,9 @@ async def get_my_sessions(
 ) -> List[SessionResponse]:
     """Get all active sessions for the current user."""
     session_manager = get_session_manager()
-    
+
     sessions = session_manager.get_user_sessions(current_user.id)
-    
+
     return [
         SessionResponse(
             session_id=session['session_id'],
@@ -217,10 +217,10 @@ async def get_session_stats(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
-    
+
     session_manager = get_session_manager()
     stats = session_manager.get_session_stats()
-    
+
     return SessionStatsResponse(**stats)
 
 
@@ -232,28 +232,28 @@ async def validate_session(
     """Validate a session (public endpoint for session validation)."""
     session_manager = get_session_manager()
     security_validator = get_session_security_validator()
-    
+
     # Extract client information
     client_info = {
         'ip': http_request.client.host if http_request.client else 'unknown',
         'user_agent': http_request.headers.get('user-agent', 'unknown'),
     }
-    
+
     # Validate session security
     if not security_validator.validate_session_security(session_id, client_info):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session validation failed"
         )
-    
+
     session = session_manager.validate_session(session_id)
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session not found or expired"
         )
-    
+
     return {
         'valid': True,
         'user_id': session['user_id'],

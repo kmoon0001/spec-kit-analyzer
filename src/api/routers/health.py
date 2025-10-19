@@ -37,21 +37,10 @@ async def get_system_health():
     }
 
 
-@router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check(db: AsyncSession = Depends(get_db)):
-    """Performs a health check of the API.
-    This endpoint can be called by a monitoring service to verify that the
-    application is running and can connect to the database.
-    """
-    try:
-        # Perform a simple, fast query to check the database connection
-        await db.execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
-    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "error", "database": "disconnected", "reason": str(e)},
-        ) from e
+# REMOVED: Basic /health endpoint - redundant with comprehensive health checks
+# The basic health endpoint has been removed to avoid duplication with
+# the more comprehensive health checks in health_check.py.
+# Use /health/detailed or /health/system instead.
 
 
 @router.get("/ai/status")

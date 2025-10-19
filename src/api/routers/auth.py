@@ -7,7 +7,7 @@ import logging
 from datetime import timedelta
 
 import sqlalchemy
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,12 @@ from ...core.security_validator import SecurityValidator
 from ...core.session_manager import get_session_manager
 from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
+from ..error_handling import (
+    AuthenticationError,
+    AuthorizationError,
+    ValidationError,
+    ErrorCode,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["auth"])
@@ -32,25 +38,24 @@ async def _authenticate_user(
     """Validate credentials and issue an access token with session creation."""
     is_valid, error_msg = SecurityValidator.validate_username(form_data.username)
     if not is_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+        raise ValidationError(ErrorCode.VALIDATION_INVALID_INPUT, error_msg)
 
     user = await crud.get_user_by_username(db, username=form_data.username)
     if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+        raise AuthenticationError(
+            ErrorCode.AUTH_INVALID_CREDENTIALS,
+            "Incorrect username or password"
         )
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive or license has expired. Please contact support.",
+        raise AuthorizationError(
+            ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
+            "Account is inactive or license has expired. Please contact support."
         )
 
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
     access_token = auth_service.create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
-    
+
     # Create session if request context is available
     if request:
         session_manager = get_session_manager()
@@ -59,15 +64,15 @@ async def _authenticate_user(
             'user_agent': request.headers.get('user-agent', 'unknown'),
             'login_method': 'password',
         }
-        
+
         session_id = session_manager.create_session(user, client_info)
-        
+
         logger.info(f"User {user.username} logged in successfully", extra={
             'user_id': user.id,
             'session_id': session_id,
             'client_ip': client_info['ip'],
         })
-    
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -107,15 +112,9 @@ async def login_for_access_token(
     return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service, request=request)
 
 
-@router.post("/login", response_model=schemas.Token)
-async def login_legacy_endpoint(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
-    request: Request = None,
-) -> dict[str, str]:
-    """Legacy alias for token endpoint for backward compatibility with session creation."""
-    return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service, request=request)
+# REMOVED: Legacy /login endpoint - redundant with OAuth2 /token endpoint
+# The legacy login endpoint has been removed to standardize on OAuth2
+# authentication flow. Use /token endpoint instead.
 
 
 @router.post("/users/change-password")

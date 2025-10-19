@@ -26,7 +26,7 @@ from ...database import crud, models, schemas
 from ...database.database import get_async_db
 from ..task_registry import analysis_task_registry
 from ..dependencies import get_analysis_service
-from ..dependencies.request_tracking import RequestId, log_with_request_id
+from ..deps.request_tracking import RequestId, log_with_request_id
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -352,25 +352,15 @@ async def analyze_document(
     return {"task_id": task_id, "status": "processing"}
 
 
-@router.post("/submit", status_code=status.HTTP_202_ACCEPTED)
-async def submit_document(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    discipline: str = Form("pt"),
-    analysis_mode: str = Form("rubric"),
-    strictness: str = Form("standard"),
-    _current_user: models.User = Depends(get_current_active_user),
-    analysis_service: AnalysisService = Depends(get_analysis_service),
-) -> dict[str, str]:
-    """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
-    return await analyze_document(
-        background_tasks, file, discipline, analysis_mode, strictness, _current_user, analysis_service
-    )
+# REMOVED: /submit endpoint - redundant with /analyze endpoint
+# The submit endpoint was just an alias for analyze_document and has been removed
+# to reduce API surface area and improve maintainability.
+# Use /analyze endpoint instead.
 
 
 @router.get("/status/{task_id}")
 async def get_analysis_status(
-    task_id: str, 
+    task_id: str,
     current_user: models.User = Depends(get_current_active_user),
     request_id: str = RequestId,
 ) -> dict[str, Any]:
