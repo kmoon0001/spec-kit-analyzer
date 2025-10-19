@@ -89,7 +89,7 @@ def test_analysis_with_timeout(content, discipline="pt", analysis_mode="rubric",
 
         time.sleep(1)
 
-    print(f"[TIMEOUT] Analysis timed out after {timeout} seconds")
+    safe_print(f"[TIMEOUT] Analysis timed out after {timeout} seconds")
     return False
 
 # Test cases
@@ -176,22 +176,22 @@ PLAN:
     }
 ]
 
-print("Starting comprehensive analysis tests...")
-print("=" * 60)
+safe_print("Starting comprehensive analysis tests...")
+safe_print("=" * 60)
 
 success_count = 0
 total_tests = len(test_cases)
 
 for i, test_case in enumerate(test_cases, 1):
-    print(f"\nTest {i}/{total_tests}")
+    safe_print(f"\nTest {i}/{total_tests}")
     if test_analysis_with_timeout(test_case["content"], test_case.get("discipline", "pt"), test_case.get("analysis_mode", "rubric"), test_case.get("strictness", "balanced"), 30, test_case["name"]):
         success_count += 1
 
-print("\n" + "=" * 60)
-print(f"Test Results: {success_count}/{total_tests} tests passed")
-print(f"Success Rate: {(success_count/total_tests)*100:.1f}%")
+safe_print("\n" + "=" * 60)
+safe_print(f"Test Results: {success_count}/{total_tests} tests passed")
+safe_print(f"Success Rate: {(success_count/total_tests)*100:.1f}%")
 
 if success_count == total_tests:
-    print("[SUCCESS] All tests passed - no 5% stuck issue detected")
+    safe_print("[SUCCESS] All tests passed - no 5% stuck issue detected")
 else:
-    print("[WARNING] Some tests failed - 5% stuck issue may be present")
+    safe_print("[WARNING] Some tests failed - 5% stuck issue may be present")

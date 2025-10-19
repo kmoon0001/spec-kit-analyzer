@@ -7,7 +7,7 @@ and risk assessment with AI-powered recommendations.
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +24,7 @@ class AnalyticsDataGenerator:
     """Generate realistic analytics data for demonstration purposes."""
 
     @staticmethod
-    def generate_compliance_trends(days: int = 30) -> Dict[str, List]:
+    def generate_compliance_trends(days: int = 30) -> dict[str, list]:
         """Generate compliance trend data."""
         dates = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days, 0, -1)]
 
@@ -49,7 +49,7 @@ class AnalyticsDataGenerator:
         }
 
     @staticmethod
-    def generate_risk_predictions() -> Dict[str, Any]:
+    def generate_risk_predictions() -> dict[str, Any]:
         """Generate risk prediction data."""
         return {
             "audit_risk": {
@@ -92,7 +92,7 @@ class AnalyticsDataGenerator:
         }
 
     @staticmethod
-    def generate_benchmark_data() -> Dict[str, Any]:
+    def generate_benchmark_data() -> dict[str, Any]:
         """Generate industry benchmark comparison data."""
         return {
             "industry_averages": {
@@ -122,7 +122,7 @@ async def get_advanced_analytics(
     time_range: str = Query("Last 30 Days", description="Time range for analysis"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get advanced analytics data including trends and key metrics.
 
     Provides comprehensive compliance analytics with:
@@ -179,7 +179,7 @@ async def get_advanced_analytics(
 async def get_predictive_analytics(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get predictive analytics including risk forecasts and AI recommendations.
 
     Provides AI-powered predictions for:
@@ -207,7 +207,7 @@ async def get_predictive_analytics(
 async def get_benchmark_analytics(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get benchmark comparison data against industry standards.
 
     Provides performance comparisons including:
@@ -236,7 +236,7 @@ async def get_benchmark_analytics(
 async def get_risk_assessment(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get comprehensive risk assessment and mitigation strategies.
 
     Provides detailed risk analysis including:

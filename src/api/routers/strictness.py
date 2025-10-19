@@ -1,9 +1,8 @@
 # Strictness Level API Router
 # Adjustable strictness levels without complicating threading/API
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +27,7 @@ class StrictnessRequest(BaseModel):
 class StrictnessResponse(BaseModel):
     current_level: str
     level_config: StrictnessLevel
-    performance_metrics: Dict
+    performance_metrics: dict
     success: bool
 
 # Available strictness levels
@@ -82,7 +81,7 @@ STRICTNESS_LEVELS = {
 # Current strictness level (default: balanced)
 current_strictness_level = "balanced"
 
-@router.get("/levels", response_model=Dict[str, StrictnessLevel])
+@router.get("/levels", response_model=dict[str, StrictnessLevel])
 async def get_available_levels():
     """Get all available strictness levels"""
     return STRICTNESS_LEVELS
@@ -110,7 +109,7 @@ async def get_current_level():
 
     except Exception as e:
         logger.error(f"Error getting current strictness level: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get current strictness level")
+        raise HTTPException(status_code=500, detail="Failed to get current strictness level") from e
 
 @router.post("/set", response_model=StrictnessResponse)
 async def set_strictness_level(request: StrictnessRequest):
@@ -150,9 +149,9 @@ async def set_strictness_level(request: StrictnessRequest):
         raise
     except Exception as e:
         logger.error(f"Error setting strictness level: {e}")
-        raise HTTPException(status_code=500, detail="Failed to set strictness level")
+        raise HTTPException(status_code=500, detail="Failed to set strictness level") from e
 
-@router.get("/performance", response_model=Dict)
+@router.get("/performance", response_model=dict)
 async def get_performance_metrics():
     """Get performance metrics for all strictness levels"""
     try:
@@ -188,9 +187,9 @@ async def get_performance_metrics():
 
     except Exception as e:
         logger.error(f"Error getting performance metrics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get performance metrics")
+        raise HTTPException(status_code=500, detail="Failed to get performance metrics") from e
 
-@router.get("/recommendation", response_model=Dict)
+@router.get("/recommendation", response_model=dict)
 async def get_recommended_level():
     """Get recommended strictness level based on performance data"""
     try:
@@ -206,7 +205,7 @@ async def get_recommended_level():
 
     except Exception as e:
         logger.error(f"Error getting recommendation: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get recommendation")
+        raise HTTPException(status_code=500, detail="Failed to get recommendation") from e
 
 # Helper function to get current strictness configuration
 def get_current_strictness_config() -> StrictnessLevel:

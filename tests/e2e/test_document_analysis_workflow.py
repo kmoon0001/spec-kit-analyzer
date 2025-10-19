@@ -90,7 +90,7 @@ class TestDocumentAnalysisWorkflow:
         assert results["status"] == "completed"
         assert "findings" in results
         assert "overall_score" in results
-        assert isinstance(results["overall_score"], (int, float))
+        assert isinstance(results["overall_score"], int | float)
         assert 0 <= results["overall_score"] <= 100
 
         # Step 6: Verify findings structure

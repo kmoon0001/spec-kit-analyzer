@@ -6,12 +6,12 @@ gracefully on Windows systems with different code page settings.
 
 import sys
 import os
-from typing import Any, Optional
+from typing import Any
 
 
-def safe_print(*args: Any, sep: str = " ", end: str = "\n", file: Optional[Any] = None) -> None:
+def safe_print(*args: Any, sep: str = " ", end: str = "\n", file: Any | None = None) -> None:
     """Print with Unicode-safe encoding handling.
-    
+
     Args:
         *args: Items to print
         sep: Separator between items
@@ -20,7 +20,7 @@ def safe_print(*args: Any, sep: str = " ", end: str = "\n", file: Optional[Any] 
     """
     if file is None:
         file = sys.stdout
-    
+
     # Convert all arguments to strings, handling Unicode safely
     safe_args = []
     for arg in args:
@@ -30,10 +30,10 @@ def safe_print(*args: Any, sep: str = " ", end: str = "\n", file: Optional[Any] 
             safe_args.append(safe_str)
         else:
             safe_args.append(str(arg))
-    
+
     # Join and print
     output = sep.join(safe_args) + end
-    
+
     try:
         print(output, end="", file=file)
     except UnicodeEncodeError:
@@ -44,10 +44,10 @@ def safe_print(*args: Any, sep: str = " ", end: str = "\n", file: Optional[Any] 
 
 def _replace_unicode_chars(text: str) -> str:
     """Replace common Unicode characters with ASCII equivalents.
-    
+
     Args:
         text: Input text that may contain Unicode characters
-        
+
     Returns:
         Text with Unicode characters replaced by ASCII equivalents
     """
@@ -140,12 +140,9 @@ def _replace_unicode_chars(text: str) -> str:
         '🔊': '[LOUD_SOUND]',
         '🔋': '[BATTERY]',
         '🔌': '[PLUG]',
-        '🔍': '[MAG]',
         '🔎': '[MAG_RIGHT]',
         '🔏': '[LOCK_WITH_PEN]',
         '🔐': '[LOCK_WITH_KEY]',
-        '🔑': '[KEY]',
-        '🔒': '[LOCK]',
         '🔓': '[UNLOCK]',
         '🔔': '[BELL]',
         '🔕': '[NO_BELL]',
@@ -164,14 +161,12 @@ def _replace_unicode_chars(text: str) -> str:
         '🔢': '[1234]',
         '🔣': '[SYMBOLS]',
         '🔤': '[ABC]',
-        '🔥': '[FIRE]',
-        '💯': '[100]',
     }
-    
+
     result = text
     for unicode_char, ascii_replacement in replacements.items():
         result = result.replace(unicode_char, ascii_replacement)
-    
+
     return result
 
 
@@ -180,7 +175,7 @@ def setup_unicode_safe_environment() -> None:
     if sys.platform == "win32":
         # Set environment variables for better Unicode support
         os.environ['PYTHONIOENCODING'] = 'utf-8'
-        
+
         # Try to set console code page to UTF-8 if possible
         try:
             import subprocess
@@ -204,7 +199,7 @@ def test_unicode_safety() -> None:
         "✨ New features added",
         "🎉 Congratulations!",
     ]
-    
+
     print("Testing Unicode safety:")
     for test_str in test_strings:
         safe_print(f"Original: {test_str}")

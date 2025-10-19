@@ -6,7 +6,7 @@ compliance rubric based on key terms, document structure, and content patterns.
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class RubricDetector:
         self.discipline_keywords = self._load_discipline_keywords()
         self.document_type_patterns = self._load_document_type_patterns()
 
-    def _load_rubric_patterns(self) -> Dict[str, Dict[str, Any]]:
+    def _load_rubric_patterns(self) -> dict[str, dict[str, Any]]:
         """Load patterns and keywords for each rubric type."""
         return {
             "medicare_part_b": {
@@ -141,7 +141,7 @@ class RubricDetector:
             }
         }
 
-    def _load_discipline_keywords(self) -> Dict[str, List[str]]:
+    def _load_discipline_keywords(self) -> dict[str, list[str]]:
         """Load discipline-specific keywords for detection."""
         return {
             "pt": [
@@ -161,7 +161,7 @@ class RubricDetector:
             ]
         }
 
-    def _load_document_type_patterns(self) -> Dict[str, List[str]]:
+    def _load_document_type_patterns(self) -> dict[str, list[str]]:
         """Load document type patterns for better rubric selection."""
         return {
             "evaluation": [
@@ -182,7 +182,7 @@ class RubricDetector:
             ]
         }
 
-    def detect_rubric(self, document_text: str, filename: Optional[str] = None) -> Tuple[str, float, Dict[str, Any]]:
+    def detect_rubric(self, document_text: str, filename: str | None = None) -> tuple[str, float, dict[str, Any]]:
         """
         Detect the most appropriate rubric based on document content.
 
@@ -310,7 +310,7 @@ class RubricDetector:
 
         return bonus
 
-    def _calculate_filename_bonus(self, filename: Optional[str], rubric_id: str) -> float:
+    def _calculate_filename_bonus(self, filename: str | None, rubric_id: str) -> float:
         """Calculate bonus score based on filename patterns."""
         if not filename:
             return 0.0
@@ -336,7 +336,7 @@ class RubricDetector:
 
         return bonus
 
-    def detect_discipline(self, document_text: str) -> Tuple[str, float]:
+    def detect_discipline(self, document_text: str) -> tuple[str, float]:
         """
         Detect the therapy discipline based on document content.
 
@@ -373,7 +373,7 @@ class RubricDetector:
 
         return discipline, confidence
 
-    def get_rubric_suggestions(self, document_text: str, filename: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_rubric_suggestions(self, document_text: str, filename: str | None = None) -> list[dict[str, Any]]:
         """
         Get multiple rubric suggestions ranked by confidence.
 

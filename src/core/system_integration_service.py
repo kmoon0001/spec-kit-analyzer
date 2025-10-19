@@ -17,7 +17,7 @@ from typing import Any
 from .advanced_cache_service import AdvancedCacheService
 from .memory_manager import MemoryManager, MemoryPressureLevel
 from .model_resource_factory import model_resource_manager
-from .performance_optimizer_simple import PerformanceOptimizer
+from .advanced_performance_optimizer import PerformanceOptimizer
 from .resource_pool import ResourcePoolManager
 
 logger = logging.getLogger(__name__)

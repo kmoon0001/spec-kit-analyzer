@@ -6,6 +6,8 @@ import sys
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
+from ..config import get_settings
+
 # Optional FAISS dependency with graceful fallback
 try:  # pragma: no cover - environment dependent
     import faiss  # type: ignore
@@ -18,7 +20,6 @@ except Exception:  # pragma: no cover - environment dependent
 import joblib
 import numpy as np
 
-from ..config import get_settings as _get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,6 @@ logger = logging.getLogger(__name__)
 _DEFAULT_SENTENCE_TRANSFORMER = None
 SentenceTransformer = None
 _SentenceTransformer_override = None
-
-
-# Remove duplicate get_settings function - use the one from config.py
-
-
-def _fallback_hash_embed(text: str, dim: int = 768) -> np.ndarray:
     """Deterministic lightweight embedding for fallback environments."""
     acc = np.zeros(dim, dtype=np.float32)
     for idx, ch in enumerate(text.encode("utf-8")):
@@ -250,4 +245,4 @@ def set_sentence_transformer_override(factory) -> None:
     _SentenceTransformer_override = factory
 
 
-__all__ = ["GuidelineService", "set_sentence_transformer_override", "get_settings"]
+__all__ = ["GuidelineService", "set_sentence_transformer_override"]

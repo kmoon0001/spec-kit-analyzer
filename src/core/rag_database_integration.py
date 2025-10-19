@@ -4,8 +4,6 @@
 import sqlite3
 import json
 import numpy as np
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,7 +102,7 @@ class RAGDatabaseManager:
             logger.info("RAG database initialized successfully")
 
     def store_document_embeddings(self, document_id: str, content: str,
-                                embeddings: np.ndarray, metadata: Dict) -> bool:
+                                embeddings: np.ndarray, metadata: dict) -> bool:
         """Store document embeddings for RAG retrieval"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -130,7 +128,7 @@ class RAGDatabaseManager:
             return False
 
     def retrieve_similar_documents(self, query_embeddings: np.ndarray,
-                                 limit: int = 5) -> List[Dict]:
+                                 limit: int = 5) -> list[dict]:
         """Retrieve similar documents using RAG"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -193,8 +191,8 @@ class RAGDatabaseManager:
             return False
 
     def retrieve_knowledge(self, query_embeddings: np.ndarray,
-                          knowledge_type: Optional[str] = None,
-                          limit: int = 5) -> List[Dict]:
+                          knowledge_type: str | None = None,
+                          limit: int = 5) -> list[dict]:
         """Retrieve knowledge base entries using RAG"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -238,7 +236,7 @@ class RAGDatabaseManager:
             return []
 
     def cache_fact_check(self, fact_text: str, verification_result: str,
-                        confidence: float, sources: List[str]) -> bool:
+                        confidence: float, sources: list[str]) -> bool:
         """Cache fact-checking results for RAG"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -259,7 +257,7 @@ class RAGDatabaseManager:
             logger.error(f"Error caching fact check: {e}")
             return False
 
-    def get_cached_fact_check(self, fact_text: str) -> Optional[Dict]:
+    def get_cached_fact_check(self, fact_text: str) -> dict | None:
         """Retrieve cached fact-checking results"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -340,7 +338,7 @@ class RAGModelIntegration:
         self.rag_db = rag_db
 
     def enhance_analysis_with_rag(self, document_content: str,
-                                analysis_result: Dict) -> Dict:
+                                analysis_result: dict) -> dict:
         """Enhance analysis with RAG knowledge"""
         try:
             # Generate embeddings for document content
@@ -365,7 +363,7 @@ class RAGModelIntegration:
             logger.error(f"Error enhancing analysis with RAG: {e}")
             return analysis_result
 
-    def enhance_fact_checking_with_rag(self, fact_text: str) -> Dict:
+    def enhance_fact_checking_with_rag(self, fact_text: str) -> dict:
         """Enhance fact-checking with RAG"""
         try:
             # Check cache first

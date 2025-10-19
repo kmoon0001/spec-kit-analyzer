@@ -198,7 +198,7 @@ def test_cache_stats():
 
     for key in expected_keys:
         assert key in stats
-        assert isinstance(stats[key], (int, float))
+        assert isinstance(stats[key], int | float)
 
 
 def test_cleanup_all_caches():

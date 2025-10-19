@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.core.advanced_cache_service import BatchCacheOperations, CachePerformanceMonitor, CacheWarmingService
-from src.core.performance_optimizer import PerformanceMetrics, PerformanceOptimizer, performance_optimizer
+from src.core.advanced_performance_optimizer import PerformanceMetrics, PerformanceOptimizer, performance_optimizer
 
 
 class TestCachePerformanceMonitor:
@@ -397,7 +397,7 @@ class TestPerformanceOptimizer:
         optimizer = PerformanceOptimizer()
 
         # Mock cache stats
-        with patch("src.core.performance_optimizer.get_cache_stats") as mock_stats:
+        with patch("src.core.advanced_performance_optimizer.get_cache_stats") as mock_stats:
             mock_stats.side_effect = [
                 {"memory_usage_mb": 500.0},  # Initial
                 {"memory_usage_mb": 400.0},  # Final

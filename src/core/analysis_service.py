@@ -369,7 +369,7 @@ class AnalysisService:
                 logger.info("Compliance analysis completed successfully")
                 logger.info("Analysis result keys: %s", list(analysis_result.keys()) if isinstance(analysis_result, dict) else "Not a dict")
                 logger.info("Compliance score in result: %s", analysis_result.get("compliance_score") if isinstance(analysis_result, dict) else "N/A")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("Compliance analysis timed out after 5 minutes")
                 analysis_result = {
                     "findings": [],
