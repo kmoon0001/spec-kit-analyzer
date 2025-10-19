@@ -57,6 +57,7 @@ except ImportError:
 from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
+from src.core.file_cleanup_service import start_cleanup_service, stop_cleanup_service
 from src.database import crud, get_async_db, models
 from src.database import init_db
 from src.database.database import AsyncSessionLocal
@@ -275,11 +276,15 @@ async def lifespan(app: FastAPI):
     # Start the task purge service
     _ = in_memory_task_purge_service.start()
 
+    # Start file cleanup service
+    await start_cleanup_service()
+
     yield
 
     await api_shutdown()
     scheduler.shutdown()
     in_memory_task_purge_service.stop()
+    stop_cleanup_service()
 
 
 # --- FastAPI App Initialization --- #

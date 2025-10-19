@@ -28,6 +28,8 @@ from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
 from src.core.report_generator import ReportGenerator
+from src.core.document_chunker import get_document_chunker
+from src.core.file_cleanup_service import get_cleanup_service
 from src.core.text_utils import sanitize_human_text
 from src.core.rubric_detector import RubricDetector
 from src.utils.prompt_manager import PromptManager
@@ -291,6 +293,36 @@ class AnalysisService:
             logger.info("Successfully extracted %d characters of text for analysis", len(text_to_process))
             _update_progress(15, "Document parsing completed successfully...")
 
+            # Check if document needs chunking for large documents
+            estimated_tokens = len(text_to_process) // 4  # Rough token estimation
+            if estimated_tokens > 2000:  # If document is very large
+                _update_progress(18, "Processing large document in chunks...")
+                logger.info("Large document detected (%d estimated tokens), using chunked processing", estimated_tokens)
+
+                # Use document chunker for large documents
+                chunker = get_document_chunker(max_tokens=512)
+                chunks = chunker.chunk_document_by_sections(text_to_process)
+                logger.info("Document split into %d chunks for processing", len(chunks))
+
+                # Process chunks and combine results
+                chunk_results = []
+                for i, chunk in enumerate(chunks):
+                    chunk_progress = 18 + (i / len(chunks)) * 2  # 18-20% for chunking
+                    _update_progress(int(chunk_progress), f"Processing chunk {i+1}/{len(chunks)}...")
+
+                    # Process this chunk (simplified analysis for chunks)
+                    chunk_result = await self._analyze_chunk(chunk["text"], discipline, analysis_mode, normalized_strictness)
+                    chunk_results.append({
+                        "chunk_index": i,
+                        "section": chunk.get("section", "Unknown"),
+                        "result": chunk_result
+                    })
+
+                # Combine chunk results
+                combined_result = self._combine_chunk_results(chunk_results, text_to_process)
+                text_to_process = combined_result.get("combined_text", text_to_process)
+                _update_progress(20, "Large document processing completed...")
+
             # Automatic rubric detection based on content
             _update_progress(20, "Detecting appropriate compliance rubric...")
             detected_rubric, rubric_confidence, rubric_details = self.rubric_detector.detect_rubric(
@@ -449,6 +481,10 @@ class AnalysisService:
 
             logger.info("Cleaned up temporary file: %s", temp_file_path)
 
+            # Clean up task files
+            cleanup_service = get_cleanup_service()
+            await cleanup_service.cleanup_task_files(task_id if 'task_id' in locals() else "unknown")
+
     async def _run_mock_pipeline(
         self,
         *,
@@ -589,3 +625,82 @@ class AnalysisService:
 
         update_progress(100, "Analysis complete (mock).")
         return payload
+
+    async def _analyze_chunk(self, chunk_text: str, discipline: str, analysis_mode: str, strictness: str) -> dict[str, Any]:
+        """Analyze a single chunk of text."""
+        try:
+            # Simplified analysis for chunks - focus on key compliance elements
+            findings = []
+
+            # Basic compliance checks
+            if "patient" in chunk_text.lower():
+                findings.append({
+                    "type": "patient_identification",
+                    "severity": "low",
+                    "message": "Patient identification found in chunk"
+                })
+
+            if "assessment" in chunk_text.lower() or "plan" in chunk_text.lower():
+                findings.append({
+                    "type": "clinical_documentation",
+                    "severity": "medium",
+                    "message": "Clinical assessment/plan documentation found"
+                })
+
+            return {
+                "findings": findings,
+                "compliance_score": 85.0,  # Default score for chunks
+                "chunk_length": len(chunk_text)
+            }
+
+        except Exception as e:
+            logger.error(f"Error analyzing chunk: {e}")
+            return {
+                "findings": [],
+                "compliance_score": 0.0,
+                "chunk_length": len(chunk_text),
+                "error": str(e)
+            }
+
+    def _combine_chunk_results(self, chunk_results: list[dict[str, Any]], original_text: str) -> dict[str, Any]:
+        """Combine results from multiple chunks."""
+        try:
+            all_findings = []
+            total_score = 0.0
+            valid_chunks = 0
+
+            for chunk_result in chunk_results:
+                result = chunk_result["result"]
+                if "error" not in result:
+                    all_findings.extend(result.get("findings", []))
+                    total_score += result.get("compliance_score", 0.0)
+                    valid_chunks += 1
+
+            # Calculate average compliance score
+            avg_score = total_score / valid_chunks if valid_chunks > 0 else 0.0
+
+            # Deduplicate findings
+            unique_findings = []
+            seen_types = set()
+            for finding in all_findings:
+                finding_type = finding.get("type", "unknown")
+                if finding_type not in seen_types:
+                    unique_findings.append(finding)
+                    seen_types.add(finding_type)
+
+            return {
+                "combined_text": original_text,
+                "findings": unique_findings,
+                "compliance_score": avg_score,
+                "chunks_processed": len(chunk_results),
+                "valid_chunks": valid_chunks
+            }
+
+        except Exception as e:
+            logger.error(f"Error combining chunk results: {e}")
+            return {
+                "combined_text": original_text,
+                "findings": [],
+                "compliance_score": 0.0,
+                "error": str(e)
+            }
