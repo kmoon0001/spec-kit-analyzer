@@ -31,7 +31,7 @@ class DocumentProcessingService:
 
     def process_document(self, file_path: str, file_type: str) -> str:
         """Process a document based on its file type and return the extracted text."""
-        logger.info("Processing document: %s ({file_type})", file_path)
+        logger.info("Processing document: %s (%s)", file_path, file_type)
 
         if file_type == "pdf":
             return self._process_pdf(file_path)

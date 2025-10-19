@@ -1,5 +1,4 @@
 """Global exception handler for FastAPI application.
-import numpy as np
 
 This module provides centralized exception handling for all API endpoints,
 ensuring consistent error responses and proper logging without PHI exposure.

@@ -34,7 +34,8 @@ class FileEncryptionService:
         """Get encryption key from environment or generate a new one."""
         if encryption_key:
             try:
-                return base64.urlsafe_b64decode(encryption_key.encode())
+                # The key is already base64 encoded, just encode it to bytes
+                return encryption_key.encode()
             except Exception as e:
                 logger.error(f"Invalid encryption key provided: {e}")
                 raise ValueError("Invalid encryption key format")
@@ -43,7 +44,8 @@ class FileEncryptionService:
         env_key = os.environ.get("FILE_ENCRYPTION_KEY")
         if env_key:
             try:
-                return base64.urlsafe_b64decode(env_key.encode())
+                # The key is already base64 encoded, just encode it to bytes
+                return env_key.encode()
             except Exception as e:
                 logger.error(f"Invalid FILE_ENCRYPTION_KEY in environment: {e}")
                 raise ValueError("Invalid FILE_ENCRYPTION_KEY format")

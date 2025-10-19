@@ -16,7 +16,7 @@ from ...config import get_settings
 from ...core.security_validator import SecurityValidator
 from ...core.enhanced_session_manager import get_session_manager
 from ...database import crud, models, schemas
-from ...database import get_async_db as get_db
+from ...database import get_async_db
 from ..error_handling import (
     AuthenticationError,
     AuthorizationError,
@@ -79,7 +79,7 @@ async def _authenticate_user(
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.User)
 async def register_user(
     user_data: schemas.UserCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> schemas.User:
     """Register a new user and return basic user info."""
@@ -111,7 +111,7 @@ async def register_user(
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     auth_service: AuthService = Depends(get_auth_service),
     request: Request = None,
 ) -> dict[str, str]:
@@ -127,7 +127,7 @@ async def login_for_access_token(
 @router.post("/users/change-password")
 async def change_password(
     password_data: schemas.UserPasswordChange,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: models.User = Depends(get_current_active_user),
     auth_service: AuthService = Depends(get_auth_service),
 ):

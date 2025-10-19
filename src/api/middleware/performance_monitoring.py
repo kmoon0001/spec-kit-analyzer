@@ -16,7 +16,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-from ..core.enhanced_logging import get_performance_logger, get_request_logger
+from ...core.enhanced_logging import get_performance_logger, get_request_logger
 
 logger = logging.getLogger(__name__)
 

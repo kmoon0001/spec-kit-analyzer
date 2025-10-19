@@ -37,7 +37,8 @@ class DatabaseEncryptionService:
         """Get encryption key from environment or generate a new one."""
         if encryption_key:
             try:
-                return base64.urlsafe_b64decode(encryption_key.encode())
+                # The key is already base64 encoded, just encode it to bytes
+                return encryption_key.encode()
             except Exception as e:
                 logger.error(f"Invalid database encryption key provided: {e}")
                 raise ValueError("Invalid database encryption key format")
@@ -46,7 +47,8 @@ class DatabaseEncryptionService:
         env_key = os.environ.get("DATABASE_ENCRYPTION_KEY")
         if env_key:
             try:
-                return base64.urlsafe_b64decode(env_key.encode())
+                # The key is already base64 encoded, just encode it to bytes
+                return env_key.encode()
             except Exception as e:
                 logger.error(f"Invalid DATABASE_ENCRYPTION_KEY in environment: {e}")
                 raise ValueError("Invalid DATABASE_ENCRYPTION_KEY format")

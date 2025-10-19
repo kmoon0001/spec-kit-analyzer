@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...auth import AuthService, get_auth_service, get_current_admin_user
 from ...config import Settings, get_settings
 from ...database import crud, models, schemas
-from ...database import get_async_db as get_db
+from ...database import get_async_db
 
 router = APIRouter()
 
@@ -76,7 +76,7 @@ async def update_settings(
 async def read_users(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: models.User = Depends(get_current_admin_user),
 ):
     result = await db.execute(select(models.User).offset(skip).limit(limit))
@@ -86,7 +86,7 @@ async def read_users(
 @router.post("/users", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user: schemas.UserCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: models.User = Depends(get_current_admin_user),
     auth_service: AuthService = Depends(get_auth_service),
 ):

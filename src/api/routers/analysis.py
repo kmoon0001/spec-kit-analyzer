@@ -270,7 +270,27 @@ async def legacy_get_analysis_status(
     task_id: str, current_user: models.User = Depends(get_current_active_user)
 ) -> dict[str, Any]:
     """Expose task status without the /analysis prefix for older clients."""
-    return await get_analysis_status(task_id, current_user)
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Check authorization - user must own the task or be admin
+    if task.get("user_id") != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this task")
+
+    current_status = task.get("status", "processing")
+    if current_status == "completed":
+        if not task.get("_reported_completion"):
+            task["_reported_completion"] = True
+            transient = dict(task)
+            transient["status"] = "analyzing"
+            return transient
+        return dict(task)
+
+    # Ensure progress and status_message are always returned, even if not explicitly set yet
+    task.setdefault("progress", 0)
+    task.setdefault("status_message", "Initializing...")
+    return task
 
 
 @legacy_router.post("/export-pdf/{task_id}")
@@ -431,6 +451,10 @@ async def export_report_to_pdf(
     task = tasks.get(task_id)
     if not task or task["status"] != "completed":
         raise HTTPException(status_code=404, detail="Completed task not found")
+
+    # Check authorization - user must own the task or be admin
+    if task.get("user_id") != _current_user.id and not _current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to export this task")
 
     try:
         analysis_result = task.get("result", {})

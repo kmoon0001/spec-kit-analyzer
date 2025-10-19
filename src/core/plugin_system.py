@@ -518,11 +518,9 @@ class PluginManager:
             return None
 
         except (ImportError, ModuleNotFoundError, AttributeError):
-            logger.exception("Failed to load plugin instance for %s: {e}", metadata.name)
+            logger.exception("Failed to load plugin instance for %s: %s", metadata.name, e)
             return None
 
 
-# Global plugin manager instance
-# Global plugin manager instance
 # Global plugin manager instance
 plugin_manager = PluginManager()

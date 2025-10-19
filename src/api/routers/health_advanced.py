@@ -18,9 +18,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
+from src.database.database import get_async_db
 from src.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -198,7 +198,7 @@ class HealthChecker:
 health_checker = HealthChecker()
 
 @router.get("/")
-async def health_check(db: Session = Depends(get_db)):
+async def health_check(db: AsyncSession = Depends(get_async_db)):
     """Basic health check endpoint."""
     try:
         health_status = await health_checker.get_overall_health(db)
@@ -209,7 +209,7 @@ async def health_check(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Health check failed")
 
 @router.get("/detailed")
-async def detailed_health_check(db: Session = Depends(get_db)):
+async def detailed_health_check(db: AsyncSession = Depends(get_async_db)):
     """Detailed health check with all metrics."""
     try:
         health_status = await health_checker.get_overall_health(db)
@@ -229,7 +229,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Detailed health check failed")
 
 @router.get("/ready")
-async def readiness_check(db: Session = Depends(get_db)):
+async def readiness_check(db: AsyncSession = Depends(get_async_db)):
     """Kubernetes-style readiness probe."""
     try:
         # Check critical dependencies only

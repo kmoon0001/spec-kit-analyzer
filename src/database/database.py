@@ -6,6 +6,7 @@ from typing import Any
 import requests
 import sqlalchemy
 import sqlalchemy.exc
+from fastapi import Depends
 from requests.exceptions import HTTPError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -49,8 +50,6 @@ def _get_performance_config() -> Any | None:
     return None
 
 
-# Use performance manager if available, otherwise fall back to config settings
-# Use performance manager if available, otherwise fall back to config settings
 # Use performance manager if available, otherwise fall back to config settings
 perf_config = _get_performance_config()
 POOL_SIZE = perf_config.connection_pool_size if perf_config else settings.database.pool_size
@@ -134,6 +133,11 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
         finally:
             # Ensure session is always closed
             await session.close()
+
+
+def get_db():
+    """Get database session dependency for FastAPI."""
+    return Depends(get_async_db)
 
 
 async def init_db() -> None:

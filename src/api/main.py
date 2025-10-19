@@ -204,7 +204,7 @@ async def initialize_vector_store():
             # Ensure all embeddings have the same dimension
             embedding_dim = embeddings[0].shape[0]
             valid_embeddings = [emb for emb in embeddings if emb.shape[0] == embedding_dim]
-            valid_ids = [id for emb, id in zip(embeddings, report_ids, strict=False) if emb.shape[0] == embedding_dim]
+            valid_ids = [id for emb, id in zip(embeddings, report_ids, strict=True) if emb.shape[0] == embedding_dim]
 
             if valid_embeddings:
                 vector_store.add_vectors(np.array(valid_embeddings), valid_ids)

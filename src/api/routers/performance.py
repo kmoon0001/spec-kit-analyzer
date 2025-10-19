@@ -9,8 +9,8 @@ from fastapi.responses import JSONResponse
 from ..middleware.performance_monitoring import get_performance_middleware, get_query_monitor
 from ...core.enhanced_logging import get_loggers
 from ...core.enhanced_config import get_config_manager
-from ...models import User
-from ..dependencies import get_current_active_user, get_current_user
+from ...database.models import User
+from ...auth import get_current_active_user, get_current_user
 
 logger = logging.getLogger(__name__)
 

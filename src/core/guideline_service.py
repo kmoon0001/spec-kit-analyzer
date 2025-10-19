@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 _DEFAULT_SENTENCE_TRANSFORMER = None
 SentenceTransformer = None
 _SentenceTransformer_override = None
+
+
+def _deterministic_embedding(text: str, dim: int = 384) -> np.ndarray:
     """Deterministic lightweight embedding for fallback environments."""
     acc = np.zeros(dim, dtype=np.float32)
     for idx, ch in enumerate(text.encode("utf-8")):

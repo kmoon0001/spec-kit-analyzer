@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
 from src.database import crud, models, schemas
-from src.database.database import get_async_db as get_db
+from src.database.database import get_async_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -67,7 +67,7 @@ def get_auth_service() -> AuthService:
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> models.User:
     credentials_exception = HTTPException(

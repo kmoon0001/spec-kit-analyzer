@@ -20,17 +20,17 @@ from datetime import datetime
 from jose import JWTError, jwt
 from sqlalchemy import select
 
-from src.api.dependencies import get_db
+from src.api.dependencies import get_async_db
 from src.auth import get_auth_service
 from src.database import models
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 
-async def authenticate_websocket_user(websocket: WebSocket, token: str, db: Session) -> models.User:
+async def authenticate_websocket_user(websocket: WebSocket, token: str, db: AsyncSession) -> models.User:
     """
     Authenticate WebSocket user using JWT token.
 
@@ -186,7 +186,7 @@ async def websocket_analysis_progress(
     websocket: WebSocket,
     task_id: str,
     token: str = Query(..., description="JWT authentication token"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     WebSocket endpoint for real-time analysis progress with authentication.
@@ -310,7 +310,7 @@ async def websocket_analysis_progress(
 async def websocket_health_monitoring(
     websocket: WebSocket,
     token: str = Query(..., description="JWT authentication token"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     WebSocket endpoint for real-time health monitoring with authentication.

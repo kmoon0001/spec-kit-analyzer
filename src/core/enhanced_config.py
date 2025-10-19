@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class DatabaseConfig(BaseModel):
     """Database configuration with validation."""
-    url: str = Field(..., description="Database connection URL")
+    url: str = Field(default="sqlite:///./compliance.db", description="Database connection URL")
     echo: bool = Field(default=False, description="Enable SQL query logging")
     pool_size: int = Field(default=10, ge=1, le=100, description="Connection pool size")
     max_overflow: int = Field(default=20, ge=0, le=200, description="Maximum overflow connections")
@@ -49,7 +49,7 @@ class DatabaseConfig(BaseModel):
 
 class AuthConfig(BaseModel):
     """Authentication configuration with validation."""
-    secret_key: str = Field(..., min_length=32, description="JWT secret key")
+    secret_key: str = Field(default="default-secret-key-change-in-production-minimum-32-chars", min_length=32, description="JWT secret key")
     algorithm: str = Field(default="HS256", description="JWT algorithm")
     access_token_expire_minutes: int = Field(default=30, ge=5, le=1440, description="Token expiration in minutes")
 

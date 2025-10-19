@@ -188,7 +188,7 @@ class MLTrainingPipeline:
         }
 
         logger.info(
-            "Evaluation results: ECE improvement %.1%%, Brier improvement %.1%%",
+            "Evaluation results: ECE improvement %.1f%%, Brier improvement %.1f%%",
             improvement_ece * 100,
             improvement_brier * 100,
         )
@@ -221,7 +221,7 @@ class MLTrainingPipeline:
                 "reason": f"ECE improvement {ece_improvement * 100} exceeds threshold {self.performance_threshold * 100}",
             }
         logger.info(
-            "New calibrator not deployed - improvement %.1%% below threshold %.1%%",
+            "New calibrator not deployed - improvement %.1f%% below threshold %.1f%%",
             ece_improvement * 100,
             self.performance_threshold * 100,
         )
