@@ -273,22 +273,27 @@ class AnalysisService:
                 temp_dir = Path(_get_settings().paths.temp_upload_dir)
                 temp_dir.mkdir(exist_ok=True)
                 temp_file_path = temp_dir / f"temp_{uuid.uuid4().hex}_{original_filename or 'file'}"
-                temp_file_path.write_bytes(file_content)
-                chunks = parse_document_content(str(temp_file_path))
-                text_to_process = " ".join(c.get("sentence", "") for c in chunks if isinstance(c, dict)).strip()
-
-                # Clean up temp file immediately after parsing
                 try:
-                    temp_file_path.unlink()
-                    logger.info("Cleaned up temporary file: %s", temp_file_path)
+                    temp_file_path.write_bytes(file_content)
+                    chunks = parse_document_content(str(temp_file_path))
+                    text_to_process = " ".join(c.get("sentence", "") for c in chunks if isinstance(c, dict)).strip()
                 except Exception as e:
-                    logger.warning("Failed to clean up temp file %s: %s", temp_file_path, e)
+                    logger.error("Failed to process file content: %s", e)
+                    raise ValueError(f"Failed to process file content: {e}")
+                finally:
+                    # Clean up temp file immediately after parsing
+                    try:
+                        if temp_file_path.exists():
+                            temp_file_path.unlink()
+                            logger.info("Cleaned up temporary file: %s", temp_file_path)
+                    except Exception as e:
+                        logger.warning("Failed to clean up temp file %s: %s", temp_file_path, e)
             else:  # document_text must exist
                 text_to_process = document_text or ""
 
             if not text_to_process:
-                logger.warning("Could not extract any text from the provided document. Using mock text for analysis.")
-                text_to_process = "Sample clinical document for compliance analysis. Patient demonstrates improved range of motion and functional mobility. Treatment goals include pain management and functional restoration. Progress noted in activities of daily living."
+                logger.warning("No text content extracted from document")
+                raise ValueError("No text content could be extracted from the document. Please check if the file is readable and contains text.")
 
             logger.info("Successfully extracted %d characters of text for analysis", len(text_to_process))
             _update_progress(15, "Document parsing completed successfully...")

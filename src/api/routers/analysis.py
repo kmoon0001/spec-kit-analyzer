@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
+from ...core.security_validator import SecurityValidator
 from ...core.file_upload_validator import validate_uploaded_file, sanitize_filename
 from ...core.file_encryption import get_secure_storage
 from ...database import crud, models, schemas
@@ -134,6 +135,7 @@ async def run_analysis_and_save(
                 "document_type": "Unknown",
                 "report_html": None,
             }
+            # Task failure is already handled by the task registry cleanup
 
     await analysis_task_registry.start(task_id, _async_analysis())
 

@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from ..middleware.performance_monitoring import get_performance_middleware, get_query_monitor
 from ...core.enhanced_logging import get_loggers
 from ...core.enhanced_config import get_config_manager
+from ...models import User
+from ..dependencies import get_current_active_user, get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ router = APIRouter(prefix="/performance", tags=["performance"])
 
 @router.get("/health")
 async def health_check() -> Dict[str, Any]:
-    """Basic health check endpoint."""
+    """Basic health check endpoint - PUBLIC (no auth required for monitoring)."""
     try:
         config_manager = get_config_manager()
         validation_results = config_manager.validate_configuration()
@@ -38,8 +40,10 @@ async def health_check() -> Dict[str, Any]:
 
 
 @router.get("/metrics")
-async def get_performance_metrics() -> Dict[str, Any]:
-    """Get comprehensive performance metrics."""
+async def get_performance_metrics(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """Get comprehensive performance metrics - AUTHENTICATED USER REQUIRED."""
     try:
         performance_middleware = get_performance_middleware()
         query_monitor = get_query_monitor()
@@ -61,6 +65,8 @@ async def get_performance_metrics() -> Dict[str, Any]:
         # Get error statistics
         error_stats = loggers["errors"].get_error_stats()
 
+        logger.info(f"Performance metrics accessed by user: {current_user.username}")
+
         return {
             "system": system_metrics,
             "application": app_metrics,
@@ -78,10 +84,13 @@ async def get_performance_metrics() -> Dict[str, Any]:
 
 
 @router.get("/config")
-async def get_configuration_summary() -> Dict[str, Any]:
-    """Get configuration summary (non-sensitive information only)."""
+async def get_configuration_summary(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """Get configuration summary - AUTHENTICATED USER REQUIRED."""
     try:
         config_manager = get_config_manager()
+        logger.info(f"Configuration summary accessed by user: {current_user.username}")
         return config_manager.get_environment_summary()
 
     except Exception as e:
@@ -93,8 +102,10 @@ async def get_configuration_summary() -> Dict[str, Any]:
 
 
 @router.post("/reset-metrics")
-async def reset_performance_metrics() -> Dict[str, str]:
-    """Reset performance metrics (admin only)."""
+async def reset_performance_metrics(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, str]:
+    """Reset performance metrics - AUTHENTICATED USER REQUIRED."""
     try:
         # In a real implementation, this would require admin authentication
         performance_middleware = get_performance_middleware()
@@ -111,7 +122,7 @@ async def reset_performance_metrics() -> Dict[str, str]:
         query_monitor.total_query_time = 0.0
         query_monitor.slow_queries = 0
 
-        logger.info("Performance metrics reset")
+        logger.info(f"Performance metrics reset by user: {current_user.username}")
         return {"status": "success", "message": "Performance metrics reset successfully"}
 
     except Exception as e:
