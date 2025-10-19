@@ -289,9 +289,10 @@ class AnalysisService:
                 text_to_process = "Sample clinical document for compliance analysis. Patient demonstrates improved range of motion and functional mobility. Treatment goals include pain management and functional restoration. Progress noted in activities of daily living."
 
             logger.info("Successfully extracted %d characters of text for analysis", len(text_to_process))
+            _update_progress(15, "Document parsing completed successfully...")
 
             # Automatic rubric detection based on content
-            _update_progress(8, "Detecting appropriate compliance rubric...")
+            _update_progress(20, "Detecting appropriate compliance rubric...")
             detected_rubric, rubric_confidence, rubric_details = self.rubric_detector.detect_rubric(
                 text_to_process, original_filename
             )

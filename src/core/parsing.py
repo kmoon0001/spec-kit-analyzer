@@ -77,16 +77,56 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
     logger.info("Cache miss for document: %s. Parsing from scratch.", os.path.basename(file_path))
 
     try:
-        if extension == ".pdf":
-            result = _parse_pdf_with_ocr(file_path)
-        elif extension == ".txt":
-            result = _parse_txt(file_path)
-        elif extension == ".docx":
-            result = _parse_docx(file_path)
-        elif extension in IMAGE_EXTENSIONS:
-            result = _parse_image_with_ocr(file_path)
+        # Add overall timeout protection for document parsing
+        import threading
+        import queue
+        
+        def parse_with_timeout():
+            try:
+                if extension == ".pdf":
+                    return _parse_pdf_with_ocr(file_path)
+                elif extension == ".txt":
+                    return _parse_txt(file_path)
+                elif extension == ".docx":
+                    return _parse_docx(file_path)
+                elif extension in IMAGE_EXTENSIONS:
+                    return _parse_image_with_ocr(file_path)
+                else:
+                    return []
+            except Exception as e:
+                logger.exception("Error parsing %s: %s", file_path, e)
+                return [
+                    {
+                        "sentence": f"Error parsing file: {e!s}",
+                        "source": "parser",
+                    },
+                ]
+        
+        # Run parsing with 2-minute timeout
+        result_queue = queue.Queue()
+        parse_thread = threading.Thread(target=lambda: result_queue.put(parse_with_timeout()))
+        parse_thread.daemon = True
+        parse_thread.start()
+        parse_thread.join(timeout=120)  # 2 minutes timeout
+        
+        if parse_thread.is_alive():
+            logger.warning("Document parsing timed out for %s after 2 minutes", file_path)
+            result = [
+                {
+                    "sentence": f"Error: Document parsing timed out after 2 minutes. The document may be too large or corrupted.",
+                    "source": "parser",
+                },
+            ]
         else:
-            result = []
+            try:
+                result = result_queue.get_nowait()
+            except queue.Empty:
+                result = [
+                    {
+                        "sentence": f"Error: Document parsing failed unexpectedly.",
+                        "source": "parser",
+                    },
+                ]
 
         cache_service.set_to_disk(cache_key, result)
         logger.info("Successfully parsed document: %s (%d chunks)", os.path.basename(file_path), len(result))
@@ -162,10 +202,36 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
         # Preprocess image for better OCR
         processed_image = _preprocess_image_for_ocr(image)
 
-        # Perform OCR with medical-optimized settings
+        # Perform OCR with medical-optimized settings and timeout protection
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?()[]{}"-/\n '
 
-        text = pytesseract.image_to_string(processed_image, config=custom_config)
+        # Add timeout protection to prevent hanging
+        import signal
+        import threading
+        import queue
+        
+        def ocr_with_timeout():
+            try:
+                return pytesseract.image_to_string(processed_image, config=custom_config)
+            except Exception as e:
+                logger.warning("OCR failed for image %s: %s", file_path, e)
+                return ""
+        
+        # Run OCR with 30-second timeout
+        result_queue = queue.Queue()
+        ocr_thread = threading.Thread(target=lambda: result_queue.put(ocr_with_timeout()))
+        ocr_thread.daemon = True
+        ocr_thread.start()
+        ocr_thread.join(timeout=30)
+        
+        if ocr_thread.is_alive():
+            logger.warning("OCR timed out for image %s after 30 seconds", file_path)
+            text = ""
+        else:
+            try:
+                text = result_queue.get_nowait()
+            except queue.Empty:
+                text = ""
 
         if not text.strip():
             return [
@@ -227,10 +293,37 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                             page_image = page.to_image(resolution=300)
                             pil_image = page_image.original
 
-                            # Preprocess and OCR
+                            # Preprocess and OCR with timeout protection
                             processed_image = _preprocess_image_for_ocr(pil_image)
                             custom_config = r"--oem 3 --psm 6"
-                            ocr_text = pytesseract.image_to_string(processed_image, config=custom_config)
+                            
+                            # Add timeout protection to prevent hanging
+                            import signal
+                            import threading
+                            import queue
+                            
+                            def ocr_with_timeout():
+                                try:
+                                    return pytesseract.image_to_string(processed_image, config=custom_config)
+                                except Exception as e:
+                                    logger.warning("OCR failed for page %s: %s", page_num + 1, e)
+                                    return ""
+                            
+                            # Run OCR with 30-second timeout
+                            result_queue = queue.Queue()
+                            ocr_thread = threading.Thread(target=lambda: result_queue.put(ocr_with_timeout()))
+                            ocr_thread.daemon = True
+                            ocr_thread.start()
+                            ocr_thread.join(timeout=30)
+                            
+                            if ocr_thread.is_alive():
+                                logger.warning("OCR timed out for page %s after 30 seconds", page_num + 1)
+                                ocr_text = ""
+                            else:
+                                try:
+                                    ocr_text = result_queue.get_nowait()
+                                except queue.Empty:
+                                    ocr_text = ""
 
                             if ocr_text.strip():
                                 sentences = _split_into_sentences(ocr_text)
