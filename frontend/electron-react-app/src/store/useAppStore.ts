@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { tokenManager } from '../lib/security/secureTokenStorage';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -12,8 +13,9 @@ interface ThemeState {
 interface AuthState {
   token: string | null;
   username: string | null;
-  setCredentials: (payload: { username: string; token: string }) => void;
-  clear: () => void;
+  setCredentials: (payload: { username: string; token: string }) => Promise<void>;
+  clear: () => Promise<void>;
+  isAuthenticated: () => Promise<boolean>;
 }
 
 export interface AppState {
@@ -43,7 +45,10 @@ export const useAppStore = create<AppState>()(
       auth: {
         token: null,
         username: null,
-        setCredentials: ({ username, token }) =>
+        setCredentials: async ({ username, token }) => {
+          // Store token securely
+          await tokenManager.setAuthToken(token);
+
           set((state) => ({
             ...state,
             auth: {
@@ -51,8 +56,12 @@ export const useAppStore = create<AppState>()(
               username,
               token,
             },
-          })),
-        clear: () =>
+          }));
+        },
+        clear: async () => {
+          // Clear secure storage
+          await tokenManager.clearAuthToken();
+
           set((state) => ({
             ...state,
             auth: {
@@ -60,12 +69,22 @@ export const useAppStore = create<AppState>()(
               username: null,
               token: null,
             },
-          })),
+          }));
+        },
+        isAuthenticated: async () => {
+          return await tokenManager.isAuthenticated();
+        },
       },
     }),
     {
       name: 'tca-app-store',
-      partialize: (state) => ({ auth: state.auth, theme: state.theme }),
+      partialize: (state) => ({
+        auth: {
+          username: state.auth.username,
+          token: null // Don't persist token in localStorage, use secure storage
+        },
+        theme: state.theme
+      }),
     },
   ),
 );

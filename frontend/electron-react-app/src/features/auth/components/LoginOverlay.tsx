@@ -16,8 +16,8 @@ export const LoginOverlay = () => {
 
   const mutation = useMutation({
     mutationFn: () => login(username, password),
-    onSuccess: (data) => {
-      setCredentials({ username, token: data.access_token });
+    onSuccess: async (data) => {
+      await setCredentials({ username, token: data.access_token });
       setError(null);
       setPassword('');
     },
@@ -65,7 +65,9 @@ export const LoginOverlay = () => {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => {
+              onClick={async () => {
+                const clear = useAppStore.getState().auth.clear;
+                await clear();
                 localStorage.removeItem('tca-app-store');
                 window.location.reload();
               }}

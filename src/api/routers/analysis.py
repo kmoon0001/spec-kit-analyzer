@@ -21,17 +21,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
 from ...core.security_validator import SecurityValidator
+from ...core.file_encryption import get_secure_storage
 from ...database import crud, models, schemas
 from ...database.database import get_async_db
 from ..task_registry import analysis_task_registry
 from ..dependencies import get_analysis_service
+from ..dependencies.request_tracking import RequestId, log_with_request_id
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 tasks = analysis_task_registry.metadata
 
-uploaded_documents: dict[str, dict[str, Any]] = {}
+# Secure document storage (replaces in-memory storage)
+secure_storage = get_secure_storage()
 legacy_router = APIRouter(tags=["analysis-legacy"])
 
 
@@ -50,6 +53,7 @@ async def run_analysis_and_save(
     analysis_mode: str,
     strictness: str,
     analysis_service: AnalysisService,
+    user_id: int,
 ) -> None:
     """Background task coordinator that schedules the async analysis workflow."""
 
@@ -96,6 +100,7 @@ async def run_analysis_and_save(
             task_entry["status"] = "analyzing"
             task_entry["status_message"] = "Finalizing analysis results..."
             task_entry["progress"] = max(task_entry.get("progress", 90), 95)
+            task_entry["user_id"] = user_id  # Track user ownership
             await asyncio.sleep(0.2)
             task_entry.update(
                 {
@@ -138,7 +143,7 @@ async def legacy_upload_document(
     file: UploadFile = File(...),
     current_user: models.User = Depends(get_current_active_user),
 ) -> dict[str, Any]:
-    """Legacy-friendly endpoint to upload documents prior to analysis."""
+    """Legacy-friendly endpoint to upload documents with secure encryption."""
     try:
         safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
     except ValueError as exc:  # pragma: no cover - defensive sanitization
@@ -149,16 +154,19 @@ async def legacy_upload_document(
     if not is_valid_size:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid file size")
 
-    document_id = uuid.uuid4().hex
-    uploaded_documents[document_id] = {
-        "filename": safe_filename,
-        "content_bytes": content,
-        "content_text": content.decode("utf-8", errors="ignore"),
-        "uploaded_at": datetime.datetime.now(datetime.UTC),
-        "owner_id": current_user.id,
-    }
+    # Store document securely with encryption
+    document_id = secure_storage.store_document(
+        content=content,
+        filename=safe_filename,
+        user_id=current_user.id,
+        metadata={
+            "upload_type": "legacy",
+            "original_filename": file.filename,
+            "content_type": file.content_type
+        }
+    )
 
-    logger.info("Legacy upload stored", document_id=document_id, filename=safe_filename)
+    logger.info("Legacy upload stored securely", document_id=document_id, filename=safe_filename, user_id=current_user.id)
     return {"status": "success", "document_id": document_id, "filename": safe_filename}
 
 
@@ -166,19 +174,25 @@ async def legacy_upload_document(
 async def legacy_get_document(
     document_id: str, current_user: models.User = Depends(get_current_active_user)
 ) -> dict[str, Any]:
-    """Retrieve an uploaded document for compatibility clients."""
-    document = uploaded_documents.get(document_id)
-    if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    """Retrieve document metadata (content not included for security)."""
+    # Get document metadata from secure storage
+    user_docs = secure_storage.list_user_documents(current_user.id)
+    document_metadata = None
 
-    if document["owner_id"] != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this document.")
+    for doc in user_docs:
+        if doc["doc_id"] == document_id:
+            document_metadata = doc
+            break
+
+    if not document_metadata:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     return {
         "id": document_id,
-        "filename": document["filename"],
-        "content": document["content_text"],
-        "uploaded_at": document["uploaded_at"].isoformat(),
+        "filename": document_metadata["filename"],
+        "file_size": document_metadata["file_size"],
+        "uploaded_at": document_metadata["stored_at"],
+        "metadata": document_metadata["metadata"]
     }
 
 
@@ -196,12 +210,21 @@ async def legacy_start_analysis(
             detail="Analysis service is not ready yet.",
         )
 
-    document = uploaded_documents.get(request.document_id)
-    if not document:
+    # Retrieve document content from secure storage
+    document_content = secure_storage.retrieve_document(request.document_id, current_user.id)
+    if not document_content:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    if document["owner_id"] != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to analyze this document.")
+    # Get document metadata
+    user_docs = secure_storage.list_user_documents(current_user.id)
+    document_metadata = None
+    for doc in user_docs:
+        if doc["doc_id"] == request.document_id:
+            document_metadata = doc
+            break
+
+    if not document_metadata:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document metadata not found.")
 
     discipline = (request.discipline or "pt").lower()
     is_valid, error = SecurityValidator.validate_discipline(discipline)
@@ -218,20 +241,22 @@ async def legacy_start_analysis(
     task_id = uuid.uuid4().hex
     tasks[task_id] = {
         "status": "processing",
-        "filename": document["filename"],
+        "filename": document_metadata["filename"],
         "timestamp": datetime.datetime.now(datetime.UTC),
         "strictness": "standard",
+        "user_id": current_user.id,  # Track user ownership
     }
 
     background_tasks.add_task(
         run_analysis_and_save,
-        document["content_bytes"],
+        document_content,
         task_id,
-        document["filename"],
+        document_metadata["filename"],
         discipline,
         analysis_mode,
         "standard",
         analysis_service,
+        current_user.id,  # Pass user ID
     )
 
     logger.info("Legacy analysis started", document_id=request.document_id, task_id=task_id)
@@ -263,8 +288,18 @@ async def analyze_document(
     strictness: str = Form("standard"),
     _current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
+    request_id: str = RequestId,
 ) -> dict[str, str]:
-    """Upload and analyze a clinical document for compliance from in-memory content."""
+    """Upload and analyze a clinical document for compliance from in-memory content with request tracking."""
+    log_with_request_id(
+        f"Analysis request started by user {_current_user.username}",
+        level="info",
+        user_id=_current_user.id,
+        filename=file.filename,
+        discipline=discipline,
+        analysis_mode=analysis_mode,
+        strictness=strictness
+    )
     if analysis_service is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Analysis service is not ready yet."
@@ -299,6 +334,7 @@ async def analyze_document(
         "filename": safe_filename,
         "timestamp": datetime.datetime.now(datetime.UTC),
         "strictness": strictness,
+        "user_id": _current_user.id,  # Track user ownership
     }
 
     background_tasks.add_task(
@@ -310,6 +346,7 @@ async def analyze_document(
         analysis_mode,
         strictness,
         analysis_service,
+        _current_user.id,  # Pass user ID
     )
 
     return {"task_id": task_id, "status": "processing"}
@@ -333,12 +370,24 @@ async def submit_document(
 
 @router.get("/status/{task_id}")
 async def get_analysis_status(
-    task_id: str, _current_user: models.User = Depends(get_current_active_user)
+    task_id: str, 
+    current_user: models.User = Depends(get_current_active_user),
+    request_id: str = RequestId,
 ) -> dict[str, Any]:
-    """Retrieves the status of a background analysis task."""
+    """Retrieves the status of a background analysis task (user must own the task) with request tracking."""
+    log_with_request_id(
+        f"Status request for task {task_id} by user {current_user.username}",
+        level="info",
+        user_id=current_user.id,
+        task_id=task_id
+    )
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Check authorization - user must own the task or be admin
+    if task.get("user_id") != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this task")
 
     current_status = task.get("status", "processing")
     if current_status == "completed":

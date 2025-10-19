@@ -43,11 +43,19 @@ const tasksApi = {
   on: (eventName, listener) => buildTaskEventHandler(eventName, listener),
 };
 
+const secureStorageApi = {
+  setSecureValue: (key, value) => ipcRenderer.invoke('secure-storage/set', key, value),
+  getSecureValue: (key) => ipcRenderer.invoke('secure-storage/get', key),
+  removeSecureValue: (key) => ipcRenderer.invoke('secure-storage/remove', key),
+  clearSecureStorage: () => ipcRenderer.invoke('secure-storage/clear'),
+};
+
 contextBridge.exposeInMainWorld('desktopApi', {
   getEnvironment: () => ipcRenderer.invoke('app/get-environment'),
   openExternal: (url) => ipcRenderer.send('app/open-external', url),
   platform: process.platform,
   tasks: tasksApi,
+  secureStorage: secureStorageApi,
   onDiagnostic: (listener) => {
     if (typeof listener !== 'function') {
       return () => {};

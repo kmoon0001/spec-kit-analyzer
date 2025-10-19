@@ -1,6 +1,10 @@
 const { app, BrowserWindow, ipcMain, shell, nativeTheme } = require('electron');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
 console.log('Main process started');
-const path = require('node:path');
 const { taskManager } = require('./tasks');
 
 const isDev = process.env.ELECTRON_IS_DEV === '1' || !app.isPackaged;
@@ -22,6 +26,117 @@ const TASK_EVENT_CHANNELS = {
 };
 
 const DIAGNOSTIC_CHANNEL = 'app:diagnostic';
+
+// Secure storage implementation
+class SecureStorage {
+  constructor() {
+    this.storageDir = path.join(os.homedir(), '.electroanalyzer', 'secure');
+    this.ensureStorageDir();
+  }
+
+  ensureStorageDir() {
+    if (!fs.existsSync(this.storageDir)) {
+      fs.mkdirSync(this.storageDir, { recursive: true, mode: 0o700 });
+    }
+  }
+
+  getStoragePath(key) {
+    const hash = crypto.createHash('sha256').update(key).digest('hex');
+    return path.join(this.storageDir, `${hash}.enc`);
+  }
+
+  async setSecureValue(key, value) {
+    try {
+      const storagePath = this.getStoragePath(key);
+      const encrypted = this.encrypt(value);
+      fs.writeFileSync(storagePath, encrypted, { mode: 0o600 });
+    } catch (error) {
+      console.error('Failed to store secure value:', error);
+      throw error;
+    }
+  }
+
+  async getSecureValue(key) {
+    try {
+      const storagePath = this.getStoragePath(key);
+      if (!fs.existsSync(storagePath)) {
+        return null;
+      }
+
+      const encrypted = fs.readFileSync(storagePath);
+      return this.decrypt(encrypted);
+    } catch (error) {
+      console.error('Failed to retrieve secure value:', error);
+      return null;
+    }
+  }
+
+  async removeSecureValue(key) {
+    try {
+      const storagePath = this.getStoragePath(key);
+      if (fs.existsSync(storagePath)) {
+        fs.unlinkSync(storagePath);
+      }
+    } catch (error) {
+      console.error('Failed to remove secure value:', error);
+    }
+  }
+
+  async clearSecureStorage() {
+    try {
+      const files = fs.readdirSync(this.storageDir);
+      for (const file of files) {
+        if (file.endsWith('.enc')) {
+          fs.unlinkSync(path.join(this.storageDir, file));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to clear secure storage:', error);
+    }
+  }
+
+  encrypt(text) {
+    const algorithm = 'aes-256-gcm';
+    const key = crypto.scryptSync('electroanalyzer-secret-key-2024', 'salt', 32);
+    const iv = crypto.randomBytes(16);
+
+    const cipher = crypto.createCipher(algorithm, key);
+    cipher.setAAD(Buffer.from('electroanalyzer', 'utf8'));
+
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    const authTag = cipher.getAuthTag();
+
+    return JSON.stringify({
+      encrypted,
+      iv: iv.toString('hex'),
+      authTag: authTag.toString('hex')
+    });
+  }
+
+  decrypt(encryptedData) {
+    try {
+      const data = JSON.parse(encryptedData);
+      const algorithm = 'aes-256-gcm';
+      const key = crypto.scryptSync('electroanalyzer-secret-key-2024', 'salt', 32);
+
+      const decipher = crypto.createDecipher(algorithm, key);
+      decipher.setAAD(Buffer.from('electroanalyzer', 'utf8'));
+      decipher.setAuthTag(Buffer.from(data.authTag, 'hex'));
+
+      let decrypted = decipher.update(data.encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      return decrypted;
+    } catch (error) {
+      console.error('Failed to decrypt data:', error);
+      return null;
+    }
+  }
+}
+
+const secureStorage = new SecureStorage();
 
 const safeSerialize = (value) => {
   if (value === undefined) {
@@ -281,6 +396,47 @@ const registerIpcHandlers = () => {
   ipcMain.on('app/open-external', (_event, url) => {
     if (typeof url === 'string') {
       shell.openExternal(url);
+    }
+  });
+
+  // Secure storage IPC handlers
+  ipcMain.handle('secure-storage/set', async (_event, key, value) => {
+    try {
+      await secureStorage.setSecureValue(key, value);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to set secure value:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('secure-storage/get', async (_event, key) => {
+    try {
+      const value = await secureStorage.getSecureValue(key);
+      return { success: true, value };
+    } catch (error) {
+      console.error('Failed to get secure value:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('secure-storage/remove', async (_event, key) => {
+    try {
+      await secureStorage.removeSecureValue(key);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to remove secure value:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('secure-storage/clear', async (_event) => {
+    try {
+      await secureStorage.clearSecureStorage();
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to clear secure storage:', error);
+      return { success: false, error: error.message };
     }
   });
 };

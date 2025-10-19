@@ -1,364 +1,361 @@
-import os
-import sys
-from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
-from typing import Any
-from unittest.mock import patch
+"""Comprehensive test utilities and fixtures."""
 
 import pytest
-import pytest_asyncio
-
-pytest_plugins = ("pytest_asyncio",)
-
-
-def pytest_addoption(parser) -> None:  # pragma: no cover - pytest hook
-    """Register stub ini options expected by the test configuration."""
-
-    parser.addini(
-        "qt_api",
-        "Preferred Qt binding for GUI tests (stubbed during offline execution).",
-        default="pyside6",
-    )
+import asyncio
+import tempfile
+import os
+from unittest.mock import Mock, patch
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from src.api.main import app
+from src.database import Base, get_async_db
 
 
-try:  # pragma: no cover - dependency availability
-    import numpy as np
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    NUMPY_IMPORT_ERROR = exc
-    np = None  # type: ignore[assignment]
-else:
-    NUMPY_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import yaml  # type: ignore[import-not-found] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    YAML_IMPORT_ERROR = exc
-else:
-    YAML_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import requests  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    REQUESTS_IMPORT_ERROR = exc
-else:
-    REQUESTS_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import jinja2  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    JINJA_IMPORT_ERROR = exc
-else:
-    JINJA_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import psutil  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    PSUTIL_IMPORT_ERROR = exc
-else:
-    PSUTIL_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import rdflib  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    RDFLIB_IMPORT_ERROR = exc
-else:
-    RDFLIB_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import nltk  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    NLTK_IMPORT_ERROR = exc
-else:
-    NLTK_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import httpx  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    HTTPX_IMPORT_ERROR = exc
-else:
-    HTTPX_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import PIL  # type: ignore[import-not-found] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    PIL_IMPORT_ERROR = exc
-else:
-    PIL_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    import torch  # type: ignore[import-untyped] # noqa: F401
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    TORCH_IMPORT_ERROR = exc
-else:
-    TORCH_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    from sqlalchemy import delete
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-    from sqlalchemy.orm import sessionmaker
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    SQLALCHEMY_IMPORT_ERROR = exc
-    delete = None  # type: ignore[assignment]
-    AsyncSession = Any  # type: ignore[assignment]
-    create_async_engine = None  # type: ignore[assignment]
-    sessionmaker = None  # type: ignore[assignment]
-else:
-    SQLALCHEMY_IMPORT_ERROR = None
-
-try:  # pragma: no cover - dependency availability
-    from src.core.vector_store import get_vector_store
-except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
-    VECTOR_STORE_IMPORT_ERROR = exc
-    get_vector_store = None  # type: ignore[assignment]
-else:
-    VECTOR_STORE_IMPORT_ERROR = None
-
-if SQLALCHEMY_IMPORT_ERROR is None:
-    from src.database import Base, models
-else:  # pragma: no cover - dependency missing
-    Base = None  # type: ignore[assignment]
-    models = None  # type: ignore[assignment]
-
-try:  # pragma: no cover - environment dependent
-    import PySide6  # type: ignore[import-not-found]
-    from PySide6.QtWidgets import QApplication
-except Exception as exc:  # pragma: no cover - handled via skip logic
-    PySide6 = None  # type: ignore[assignment]
-    QApplication = None  # type: ignore[assignment]
-    _QT_IMPORT_ERROR: Exception | None = exc
-    _QT_IS_STUB = False
-else:  # pragma: no cover - environment dependent
-    _QT_IMPORT_ERROR = None
-    _QT_IS_STUB = bool(getattr(PySide6, "__FAKE_PYSIDE6__", False))
-
-# Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
-
-if SQLALCHEMY_IMPORT_ERROR is None:
-    engine = create_async_engine(TEST_DATABASE_URL)
-    TestingSessionLocal = sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autocommit=False,
-        autoflush=False,
-    )
-else:  # pragma: no cover - dependency missing
-    engine = None  # type: ignore[assignment]
-    TestingSessionLocal = None  # type: ignore[assignment]
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create event loop for async tests."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 
-if SQLALCHEMY_IMPORT_ERROR is None:
+@pytest.fixture
+def test_db():
+    """Create test database."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(bind=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    @pytest_asyncio.fixture(scope="session")
-    async def setup_database():
-        """Creates the test database and tables for the test session."""
-        if os.path.exists("test.db"):
-            try:
-                os.remove("test.db")
-            except PermissionError:
-                await engine.dispose()
-                try:
-                    os.remove("test.db")
-                except PermissionError as e:
-                    pytest.fail(f"Could not remove test.db, it is locked: {e}")
+    def override_get_db():
+        try:
+            db = TestingSessionLocal()
+            yield db
+        finally:
+            db.close()
 
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        yield
-        await engine.dispose()
-        if os.path.exists("test.db"):
-            try:
-                os.remove("test.db")
-            except PermissionError:
-                pass
+    app.dependency_overrides[get_async_db] = override_get_db
+    yield TestingSessionLocal
+    app.dependency_overrides.clear()
 
-    @pytest_asyncio.fixture
-    async def db_session(setup_database) -> AsyncSession:
-        """Provides a clean database session for each test."""
-        del setup_database  # ensure database is initialized before session creation
-        async with TestingSessionLocal() as session:
-            yield session
 
-    @pytest_asyncio.fixture
-    async def populated_db(db_session: AsyncSession) -> AsyncSession:
-        """Clears and populates the database with a set of test data."""
-        if NUMPY_IMPORT_ERROR is not None:
-            pytest.skip(
-                "NumPy is required for database vector fixtures but is not installed in this environment.",
-                allow_module_level=True,
-            )
-        await db_session.execute(delete(models.AnalysisReport))
-        await db_session.commit()
+@pytest.fixture
+def client():
+    """Create test client."""
+    return TestClient(app)
 
-        reports_data = [
-            models.AnalysisReport(
-                id=1,
-                document_name="report_1.txt",
-                compliance_score=95.0,
-                document_type="Progress Note",
-                analysis_date=datetime.now(UTC) - timedelta(days=5),
-                analysis_result={"discipline": "PT"},
-                document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
-            ),
-            models.AnalysisReport(
-                id=2,
-                document_name="report_2.txt",
-                compliance_score=85.0,
-                document_type="Evaluation",
-                analysis_date=datetime.now(UTC) - timedelta(days=10),
-                analysis_result={"discipline": "PT"},
-                document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
-            ),
-            models.AnalysisReport(
-                id=3,
-                document_name="report_3.txt",
-                compliance_score=75.0,
-                document_type="Progress Note",
-                analysis_date=datetime.now(UTC) - timedelta(days=15),
-                analysis_result={"discipline": "OT"},
-                document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
-            ),
-            models.AnalysisReport(
-                id=4,
-                document_name="report_4.txt",
-                compliance_score=90.0,
-                document_type="Discharge Summary",
-                analysis_date=datetime.now(UTC) - timedelta(days=20),
-                analysis_result={"discipline": "SLP"},
-                document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
-            ),
+
+@pytest.fixture
+def authenticated_client(client):
+    """Create authenticated test client."""
+    # Mock authentication
+    with patch('src.auth.get_auth_service') as mock_auth:
+        mock_auth.return_value.verify_password.return_value = True
+        mock_auth.return_value.create_access_token.return_value = "test-token"
+
+        # Login to get token
+        response = client.post("/auth/login", json={
+            "username": "test",
+            "password": "test"
+        })
+
+        if response.status_code == 200:
+            token = response.json().get("access_token", "test-token")
+            client.headers.update({"Authorization": f"Bearer {token}"})
+
+        yield client
+
+
+@pytest.fixture
+def mock_ai_service():
+    """Mock AI service for testing."""
+    with patch('src.core.analysis_service.AnalysisService') as mock_service:
+        mock_instance = Mock()
+        mock_instance.use_mocks = True
+        mock_instance.analyze_document.return_value = {
+            "compliance_score": 85.5,
+            "findings": [
+                {
+                    "rule_id": "test_rule",
+                    "risk": "Medium",
+                    "message": "Test finding",
+                    "confidence": 0.8
+                }
+            ]
+        }
+        mock_service.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def sample_document():
+    """Create sample document for testing."""
+    content = """
+    Patient Progress Note
+
+    Patient: John Doe
+    Date: 2024-01-01
+
+    Assessment:
+    Patient presents with improved mobility and strength.
+    Treatment goals are being met.
+
+    Plan:
+    Continue current treatment plan.
+    Reassess in 2 weeks.
+    """
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        f.write(content)
+        temp_path = f.name
+
+    yield temp_path
+
+    # Cleanup
+    try:
+        os.unlink(temp_path)
+    except OSError:
+        pass
+
+
+@pytest.fixture
+def sample_pdf():
+    """Create sample PDF for testing."""
+    # This would create a minimal PDF file
+    # For now, we'll use a text file with PDF extension
+    content = b"PDF content placeholder"
+
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
+        f.write(content)
+        temp_path = f.name
+
+    yield temp_path
+
+    # Cleanup
+    try:
+        os.unlink(temp_path)
+    except OSError:
+        pass
+
+
+@pytest.fixture
+def mock_file_upload():
+    """Mock file upload for testing."""
+    return {
+        "file": ("test.txt", "test content", "text/plain"),
+        "document_name": "Test Document",
+        "rubric": "pt_compliance_rubric"
+    }
+
+
+@pytest.fixture
+def performance_test_data():
+    """Create performance test data."""
+    return {
+        "requests": [
+            {"method": "GET", "url": "/health/", "expected_time": 0.1},
+            {"method": "POST", "url": "/analysis/start", "expected_time": 0.5},
+            {"method": "GET", "url": "/metrics", "expected_time": 0.2}
+        ],
+        "concurrent_users": 10,
+        "duration_seconds": 30
+    }
+
+
+@pytest.fixture
+def security_test_payloads():
+    """Security test payloads."""
+    return {
+        "sql_injection": [
+            "'; DROP TABLE users; --",
+            "' OR '1'='1",
+            "'; INSERT INTO users VALUES ('hacker', 'password'); --"
+        ],
+        "xss": [
+            "<script>alert('xss')</script>",
+            "javascript:alert('xss')",
+            "<img src=x onerror=alert('xss')>"
+        ],
+        "path_traversal": [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\drivers\\etc\\hosts"
+        ],
+        "command_injection": [
+            "; rm -rf /",
+            "| cat /etc/passwd",
+            "&& whoami"
         ]
-        db_session.add_all(reports_data)
-        await db_session.commit()
-
-        if VECTOR_STORE_IMPORT_ERROR is not None or get_vector_store is None:
-            pytest.skip(
-                "Vector store dependencies are unavailable in this environment.",
-                allow_module_level=True,
-            )
-
-        vector_store = get_vector_store()
-        if not vector_store.is_initialized:
-            vector_store.initialize_index()
-
-        embeddings = np.array(
-            [np.frombuffer(r.document_embedding, dtype=np.float32) for r in reports_data if r.document_embedding]
-        )
-        ids = [r.id for r in reports_data if r.document_embedding]
-        if len(embeddings) > 0:
-            vector_store.add_vectors(embeddings, ids)
-
-        return db_session
-
-else:  # pragma: no cover - dependency missing
-
-    @pytest_asyncio.fixture(scope="session")
-    async def setup_database():
-        pytest.skip(
-            "SQLAlchemy is required for database-dependent tests but is not installed in this environment.",
-            allow_module_level=True,
-        )
-
-    @pytest_asyncio.fixture
-    async def db_session():
-        pytest.skip(
-            "SQLAlchemy is required for the db_session fixture but is not installed in this environment.",
-            allow_module_level=True,
-        )
-
-    @pytest_asyncio.fixture
-    async def populated_db():
-        pytest.skip(
-            "SQLAlchemy is required for the populated_db fixture but is not installed in this environment.",
-            allow_module_level=True,
-        )
-
-
-def _ensure_qapplication() -> QApplication:
-    if QApplication is None or _QT_IMPORT_ERROR is not None or _QT_IS_STUB:  # pragma: no cover - skip handled elsewhere
-        raise RuntimeError("Qt application cannot be created without GUI dependencies.")
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    return app
+    }
 
 
 @pytest.fixture
-def qapp() -> Iterator[QApplication]:
-    """Provide a QApplication instance or skip if Qt cannot initialize."""
-
-    if _QT_IMPORT_ERROR is not None:
-        pytest.skip(f"Qt GUI dependencies unavailable: {_QT_IMPORT_ERROR}")
-    if _QT_IS_STUB:
-        pytest.skip("Qt GUI dependencies replaced with stub implementation.")
-
-    app = _ensure_qapplication()
-    yield app
+def mock_metrics_collector():
+    """Mock metrics collector for testing."""
+    with patch('src.core.performance_metrics_collector.metrics_collector') as mock_collector:
+        mock_collector.get_metrics_summary.return_value = {
+            "uptime_seconds": 3600,
+            "requests": {
+                "total": 100,
+                "avg_duration_ms": 150.5,
+                "error_count": 5,
+                "error_rate_percent": 5.0
+            },
+            "system": {
+                "memory_usage_mb": 512.0,
+                "cpu_usage_percent": 25.5
+            }
+        }
+        yield mock_collector
 
 
 @pytest.fixture
-def qtbot(qapp, request):
-    """Fallback qtbot fixture that defers to pytest-qt when available."""
+def mock_health_checker():
+    """Mock health checker for testing."""
+    with patch('src.api.routers.health_advanced.health_checker') as mock_checker:
+        mock_checker.get_overall_health.return_value = {
+            "status": "healthy",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "uptime_seconds": 3600,
+            "checks": {
+                "database": {"status": "healthy"},
+                "ai_models": {"status": "healthy"},
+                "system_resources": {"status": "healthy"}
+            }
+        }
+        yield mock_checker
 
-    if _QT_IMPORT_ERROR is not None:
-        pytest.skip(f"Qt GUI dependencies unavailable: {_QT_IMPORT_ERROR}")
-    if _QT_IS_STUB:
-        pytest.skip("Qt GUI dependencies replaced with stub implementation.")
 
-    from pytestqt.qtbot import QtBot  # Lazy import to avoid ImportError during collection
+@pytest.fixture
+def test_config():
+    """Test configuration."""
+    return {
+        "use_ai_mocks": True,
+        "database_url": "sqlite:///:memory:",
+        "log_level": "DEBUG",
+        "max_request_size": 1024,
+        "rate_limit": "100/minute"
+    }
 
-    _ = qapp  # ensure QApplication fixture is initialized
-    bot = QtBot(request)
-    yield bot
 
-
-@pytest.fixture(autouse=True)
-def mock_global_services():
-    """Globally mock backend services to avoid real network calls during tests."""
-
-    if REQUESTS_IMPORT_ERROR is not None:
-        # ``requests`` is optional for regression tests; skip the patch when absent.
+@pytest.fixture
+def mock_environment():
+    """Mock environment variables for testing."""
+    with patch.dict(os.environ, {
+        "SECRET_KEY": "test-secret-key",
+        "ENVIRONMENT": "testing",
+        "USE_AI_MOCKS": "true",
+        "LOG_LEVEL": "DEBUG"
+    }):
         yield
-        return
-
-    with patch("requests.post") as mock_post:
-        mock_post.return_value.ok = True
-        mock_post.return_value.json.return_value = {"access_token": "fake-token"}
-        yield
 
 
-def pytest_ignore_collect(path, config):  # pragma: no cover - collection control
-    del config  # configuration is unused in the heuristic skip logic
+@pytest.fixture
+def mock_websocket():
+    """Mock WebSocket connection for testing."""
+    mock_ws = Mock()
+    mock_ws.accept = Mock()
+    mock_ws.send_json = Mock()
+    mock_ws.receive_text = Mock()
+    mock_ws.close = Mock()
+    return mock_ws
 
-    path_str = str(path)
-    if SQLALCHEMY_IMPORT_ERROR is not None or HTTPX_IMPORT_ERROR is not None:
-        if any(segment in path_str for segment in ("tests/api", "tests/integration")):
-            return True
 
-    if NUMPY_IMPORT_ERROR is not None or TORCH_IMPORT_ERROR is not None:
-        if any(segment in path_str for segment in ("tests/unit", "tests/logic")):
-            return True
+@pytest.fixture
+def mock_task_manager():
+    """Mock task manager for testing."""
+    with patch('src.api.routers.analysis.tasks', {}) as mock_tasks:
+        yield mock_tasks
 
-    if any(
-        error is not None
-        for error in (
-            REQUESTS_IMPORT_ERROR,
-            YAML_IMPORT_ERROR,
-            JINJA_IMPORT_ERROR,
-            PSUTIL_IMPORT_ERROR,
-            RDFLIB_IMPORT_ERROR,
-            NLTK_IMPORT_ERROR,
-            PIL_IMPORT_ERROR,
-        )
-    ):
-        if any(segment in path_str for segment in ("tests/unit", "tests/gui", "tests/_stability")):
-            return True
 
-    if _QT_IS_STUB:
-        if any(segment in path_str for segment in ("tests/gui", "tests/_stability", "tests/integration")):
-            return True
+@pytest.fixture
+def mock_vector_store():
+    """Mock vector store for testing."""
+    with patch('src.core.vector_store.get_vector_store') as mock_store:
+        mock_instance = Mock()
+        mock_instance.is_initialized = True
+        mock_instance.add_vectors = Mock()
+        mock_store.return_value = mock_instance
+        yield mock_instance
 
-    return False
+
+@pytest.fixture
+def mock_llm_service():
+    """Mock LLM service for testing."""
+    with patch('src.core.llm_service.LLMService') as mock_service:
+        mock_instance = Mock()
+        mock_instance.is_ready.return_value = True
+        mock_instance.generate.return_value = "Mock response"
+        mock_service.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def mock_retriever():
+    """Mock retriever for testing."""
+    with patch('src.core.hybrid_retriever.HybridRetriever') as mock_retriever:
+        mock_instance = Mock()
+        mock_instance.initialize = Mock()
+        mock_instance.retrieve.return_value = [
+            {"text": "Mock retrieved text", "score": 0.9}
+        ]
+        mock_retriever.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def mock_ner_service():
+    """Mock NER service for testing."""
+    with patch('src.core.ner.ClinicalNERService') as mock_service:
+        mock_instance = Mock()
+        mock_instance.extract_entities.return_value = [
+            {"text": "Patient", "label": "PERSON", "confidence": 0.9}
+        ]
+        mock_service.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def test_user_data():
+    """Test user data."""
+    return {
+        "username": "testuser",
+        "password": "testpassword",
+        "is_active": True,
+        "is_admin": False
+    }
+
+
+@pytest.fixture
+def test_analysis_data():
+    """Test analysis data."""
+    return {
+        "document_name": "Test Document",
+        "rubric": "pt_compliance_rubric",
+        "strictness": "standard",
+        "discipline": "pt"
+    }
+
+
+@pytest.fixture
+def test_report_data():
+    """Test report data."""
+    return {
+        "id": 1,
+        "document_name": "Test Document",
+        "compliance_score": 85.5,
+        "analysis_date": "2024-01-01T00:00:00Z",
+        "findings": [
+            {
+                "rule_id": "test_rule",
+                "risk": "Medium",
+                "message": "Test finding",
+                "confidence": 0.8
+            }
+        ]
+    }
+
+
+# Test markers
+pytestmark = [
+    pytest.mark.asyncio,
+]

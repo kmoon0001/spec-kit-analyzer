@@ -40,6 +40,7 @@ from src.api.routers import (
     health,
     meta_analytics,
     preferences,
+    sessions,
     users,
     rubric_router,
     individual_habits,
@@ -54,14 +55,32 @@ try:
 except ImportError:
     EHR_AVAILABLE = False
 
-from src.api.middleware.input_validation import InputValidationMiddleware
-from src.api.middleware.request_logging import RequestLoggingMiddleware
-from src.api.graceful_shutdown import lifespan_with_graceful_shutdown, register_background_task
-from src.api.enhanced_error_context import enhanced_exception_handler
-from src.api.documentation import create_custom_openapi, add_api_documentation_routes
-from src.core.performance_metrics_collector import metrics_collector, update_system_metrics_task
+from src.api.global_exception_handler import global_exception_handler, http_exception_handler
+from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
+from src.config import get_settings
+from src.core.vector_store import get_vector_store
+from src.core.file_cleanup_service import start_cleanup_service, stop_cleanup_service
+from src.core.document_cleanup_service import start_cleanup_service as start_doc_cleanup, stop_cleanup_service as stop_doc_cleanup
+from src.database import crud, get_async_db, models
+from src.database import init_db
+from src.database.database import AsyncSessionLocal
+from src.logging_config import CorrelationIdMiddleware, configure_logging
 
 settings = get_settings()
+
+# Import enhanced features (with error handling for tests)
+try:
+    from src.api.middleware.input_validation import InputValidationMiddleware
+    from src.api.middleware.request_logging import RequestLoggingMiddleware
+    from src.api.graceful_shutdown import lifespan_with_graceful_shutdown, register_background_task
+    from src.api.enhanced_error_context import enhanced_exception_handler
+    from src.api.documentation import create_custom_openapi, add_api_documentation_routes
+    from src.core.performance_metrics_collector import metrics_collector, update_system_metrics_task
+    ENHANCED_FEATURES_AVAILABLE = True
+except ImportError as e:
+    logger = structlog.get_logger(__name__)
+    logger.warning(f"Enhanced features not available: {e}")
+    ENHANCED_FEATURES_AVAILABLE = False
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 logger = structlog.get_logger(__name__)
@@ -261,9 +280,10 @@ async def lifespan(app: FastAPI):
     await api_startup()
     await initialize_vector_store()
 
-    # Start background metrics collection
-    metrics_task = asyncio.create_task(update_system_metrics_task())
-    register_background_task(metrics_task)
+    # Start background metrics collection (if available)
+    if ENHANCED_FEATURES_AVAILABLE:
+        metrics_task = asyncio.create_task(update_system_metrics_task())
+        register_background_task(metrics_task)
 
     run_maintenance_jobs()
     scheduler.add_job(run_maintenance_jobs, "interval", days=1)
@@ -276,12 +296,20 @@ async def lifespan(app: FastAPI):
     # Start file cleanup service
     await start_cleanup_service()
 
+    # Start document cleanup service
+    await start_doc_cleanup()
+
+    # Initialize request tracker
+    request_tracker = get_request_tracker()
+    logger.info("Request tracking initialized")
+
     yield
 
     await api_shutdown()
     scheduler.shutdown()
     in_memory_task_purge_service.stop()
     stop_cleanup_service()
+    await stop_doc_cleanup()
 
 
 # --- FastAPI App Initialization --- #
@@ -314,8 +342,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Set custom OpenAPI schema
-app.openapi = lambda: create_custom_openapi(app)
+# Set custom OpenAPI schema (if available)
+if ENHANCED_FEATURES_AVAILABLE:
+    app.openapi = lambda: create_custom_openapi(app)
 
 # CORS: allow localhost only (development)
 app.add_middleware(
@@ -327,10 +356,15 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
-# Add enhanced middleware stack
-app.add_middleware(InputValidationMiddleware)
-app.add_middleware(RequestLoggingMiddleware)
+# Add enhanced middleware stack (if available)
+if ENHANCED_FEATURES_AVAILABLE:
+    app.add_middleware(InputValidationMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
+else:
+    logger.warning("Enhanced middleware not available, using basic setup")
+
 app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(RequestIdMiddleware)
 
 # Security headers middleware
 @app.middleware("http")
@@ -351,12 +385,13 @@ app.add_exception_handler(Exception, global_exception_handler)
 
 app.include_router(health.router, tags=["Health"])
 
-# Include enhanced health check router
-try:
-    from src.api.routers import health_advanced
-    app.include_router(health_advanced.router, tags=["Health"])
-except ImportError:
-    logger.warning("Enhanced health check router not available")
+# Include enhanced health check router (if available)
+if ENHANCED_FEATURES_AVAILABLE:
+    try:
+        from src.api.routers import health_advanced
+        app.include_router(health_advanced.router, tags=["Health"])
+    except ImportError:
+        logger.warning("Enhanced health check router not available")
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analysis.router, tags=["Analysis"])
@@ -379,14 +414,16 @@ if EHR_AVAILABLE:
     app.include_router(ehr_integration.router, tags=["EHR Integration"])
     logging.info("EHR Integration API enabled")
 
-# Add documentation routes
-add_api_documentation_routes(app)
+# Add documentation routes (if available)
+if ENHANCED_FEATURES_AVAILABLE:
+    add_api_documentation_routes(app)
 
-# Add metrics endpoint
-@app.get("/metrics", tags=["Monitoring"])
-async def get_metrics():
-    """Get application performance metrics."""
-    return metrics_collector.get_metrics_summary()
+# Add metrics endpoint (if available)
+if ENHANCED_FEATURES_AVAILABLE:
+    @app.get("/metrics", tags=["Monitoring"])
+    async def get_metrics():
+        """Get application performance metrics."""
+        return metrics_collector.get_metrics_summary()
 
 # Include plugin management
 try:

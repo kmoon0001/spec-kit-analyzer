@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...config import get_settings
 from ...core.security_validator import SecurityValidator
+from ...core.session_manager import get_session_manager
 from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
 
@@ -26,8 +27,9 @@ async def _authenticate_user(
     form_data: OAuth2PasswordRequestForm,
     db: AsyncSession,
     auth_service: AuthService,
+    request: Request = None,
 ) -> dict[str, str]:
-    """Validate credentials and issue an access token."""
+    """Validate credentials and issue an access token with session creation."""
     is_valid, error_msg = SecurityValidator.validate_username(form_data.username)
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
@@ -48,6 +50,24 @@ async def _authenticate_user(
 
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
     access_token = auth_service.create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    
+    # Create session if request context is available
+    if request:
+        session_manager = get_session_manager()
+        client_info = {
+            'ip': request.client.host if request.client else 'unknown',
+            'user_agent': request.headers.get('user-agent', 'unknown'),
+            'login_method': 'password',
+        }
+        
+        session_id = session_manager.create_session(user, client_info)
+        
+        logger.info(f"User {user.username} logged in successfully", extra={
+            'user_id': user.id,
+            'session_id': session_id,
+            'client_ip': client_info['ip'],
+        })
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -81,9 +101,10 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service),
+    request: Request = None,
 ) -> dict[str, str]:
-    """Authenticate user and generate JWT access token (OAuth2 compatible)."""
-    return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service)
+    """Authenticate user and generate JWT access token (OAuth2 compatible) with session creation."""
+    return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service, request=request)
 
 
 @router.post("/login", response_model=schemas.Token)
@@ -91,9 +112,10 @@ async def login_legacy_endpoint(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service),
+    request: Request = None,
 ) -> dict[str, str]:
-    """Legacy alias for token endpoint for backward compatibility."""
-    return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service)
+    """Legacy alias for token endpoint for backward compatibility with session creation."""
+    return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service, request=request)
 
 
 @router.post("/users/change-password")

@@ -77,3 +77,10 @@ structlog==25.4.0
 
 # Additional dependencies for enhanced features
 aiofiles==24.1.0
+
+# Testing and coverage dependencies
+pytest-cov==6.0.0
+coverage==8.0.0
+pytest-asyncio==0.25.0
+pytest-mock==3.14.0
+pytest-xdist==3.6.0

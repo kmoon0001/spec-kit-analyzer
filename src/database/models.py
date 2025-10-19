@@ -2,6 +2,7 @@
 
 This module defines SQLAlchemy ORM models for users, compliance rubrics,
 analysis reports, and findings using modern SQLAlchemy 2.0 syntax.
+Sensitive fields are encrypted at rest for security.
 """
 
 import datetime
@@ -11,24 +12,25 @@ from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+from .encryption import EncryptedString, EncryptedText, EncryptedJSON
 
 
 class User(Base):
-    """User model for authentication and authorization."""
+    """User model for authentication and authorization with encrypted sensitive fields."""
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String)
+    hashed_password: Mapped[str] = mapped_column(String)  # Already hashed, no need to encrypt
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    license_key: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
+    license_key: Mapped[str | None] = mapped_column(EncryptedString(255), unique=True, index=True, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
-    preferences: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=dict)
+    preferences: Mapped[dict[str, Any] | None] = mapped_column(EncryptedJSON, nullable=True, default=dict)
 
     # Habit tracking relationships
     habit_goals: Mapped[list["HabitGoal"]] = relationship(
@@ -61,24 +63,24 @@ class ComplianceRubric(Base):
 
 
 class AnalysisReport(Base):
-    """Analysis report model for storing document analysis results."""
+    """Analysis report model for storing document analysis results with encrypted sensitive data."""
 
     __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    document_name: Mapped[str] = mapped_column(String, index=True)
+    document_name: Mapped[str] = mapped_column(EncryptedString(255), index=True)
     analysis_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow, index=True)
     compliance_score: Mapped[float] = mapped_column(Float, index=True)
     document_type: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     discipline: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
-    analysis_result: Mapped[dict] = mapped_column(JSON)
+    analysis_result: Mapped[dict] = mapped_column(EncryptedJSON)  # Encrypt sensitive analysis data
     document_embedding: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     findings: Mapped[list["Finding"]] = relationship("Finding", back_populates="report", cascade="all, delete-orphan")
 
 
 class Finding(Base):
-    """Finding model for storing individual compliance issues found in documents."""
+    """Finding model for storing individual compliance issues found in documents with encrypted sensitive text."""
 
     __tablename__ = "findings"
 
@@ -86,15 +88,15 @@ class Finding(Base):
     report_id: Mapped[int] = mapped_column(Integer, ForeignKey("reports.id"), index=True)
     rule_id: Mapped[str] = mapped_column(String, index=True)
     risk: Mapped[str] = mapped_column(String, index=True)  # High, Medium, Low
-    personalized_tip: Mapped[str] = mapped_column(Text)
-    problematic_text: Mapped[str] = mapped_column(Text)
+    personalized_tip: Mapped[str] = mapped_column(EncryptedText)  # Encrypt personalized tips
+    problematic_text: Mapped[str] = mapped_column(EncryptedText)  # Encrypt problematic text excerpts
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
 
     report: Mapped["AnalysisReport"] = relationship("AnalysisReport", back_populates="findings")
 
 
 class FeedbackAnnotation(Base):
-    """Model for storing human-in-the-loop feedback on AI-generated findings."""
+    """Model for storing human-in-the-loop feedback on AI-generated findings with encrypted comments."""
 
     __tablename__ = "feedback_annotations"
 
@@ -102,8 +104,8 @@ class FeedbackAnnotation(Base):
     finding_id: Mapped[int] = mapped_column(Integer, ForeignKey("findings.id"), index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     is_correct: Mapped[bool] = mapped_column(Boolean)
-    user_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    correction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_comment: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)  # Encrypt user comments
+    correction: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)  # Encrypt corrections
     feedback_type: Mapped[str] = mapped_column(String, default="finding_accuracy")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
 
@@ -117,14 +119,14 @@ Report = AnalysisReport
 
 
 class HabitGoal(Base):
-    """User's personal habit goals."""
+    """User's personal habit goals with encrypted sensitive descriptions."""
 
     __tablename__ = "habit_goals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
-    title: Mapped[str] = mapped_column(String(200))
-    description: Mapped[str | None] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(EncryptedString(200))  # Encrypt goal titles
+    description: Mapped[str | None] = mapped_column(EncryptedText)  # Encrypt descriptions
     habit_number: Mapped[int | None] = mapped_column(Integer)  # 1-7 for habits
     target_value: Mapped[float | None] = mapped_column(Float)
     current_value: Mapped[float | None] = mapped_column(Float, default=0.0)
@@ -146,15 +148,15 @@ class HabitGoal(Base):
 
 
 class HabitAchievement(Base):
-    """User's habit achievements and badges."""
+    """User's habit achievements and badges with encrypted descriptions."""
 
     __tablename__ = "habit_achievements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     achievement_id: Mapped[str] = mapped_column(String(100), index=True)
-    title: Mapped[str] = mapped_column(String(200))
-    description: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(EncryptedString(200))  # Encrypt achievement titles
+    description: Mapped[str] = mapped_column(EncryptedText)  # Encrypt descriptions
     icon: Mapped[str] = mapped_column(String(10), default="🏆")
     category: Mapped[str] = mapped_column(String(50))
     earned_at: Mapped[datetime.datetime] = mapped_column(
