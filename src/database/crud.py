@@ -365,7 +365,7 @@ async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str
         discipline = row.discipline
         if discipline:
             breakdown[discipline] = {
-                "avg_compliance_score": float(row.avg_score or 0.0),
+                "avg_compliance_score": float(row.avg_score) if row.avg_score is not None else None,
                 "user_count": int(row.user_count or 0),
             }
     return breakdown
@@ -1381,3 +1381,4 @@ async def cleanup_old_data(db: AsyncSession, days_to_keep: int = 365, dry_run: b
             await db.rollback()
         logger.error("Failed to cleanup old data: %s", e)
         raise
+
