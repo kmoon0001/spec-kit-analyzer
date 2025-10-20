@@ -231,7 +231,14 @@ class ComplianceAnalyzer:
             "metrics": metrics,
         }
 
-    async def analyze_document(self, document_text: str, discipline: str, doc_type: str, progress_callback: Callable[[int, str | None], None] | None = None) -> dict[str, Any]:
+    async def analyze_document(
+        self,
+        document_text: str,
+        discipline: str,
+        doc_type: str,
+        strictness: str | None = None,
+        progress_callback: Callable[[int, str | None], None] | None = None,
+    ) -> dict[str, Any]:
         """Analyzes a given document for compliance based on discipline and document type.
 
         This method orchestrates the compliance analysis process:
@@ -246,12 +253,16 @@ class ComplianceAnalyzer:
             document_text: The content of the document to analyze.
             discipline: The clinical discipline relevant to the document (e.g., "pt", "ot").
             doc_type: The type of the document (e.g., "progress_note", "evaluation").
+            strictness: Optional strictness setting ("lenient", "standard", or "strict") to adjust scoring sensitivity.
 
         Returns:
             A dictionary containing the comprehensive analysis result, including findings, explanations, and tips.
 
         """
         logger.info("Starting compliance analysis for document type: %s", doc_type)
+        strictness_level = (strictness or "standard").lower()
+        if strictness_level not in {"lenient", "standard", "strict"}:
+            strictness_level = "standard"
 
         # Extract entities with timeout to prevent hanging
         if progress_callback:
@@ -415,6 +426,13 @@ class ComplianceAnalyzer:
         if progress_callback:
             progress_callback(95, "Finalizing analysis...")
         final_analysis = await self._post_process_findings(explained_analysis, retrieved_rules)
+        if isinstance(final_analysis, dict):
+            score = final_analysis.get("compliance_score")
+            if isinstance(score, (int, float)):
+                adjustments = {"lenient": 5.0, "strict": -7.0}
+                if strictness_level in adjustments:
+                    adjusted_score = max(0.0, min(100.0, float(score) + adjustments[strictness_level]))
+                    final_analysis["compliance_score"] = adjusted_score
         if progress_callback:
             progress_callback(100, "Analysis complete!")
         logger.info("Compliance analysis complete.")

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import hashlib
+import inspect
 import json
 import logging
 import uuid
@@ -360,7 +361,7 @@ class AnalysisService:
             # --- Start of Optimized Two-Stage Pipeline ---
 
             # Stage 0: Initial text processing (optimized for speed)
-            _update_progress(10, "Preprocessing document text...")
+            _update_progress(25, "Preprocessing document text...")
             trimmed_text = trim_document_text(text_to_process)
             # Skip heavy preprocessing for faster analysis - basic cleaning only
             corrected_text = (
@@ -370,22 +371,22 @@ class AnalysisService:
             )
 
             # Stage 1: PHI Redaction (Security First)
-            _update_progress(30, "Performing PHI redaction...")
+            _update_progress(35, "Performing PHI redaction...")
             scrubbed_text = self.phi_scrubber.scrub(corrected_text)
 
             # Stage 2: Clinical Analysis on Anonymized Text (optimized)
-            _update_progress(50, "Classifying document type...")
+            _update_progress(45, "Classifying document type...")
             discipline_clean = sanitize_human_text(discipline or "Unknown")
 
             # Fast-track for shorter documents (skip heavy classification)
             if len(scrubbed_text) < 2000:
                 doc_type_clean = "Progress Note"  # Default for fast processing
-                _update_progress(55, "Using fast-track classification...")
+                _update_progress(50, "Using fast-track classification...")
             else:
-                _update_progress(52, "Running document classification...")
+                _update_progress(48, "Running document classification...")
                 doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
                 doc_type_clean = sanitize_human_text(doc_type_raw or "Progress Note")
-                _update_progress(58, "Document classification completed...")
+                _update_progress(55, "Document classification completed...")
 
             _update_progress(60, "Running compliance analysis...")
             # Add timeout to the entire compliance analysis
@@ -401,13 +402,27 @@ class AnalysisService:
                     "strictness": normalized_strictness
                 }
 
-                # Add progress callback to compliance analyzer
-                def compliance_progress_callback(progress: int, message: str | None) -> None:
-                    # Map compliance analysis progress (0-100) to overall progress (60-90)
-                    overall_progress = 60 + int(progress * 0.3)
-                    _update_progress(overall_progress, message or "Running compliance analysis...")
+                # Adjust kwargs based on analyzer signature to keep compatibility with custom analyzers
+                analyzer_fn = getattr(self.compliance_analyzer, 'analyze_document', None)
+                if analyzer_fn is None:
+                    raise ValueError('Compliance analyzer is not configured correctly.')
+                try:
+                    sig = inspect.signature(analyzer_fn)
+                    params = sig.parameters
+                except (TypeError, ValueError):
+                    params = {}
+                if 'strictness' not in params:
+                    analysis_kwargs.pop('strictness', None)
+                if 'progress_callback' not in params:
+                    analysis_kwargs.pop('progress_callback', None)
 
-                analysis_kwargs["progress_callback"] = compliance_progress_callback
+                supports_progress = 'progress_callback' in params
+                if supports_progress:
+                    def compliance_progress_callback(progress: int, message: str | None) -> None:
+                        # Map compliance analysis progress (0-100) to overall progress (60-90)
+                        overall_progress = 60 + int(progress * 0.3)
+                        _update_progress(overall_progress, message or "Running compliance analysis...")
+                    analysis_kwargs["progress_callback"] = compliance_progress_callback
 
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
@@ -449,9 +464,10 @@ class AnalysisService:
             )
 
             # Enhance with RAG if available
-            if self.rag_system:
+            rag_system = getattr(self, 'rag_system', None)
+            if rag_system:
                 try:
-                    enriched_result = self.rag_system.enhance_analysis_with_rag(
+                    enriched_result = rag_system.enhance_analysis_with_rag(
                         scrubbed_text, enriched_result
                     )
                     logger.info("Analysis enhanced with RAG system")
@@ -515,7 +531,7 @@ class AnalysisService:
 
         logger.info("Running mock analysis pipeline with %d characters of text", len(text_to_process))
 
-        update_progress(10, "Preprocessing document text...")
+        update_progress(25, "Preprocessing document text...")
         await asyncio.sleep(0.2)
         sanitized_text = sanitize_human_text(text_to_process) or "Sample clinical document for compliance analysis. Patient demonstrates improved range of motion and functional mobility. Treatment goals include pain management and functional restoration. Progress noted in activities of daily living."
         doc_length = len(sanitized_text)
@@ -523,12 +539,12 @@ class AnalysisService:
 
         logger.info("Mock pipeline: processed %d characters, discipline: %s", doc_length, discipline)
 
-        update_progress(30, "Performing PHI redaction (mock)...")
+        update_progress(45, "Performing PHI redaction (mock)...")
         await asyncio.sleep(0.2)
         discipline_clean = sanitize_human_text(discipline or "unknown").upper()
         doc_type = "Progress Note" if doc_length < 4000 else "Evaluation"
 
-        update_progress(60, "Generating compliance findings (mock)...")
+        update_progress(70, "Generating compliance findings (mock)...")
         await asyncio.sleep(0.2)
         base_score = 88 + (int(doc_hash[:2], 16) % 7)
         compliance_score = max(70, min(99, base_score))
