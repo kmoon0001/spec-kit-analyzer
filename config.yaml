@@ -53,12 +53,12 @@ rag_system:
     cache_knowledge: true
     ttl_hours: 24
 llm:
-  context_length: 1024
+  context_length: 512
   gpu_layers: 0
   threads: 2
-  hf_model_type: t5
-  model_type: transformers
-  model_repo_id: google/flan-t5-small
+  hf_model_type: llama
+  model_type: llama_cpp
+  model_repo_id: llama
   generation_params:
     max_new_tokens: 128
     repeat_penalty: 1.1
@@ -76,61 +76,20 @@ models:
   analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
   fact_checker: google/flan-t5-small
-  generator: google/flan-t5-small
-  generator_filename: ""
-  generator_local_path: models/flan-t5-small
+  fact_checker_backend: llm
+  generator: llama-local
+  generator_filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
+  generator_local_path: models/llama32-3b
   generator_profiles:
-    clinical_fast:
-      batch_size: 2
-      do_sample: false
+    cpu_llama32_q4:
+      repo: llama
+      filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
+      max_system_gb: 64.0
+      optimize_for_speed: true
       fast_mode: true
-      filename: meditron-7b.Q4_K_M.gguf
-      max_length: 1024
-      max_system_gb: 8.0
-      max_tokens: 512
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      temperature: 0.1
-      use_cache: true
-    clinical_q4_balanced:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q4_K_M.gguf
-      max_length: 1024
-      max_system_gb: 16.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
-    clinical_q5_quality:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q5_K_M.gguf
-      max_length: 1024
-      max_system_gb: 24.0
-      min_system_gb: 16.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
-    clinical_q6_precision:
-      batch_size: 2
-      do_sample: false
-      filename: meditron-7b.Q6_K.gguf
-      max_length: 1024
-      min_system_gb: 24.0
-      num_beams: 1
-      optimize_for_speed: true
-      repo: TheBloke/meditron-7B-GGUF
-      revision: main
-      use_cache: true
   ner_ensemble:
-  - models/openmed-ner
-  - models/biomedical-ner
+  - OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
+  - d4data/biomedical-ner-all
   nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
   optimization:
     cache_models: true
@@ -139,7 +98,7 @@ models:
     use_better_transformer: true
     use_flash_attention: true
   reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
-  retriever: models/sentence-transformers-minilm
+  retriever: pritamdeka/S-PubMedBert-MS-MARCO
 paths:
   api_url: http://127.0.0.1:8001
   cache_dir: .cache
@@ -176,7 +135,7 @@ performance:
   smart_caching: true
 retrieval:
   batch_size: 8
-  dense_model_name: models/sentence-transformers-minilm
+  dense_model_name: pritamdeka/S-PubMedBert-MS-MARCO
   max_sequence_length: 256
   rrf_k: 60
   similarity_top_k: 5

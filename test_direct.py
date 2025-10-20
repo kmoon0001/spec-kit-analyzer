@@ -55,6 +55,7 @@ async def test_analysis_progress():
             document_text=test_content,
             discipline="pt",
             strictness="standard",
+            analysis_mode="llama_test",
             progress_callback=progress_callback
         )
 

@@ -66,6 +66,8 @@ class LLMService:
         try:
             if self.backend == "ctransformers":
                 self._load_ctransformers_model()
+            elif self.backend == "llama_cpp":
+                self._load_llama_cpp_model()
             else:
                 self._load_transformers_model()
             logger.info(
@@ -130,6 +132,10 @@ class LLMService:
         model_kwargs = {k: v for k, v in model_kwargs.items() if v not in (None, "")}
 
         try:
+            # Optional explicit backend library for Windows CPU (e.g., 'avx2')
+            backend_lib = self.settings.get("ctransformers_lib")
+            if backend_lib:
+                model_kwargs["lib"] = backend_lib
             logger.info(f"Loading ctransformers model from: {source}")
             self.llm = AutoModelForCausalLM.from_pretrained(source, **model_kwargs)
             self.tokenizer = None
@@ -142,9 +148,74 @@ class LLMService:
             # Fall back to transformers backend
             self._load_transformers_model()
 
+    def _load_llama_cpp_model(self) -> None:
+        """Load a local GGUF model using llama-cpp-python (CPU-friendly)."""
+        try:
+            from pathlib import Path as _Path
+            from llama_cpp import Llama  # type: ignore[import-untyped]
+        except ImportError as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError("llama-cpp backend requested but not installed") from exc
+
+        source, model_file = self._resolve_model_source()
+
+        # Resolve GGUF file path
+        model_path: _Path
+        if self.local_model_path:
+            base = _Path(self.local_model_path)
+            if base.is_file():
+                model_path = base
+            else:
+                if model_file and model_file != "*.gguf":
+                    model_path = base / model_file
+                else:
+                    ggufs = list(base.glob("*.gguf"))
+                    if not ggufs:
+                        raise ValueError(f"No GGUF model found in {base}")
+                    model_path = ggufs[0]
+        else:
+            base = _Path(source)
+            if base.is_file() and str(base).lower().endswith(".gguf"):
+                model_path = base
+            elif model_file:
+                model_path = base / (model_file or "")
+            else:
+                ggufs = list(base.glob("*.gguf"))
+                if not ggufs:
+                    raise ValueError(f"No GGUF model found in {base}")
+                model_path = ggufs[0]
+
+        if not model_path.exists():
+            raise ValueError(f"GGUF model not found at: {model_path}")
+
+        n_ctx = int(self.settings.get("context_length", 1024))
+        n_threads = int(self.settings.get("threads", 2))
+        n_gpu_layers = int(self.settings.get("gpu_layers", 0))
+
+        try:
+            self.llm = Llama(
+                model_path=str(model_path),
+                n_ctx=n_ctx,
+                n_threads=n_threads,
+                n_gpu_layers=n_gpu_layers,
+                logits_all=False,
+                verbose=False,
+            )
+            self.tokenizer = None
+            self.seq2seq = False
+        except Exception as exc:
+            logger.critical(
+                "Fatal error: Failed to load GGUF via llama-cpp",
+                exc_info=True,
+                extra={"error": str(exc), "model_path": str(model_path)},
+            )
+            self.llm = None
+            self.tokenizer = None
+            raise
+
     def _load_transformers_model(self) -> None:
         model_id, _ = self._resolve_model_source()
-        if not model_id:
+        # Guard against invalid placeholders when falling back from GGUF
+        if not model_id or model_id in {"llama", "llama-local", "local", "gguf"}:
             model_id = "google/flan-t5-small"
 
         try:
@@ -261,6 +332,34 @@ class LLMService:
                     model_identifier, prompt, result, ttl_hours
                 )
 
+                logger.debug(
+                    "LLM generation completed in %ss, cached with TTL {ttl_hours}h",
+                    generation_time,
+                )
+                return result
+
+            if self.backend == "llama_cpp" and self.llm is not None:
+                # llama-cpp returns dict with choices list
+                response = self.llm(
+                    prompt,
+                    max_tokens=max_new_tokens,
+                    temperature=max(temperature, 1e-3),
+                    top_p=top_p,
+                    repeat_penalty=repetition_penalty,
+                    stop=stop_sequences,
+                )
+                result = (response.get("choices", [{}])[0].get("text") or "").strip()
+
+                if len(result) > 2000:
+                    result = result[:2000] + "... [truncated]"
+                if result and result.count(result[:50]) > 3:
+                    result = result[:500] + "... [repetitive content detected]"
+
+                generation_time = time.time() - start_time
+                ttl_hours = 6.0 if generation_time > 5.0 else 12.0
+                LLMResponseCache.set_llm_response(
+                    model_identifier, prompt, result, ttl_hours
+                )
                 logger.debug(
                     "LLM generation completed in %ss, cached with TTL {ttl_hours}h",
                     generation_time,
