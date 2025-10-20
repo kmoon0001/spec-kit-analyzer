@@ -53,14 +53,14 @@ rag_system:
     cache_knowledge: true
     ttl_hours: 24
 llm:
-  context_length: 4096
+  context_length: 1024
   gpu_layers: 0
-  threads: 6
-  hf_model_type: meditron
-  model_type: ctransformers
-  model_repo_id: TheBloke/meditron-7B-GGUF
+  threads: 2
+  hf_model_type: t5
+  model_type: transformers
+  model_repo_id: google/flan-t5-small
   generation_params:
-    max_new_tokens: 1024
+    max_new_tokens: 128
     repeat_penalty: 1.1
     stop_sequences:
     - </analysis>
@@ -75,10 +75,10 @@ maintenance:
 models:
   analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
-  fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
-  generator: TheBloke/meditron-7B-GGUF
-  generator_filename: meditron-7b.Q4_K_M.gguf
-  generator_local_path: models/meditron7b
+  fact_checker: google/flan-t5-small
+  generator: google/flan-t5-small
+  generator_filename: ""
+  generator_local_path: models/flan-t5-small
   generator_profiles:
     clinical_fast:
       batch_size: 2
@@ -129,8 +129,8 @@ models:
       revision: main
       use_cache: true
   ner_ensemble:
-  - d4data/biomedical-ner-all
-  - OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
+  - models/openmed-ner
+  - models/biomedical-ner
   nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
   optimization:
     cache_models: true
@@ -139,7 +139,7 @@ models:
     use_better_transformer: true
     use_flash_attention: true
   reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
-  retriever: pritamdeka/S-PubMedBert-MS-MARCO
+  retriever: models/sentence-transformers-minilm
 paths:
   api_url: http://127.0.0.1:8001
   cache_dir: .cache
@@ -152,21 +152,21 @@ performance:
   batch_size: 4
   context_optimization: true
   enable_caching: true
-  fast_mode: false
-  gpu_acceleration: true
-  gradient_checkpointing: true
+  fast_mode: true
+  gpu_acceleration: false
+  gradient_checkpointing: false
   inference_optimization: true
   max_chunk_size: 2000
-  max_workers: 2
+  max_workers: 1
   memory_efficient_mode: true
   memory_optimization: true
-  mixed_precision: true
+  mixed_precision: false
   model_quantization: true
   optimized_chunking: true
   overlap_size: 200
   skip_advanced_ner: false
   skip_fact_checking: false
-  enable_deep_fact_checking: true
+  enable_deep_fact_checking: false
   rag_fact_checking:
     similarity_threshold: 0.7
     rerank_threshold: 0.8
@@ -175,10 +175,10 @@ performance:
   simple_report_mode: false
   smart_caching: true
 retrieval:
-  batch_size: 16
-  dense_model_name: pritamdeka/S-PubMedBert-MS-MARCO
-  max_sequence_length: 512
+  batch_size: 8
+  dense_model_name: models/sentence-transformers-minilm
+  max_sequence_length: 256
   rrf_k: 60
-  similarity_top_k: 10
+  similarity_top_k: 5
 use_ai_mocks: false
 log_level: INFO

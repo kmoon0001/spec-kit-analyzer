@@ -201,9 +201,23 @@ class AnalysisService:
         self.explanation_engine = (
             kwargs.get("explanation_engine") or ExplanationEngine()
         )
-        self.fact_checker_service = kwargs.get(
-            "fact_checker_service"
-        ) or FactCheckerService(model_name=settings.models.fact_checker)
+        # Fact checker can use either a small pipeline model or reuse the main LLM
+        fc_backend = (
+            getattr(settings.models, "fact_checker_backend", "pipeline")
+            if hasattr(settings, "models")
+            else "pipeline"
+        )
+        if fc_backend == "llm":
+            self.fact_checker_service = kwargs.get("fact_checker_service") or FactCheckerService(
+                model_name=settings.models.fact_checker,
+                llm_service=self.llm_service,
+                backend="llm",
+            )
+        else:
+            self.fact_checker_service = kwargs.get("fact_checker_service") or FactCheckerService(
+                model_name=settings.models.fact_checker,
+                backend="pipeline",
+            )
         self.nlg_service = kwargs.get("nlg_service") or NLGService(
             llm_service=self.llm_service,
             prompt_template_path=settings.models.nlg_prompt_template,
