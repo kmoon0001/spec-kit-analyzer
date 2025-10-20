@@ -19,7 +19,7 @@ from src.core.vector_store import get_vector_store
 from src.logging_config import configure_logging
 from src.config import get_settings
 
-import structlog
+import structlog  # pyright: ignore[reportMissingImports]
 
 logger = structlog.get_logger(__name__)
 
