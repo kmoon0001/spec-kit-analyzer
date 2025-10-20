@@ -129,8 +129,8 @@ models:
       revision: main
       use_cache: true
   ner_ensemble:
-  - models/openmed-ner
-  - models/biomedical-ner
+  - d4data/biomedical-ner-all
+  - sschet/biomedical-ner-all
   nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
   optimization:
     cache_models: true

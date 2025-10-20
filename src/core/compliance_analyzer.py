@@ -20,6 +20,7 @@ The analyzer supports multiple clinical disciplines (PT, OT, SLP) and document t
 import asyncio
 import json
 import logging
+import time
 import sqlite3
 from pathlib import Path
 from typing import Any, Callable
@@ -288,10 +289,15 @@ class ComplianceAnalyzer:
         if progress_callback:
             progress_callback(10, "Extracting clinical entities...")
         try:
+            ner_start_time = time.time()
             if self.ner_service:
                 entities = await asyncio.wait_for(
                     asyncio.to_thread(self.ner_service.extract_entities, document_text),
                     timeout=30.0,  # 30 second timeout for NER
+                )
+                logger.info(
+                    "NER extraction completed in %.2f seconds",
+                    time.time() - ner_start_time,
                 )
             else:
                 entities = []
@@ -313,6 +319,7 @@ class ComplianceAnalyzer:
         if progress_callback:
             progress_callback(30, "Retrieving compliance rules...")
         try:
+            retrieval_start_time = time.time()
             # Add timeout to retrieval to prevent hanging
             retrieved_rules = await asyncio.wait_for(
                 self.retriever.retrieve(
@@ -325,6 +332,10 @@ class ComplianceAnalyzer:
                     ),
                 ),
                 timeout=60.0,  # 1 minute timeout for rule retrieval
+            )
+            logger.info(
+                "Rule retrieval completed in %.2f seconds",
+                time.time() - retrieval_start_time,
             )
             logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
         except TimeoutError:
@@ -362,14 +373,19 @@ class ComplianceAnalyzer:
                 prompt = prompt[:1600] + "\n\n[Document truncated for faster analysis]"
 
             try:
+                llm_start_time = time.time()
                 # Add timeout to prevent hanging - allow more time in production
                 raw_analysis_result = await asyncio.wait_for(
                     asyncio.to_thread(self.llm_service.generate, prompt),
-                    timeout=60.0,  # Reduced to 60 seconds for faster response
+                    timeout=120.0,  # 2 minutes for LLM generation
+                )
+                logger.info(
+                    "LLM generation completed in %.2f seconds",
+                    time.time() - llm_start_time,
                 )
             except TimeoutError:
                 logger.exception(
-                    "LLM generation timed out after 60 seconds - using fallback analysis"
+                    "LLM generation timed out after 120 seconds - using fallback analysis"
                 )
                 # Provide a basic fallback analysis when LLM times out
                 raw_analysis_result = """{

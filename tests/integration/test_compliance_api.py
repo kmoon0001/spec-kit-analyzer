@@ -1,20 +1,14 @@
 import pytest
-from fastapi.testclient import TestClient
-
-from src.api.main import app
-
-
-@pytest.fixture
-def client():
-    """Provides a test client for the FastAPI application."""
-    return TestClient(app)
+from httpx import AsyncClient
 
 
 @pytest.mark.integration
 class TestComplianceAPI:
     """Test suite for the compliance evaluation API endpoint."""
 
-    def test_evaluate_endpoint_success_one_finding(self, client):
+    async def test_evaluate_endpoint_success_one_finding(
+        self, authenticated_client: AsyncClient
+    ):
         """
         Test the /evaluate endpoint with a document that should trigger exactly one finding.
         This document satisfies all rules except for the 'Goals' rule.
@@ -25,15 +19,19 @@ class TestComplianceAPI:
             "discipline": "pt",
             "document_type": "Progress Note",
         }
-        response = client.post("/compliance/evaluate", json=payload)
+        response = await authenticated_client.post("/compliance/evaluate", json=payload)
         assert response.status_code == 200
 
         data = response.json()
         assert not data["is_compliant"]
-        assert len(data["findings"]) == 1, f"Expected 1 finding, but got {len(data['findings'])}"
+        assert (
+            len(data["findings"]) == 1
+        ), f"Expected 1 finding, but got {len(data['findings'])}"
         assert "goals" in data["findings"][0]["rule"]["issue_title"].lower()
 
-    def test_evaluate_endpoint_fully_compliant(self, client):
+    async def test_evaluate_endpoint_fully_compliant(
+        self, authenticated_client: AsyncClient
+    ):
         """
         Test the /evaluate endpoint with a document that should be fully compliant.
         """
@@ -43,15 +41,18 @@ class TestComplianceAPI:
             "discipline": "pt",
             "document_type": "Progress Note",
         }
-        response = client.post("/compliance/evaluate", json=payload)
+        response = await authenticated_client.post("/compliance/evaluate", json=payload)
         assert response.status_code == 200
         data = response.json()
         assert data["is_compliant"], (
-            f"Expected document to be compliant, but it had findings: {[f['rule']['issue_title'] for f in data['findings']]}"
+            "Expected document to be compliant, but it had findings: "
+            f"{[f['rule']['issue_title'] for f in data['findings']]}"
         )
         assert len(data["findings"]) == 0
 
-    def test_evaluate_endpoint_missing_signature(self, client):
+    async def test_evaluate_endpoint_missing_signature(
+        self, authenticated_client: AsyncClient
+    ):
         """
         Test a document that is missing a required keyword (signature), but satisfies other rules.
         """
@@ -61,19 +62,23 @@ class TestComplianceAPI:
             "discipline": "pt",
             "document_type": "Evaluation",
         }
-        response = client.post("/compliance/evaluate", json=payload)
+        response = await authenticated_client.post("/compliance/evaluate", json=payload)
         assert response.status_code == 200
         data = response.json()
         assert not data["is_compliant"]
-        assert len(data["findings"]) == 1, f"Expected 1 finding, but got {len(data['findings'])}"
+        assert (
+            len(data["findings"]) == 1
+        ), f"Expected 1 finding, but got {len(data['findings'])}"
         assert "signature" in data["findings"][0]["rule"]["issue_title"].lower()
 
-    def test_evaluate_endpoint_bad_request(self, client):
+    async def test_evaluate_endpoint_bad_request(
+        self, authenticated_client: AsyncClient
+    ):
         """Test the /evaluate endpoint with an invalid payload."""
         payload = {
             "id": "doc4",
             "text": "This is a test.",
             # Missing discipline and document_type
         }
-        response = client.post("/compliance/evaluate", json=payload)
+        response = await authenticated_client.post("/compliance/evaluate", json=payload)
         assert response.status_code == 422  # Unprocessable Entity

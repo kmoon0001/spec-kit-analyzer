@@ -14,8 +14,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.api.main import app
+from src.api.main import app
+from src.auth import AuthService
 from src.core.vector_store import VectorStore, get_vector_store
 from src.database import Base, get_async_db, models
+from src.database.crud import create_user
 
 
 @pytest.fixture(scope="session")
@@ -148,6 +151,63 @@ async def populated_db(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
         yield db_session
     finally:
         await _truncate_all(db_session)
+
+
+@pytest_asyncio.fixture
+async def test_user(db_session: AsyncSession):
+    """Create a test user in the database."""
+    from src.database.schemas import UserCreate
+
+    user_data = UserCreate(username="testuser", password="testpassword")
+    auth_service = AuthService()
+    hashed_password = auth_service.get_password_hash(user_data.password)
+    user = await create_user(
+        db=db_session, user=user_data, hashed_password=hashed_password
+    )
+    return user
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession):
+    """Create an admin user in the database."""
+    from src.database.schemas import UserCreate
+
+    user_data = UserCreate(
+        username="adminuser", password="testpassword", is_admin=True
+    )
+    auth_service = AuthService()
+    hashed_password = auth_service.get_password_hash(user_data.password)
+    user = await create_user(
+        db=db_session, user=user_data, hashed_password=hashed_password, is_admin=True
+    )
+    return user
+
+
+async def get_test_user_headers(test_user: models.User) -> dict[str, str]:
+    """Generate authentication headers for a test user."""
+    auth_service = AuthService()
+    access_token = auth_service.create_access_token(data={"sub": test_user.username})
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest_asyncio.fixture
+async def authenticated_client(
+    client: AsyncClient, test_user: models.User
+) -> AsyncClient:
+    """An authenticated HTTPX client."""
+    headers = await get_test_user_headers(test_user)
+    client.headers.update(headers)
+    yield client
+
+
+@pytest_asyncio.fixture
+async def authenticated_admin_client(
+    client: AsyncClient, admin_user: models.User
+) -> AsyncClient:
+    """An authenticated HTTPX client with admin privileges."""
+    headers = await get_test_user_headers(admin_user)
+    client.headers.update(headers)
+    yield client
 
 
 @pytest_asyncio.fixture

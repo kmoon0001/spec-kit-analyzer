@@ -4,6 +4,7 @@ import hashlib
 import inspect
 import json
 import logging
+import time
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -46,7 +47,7 @@ class AnalysisConstants:
 
     # Timeout values (in seconds)
     COMPLIANCE_ANALYSIS_TIMEOUT = 300.0  # 5 minutes
-    REPORT_GENERATION_TIMEOUT = 60.0  # 1 minute
+    REPORT_GENERATION_TIMEOUT = 120.0  # 2 minutes
 
     # Document processing thresholds
     FAST_TRACK_DOCUMENT_LENGTH = 2000
@@ -281,6 +282,8 @@ class AnalysisService:
             if progress_callback:
                 progress_callback(percentage, message)
 
+        start_time = time.time()
+        logger.info("Starting analysis pipeline...")
         _update_progress(0, "Starting analysis pipeline...")
 
         normalized_strictness = (
@@ -351,6 +354,9 @@ class AnalysisService:
             logger.info(
                 "Successfully extracted %d characters of text for analysis",
                 len(text_to_process),
+            )
+            logger.info(
+                "Document parsing completed in %.2f seconds", time.time() - start_time
             )
             _update_progress(15, "Document parsing completed successfully...")
 
@@ -446,7 +452,11 @@ class AnalysisService:
 
             # Stage 1: PHI Redaction (Security First)
             _update_progress(35, "Performing PHI redaction...")
+            scrub_start_time = time.time()
             scrubbed_text = self.phi_scrubber.scrub(corrected_text)
+            logger.info(
+                "PHI redaction completed in %.2f seconds", time.time() - scrub_start_time
+            )
 
             # Stage 2: Clinical Analysis on Anonymized Text (optimized)
             _update_progress(45, "Classifying document type...")
@@ -458,15 +468,21 @@ class AnalysisService:
                 _update_progress(50, "Using fast-track classification...")
             else:
                 _update_progress(48, "Running document classification...")
+                classification_start_time = time.time()
                 doc_type_raw = await self._maybe_await(
                     self.document_classifier.classify_document(scrubbed_text)
                 )
                 doc_type_clean = sanitize_human_text(doc_type_raw or "Progress Note")
+                logger.info(
+                    "Document classification completed in %.2f seconds",
+                    time.time() - classification_start_time,
+                )
                 _update_progress(55, "Document classification completed...")
 
             _update_progress(60, "Running compliance analysis...")
             # Add timeout to the entire compliance analysis
             try:
+                compliance_start_time = time.time()
                 logger.info(
                     "Starting compliance analysis with %d characters of scrubbed text",
                     len(scrubbed_text),
@@ -516,9 +532,12 @@ class AnalysisService:
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(**analysis_kwargs)
                     ),
-                    timeout=120.0,  # 2 minute timeout for entire analysis
+                    timeout=AnalysisConstants.COMPLIANCE_ANALYSIS_TIMEOUT,  # 5 minutes
                 )
-                logger.info("Compliance analysis completed successfully")
+                logger.info(
+                    "Compliance analysis completed in %.2f seconds",
+                    time.time() - compliance_start_time,
+                )
                 logger.info(
                     "Analysis result keys: %s",
                     (
@@ -584,11 +603,16 @@ class AnalysisService:
             _update_progress(95, "Generating report...")
             # Add timeout to report generation
             try:
+                report_start_time = time.time()
                 report = await asyncio.wait_for(
                     self._maybe_await(
                         self.report_generator.generate_report(enriched_result)
                     ),
-                    timeout=60.0,  # 1 minute timeout for report generation
+                    timeout=AnalysisConstants.REPORT_GENERATION_TIMEOUT,
+                )
+                logger.info(
+                    "Report generation completed in %.2f seconds",
+                    time.time() - report_start_time,
                 )
                 final_report = {
                     "analysis": enriched_result,

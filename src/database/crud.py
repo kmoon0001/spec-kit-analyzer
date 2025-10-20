@@ -89,7 +89,7 @@ async def create_user(
         username=user.username,
         hashed_password=hashed_password,
         is_active=True,
-        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", False),
+        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", default_admin_flag),
     )
     db.add(db_user)
     try:
