@@ -380,9 +380,12 @@ class AnalysisService:
             # Fast-track for shorter documents (skip heavy classification)
             if len(scrubbed_text) < 2000:
                 doc_type_clean = "Progress Note"  # Default for fast processing
+                _update_progress(55, "Using fast-track classification...")
             else:
+                _update_progress(52, "Running document classification...")
                 doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
                 doc_type_clean = sanitize_human_text(doc_type_raw or "Progress Note")
+                _update_progress(58, "Document classification completed...")
 
             _update_progress(60, "Running compliance analysis...")
             # Add timeout to the entire compliance analysis
@@ -398,17 +401,25 @@ class AnalysisService:
                     "strictness": normalized_strictness
                 }
 
+                # Add progress callback to compliance analyzer
+                def compliance_progress_callback(progress: int, message: str | None) -> None:
+                    # Map compliance analysis progress (0-100) to overall progress (60-90)
+                    overall_progress = 60 + int(progress * 0.3)
+                    _update_progress(overall_progress, message or "Running compliance analysis...")
+
+                analysis_kwargs["progress_callback"] = compliance_progress_callback
+                
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(**analysis_kwargs)
                     ),
-                    timeout=300.0,  # 5 minute timeout for entire analysis
+                    timeout=120.0,  # 2 minute timeout for entire analysis
                 )
                 logger.info("Compliance analysis completed successfully")
                 logger.info("Analysis result keys: %s", list(analysis_result.keys()) if isinstance(analysis_result, dict) else "Not a dict")
                 logger.info("Compliance score in result: %s", analysis_result.get("compliance_score") if isinstance(analysis_result, dict) else "N/A")
             except TimeoutError:
-                logger.error("Compliance analysis timed out after 5 minutes")
+                logger.error("Compliance analysis timed out after 2 minutes")
                 analysis_result = {
                     "findings": [],
                     "summary": "Analysis timed out - document may be too complex or system resources limited.",

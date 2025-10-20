@@ -211,7 +211,7 @@ class MLTrainingPipeline:
             production_path = self.models_dir / "confidence_calibrator.pkl"
             calibrator.save(production_path)
 
-            logger.info("Deployed new calibrator with %.1%% ECE improvement", ece_improvement * 100)
+            logger.info("Deployed new calibrator with %.1f%% ECE improvement", ece_improvement * 100)
 
             return {
                 "deployed": True,

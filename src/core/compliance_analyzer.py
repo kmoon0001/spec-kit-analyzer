@@ -22,7 +22,7 @@ import json
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import sqlalchemy
@@ -231,7 +231,7 @@ class ComplianceAnalyzer:
             "metrics": metrics,
         }
 
-    async def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> dict[str, Any]:
+    async def analyze_document(self, document_text: str, discipline: str, doc_type: str, progress_callback: Callable[[int, str | None], None] | None = None) -> dict[str, Any]:
         """Analyzes a given document for compliance based on discipline and document type.
 
         This method orchestrates the compliance analysis process:
@@ -254,6 +254,8 @@ class ComplianceAnalyzer:
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
         # Extract entities with timeout to prevent hanging
+        if progress_callback:
+            progress_callback(10, "Extracting clinical entities...")
         try:
             if self.ner_service:
                 entities = await asyncio.wait_for(
@@ -275,6 +277,8 @@ class ComplianceAnalyzer:
         )
 
         search_query = f"{discipline} {doc_type} {entity_list_str}"
+        if progress_callback:
+            progress_callback(30, "Retrieving compliance rules...")
         try:
             # Add timeout to retrieval to prevent hanging
             retrieved_rules = await asyncio.wait_for(
@@ -312,6 +316,8 @@ class ComplianceAnalyzer:
             prompt = f"Analyze this document for compliance:\n{doc_for_prompt}\n\nRules:\n{formatted_rules}"
 
         if self.llm_service:
+            if progress_callback:
+                progress_callback(50, "Generating compliance analysis...")
             # Use shorter prompt for faster processing
             if len(prompt) > 1800:  # Truncate very long prompts for CPU
                 prompt = prompt[:1600] + "\n\n[Document truncated for faster analysis]"
@@ -320,10 +326,10 @@ class ComplianceAnalyzer:
                 # Add timeout to prevent hanging - allow more time in production
                 raw_analysis_result = await asyncio.wait_for(
                     asyncio.to_thread(self.llm_service.generate, prompt),
-                    timeout=90.0,  # Up to 90 seconds for local model generation
+                    timeout=60.0,  # Reduced to 60 seconds for faster response
                 )
             except TimeoutError:
-                logger.exception("LLM generation timed out after 30 seconds - using fallback analysis")
+                logger.exception("LLM generation timed out after 60 seconds - using fallback analysis")
                 # Provide a basic fallback analysis when LLM times out
                 raw_analysis_result = """{
                     "findings": [
@@ -375,6 +381,8 @@ class ComplianceAnalyzer:
                 "summary": "Basic compliance check completed without AI analysis",
                 "error": "No LLM service available"
             }"""
+        if progress_callback:
+            progress_callback(70, "Processing analysis results...")
         try:
             initial_analysis = json.loads(raw_analysis_result)
         except json.JSONDecodeError:
@@ -389,6 +397,8 @@ class ComplianceAnalyzer:
             document_type=doc_type, discipline=discipline, rubric_name=f"{discipline.upper()} Compliance Rubric"
         )
 
+        if progress_callback:
+            progress_callback(80, "Adding explanations and tips...")
         if self.explanation_engine:
             explained_analysis = self.explanation_engine.add_explanations(
                 initial_analysis, document_text, explanation_context, retrieved_rules
@@ -397,10 +407,16 @@ class ComplianceAnalyzer:
             explained_analysis = initial_analysis
 
         # Apply confidence calibration before final post-processing
+        if progress_callback:
+            progress_callback(90, "Calibrating confidence scores...")
         if "findings" in explained_analysis and isinstance(explained_analysis["findings"], list):
             explained_analysis["findings"] = self._calibrate_confidence_scores(explained_analysis["findings"])
 
+        if progress_callback:
+            progress_callback(95, "Finalizing analysis...")
         final_analysis = await self._post_process_findings(explained_analysis, retrieved_rules)
+        if progress_callback:
+            progress_callback(100, "Analysis complete!")
         logger.info("Compliance analysis complete.")
         return final_analysis
 
