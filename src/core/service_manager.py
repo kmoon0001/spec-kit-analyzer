@@ -7,6 +7,7 @@ import asyncio
 import logging
 import socket
 import subprocess
+import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -42,6 +43,119 @@ class ServiceConfig:
 
 class ServiceManager:
     """Manages multiple services with port conflict detection and resolution."""
+    def _prepare_command_with_port(self, command: List[str], port: int) -> List[str]:
+        """Return a command list with the desired port substituted when possible."""
+        patched: List[str] = []
+        i = 0
+        length = len(command)
+        command_set = False
+        while i < length:
+            token = command[i]
+            if token in {"--port", "-p"}:
+                patched.append(token)
+                if i + 1 < length:
+                    patched.append(str(port))
+                    i += 2
+                else:
+                    i += 1
+                command_set = True
+                continue
+            if token.startswith("--port="):
+                patched.append(f"--port={port}")
+                command_set = True
+            else:
+                patched.append(token)
+            i += 1
+        if not command_set:
+            return command.copy()
+        return patched
+
+    def _log_port_conflicts(self, port: int, service_name: str) -> None:
+        """Log processes that currently occupy the requested port."""
+        try:
+            connections = psutil.net_connections(kind='inet')
+        except (psutil.AccessDenied, psutil.ZombieProcess):
+            logger.warning(
+                "Insufficient permissions to inspect port %s usage. On Windows, run PowerShell as Administrator to gather details.",
+                port,
+            )
+            return
+        except NotImplementedError:
+            logger.warning(
+                "Platform does not support port inspection; skipping diagnostics for port %s",
+                port,
+            )
+            return
+
+        conflicts: list[str] = []
+        for conn in connections:
+            if not conn.laddr or conn.laddr.port != port:
+                continue
+            pid = conn.pid
+            if pid is None:
+                continue
+            try:
+                proc = psutil.Process(pid)
+                conflicts.append(f"pid={pid} name={proc.name()} exe={proc.exe()}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                conflicts.append(f"pid={pid}")
+        if conflicts:
+            logger.warning(
+                "Detected existing process(es) using port %s before starting service %s: %s",
+                port,
+                service_name,
+                "; ".join(conflicts),
+            )
+
+    async def _cleanup_failed_process(self, service_name: str, process: subprocess.Popen) -> tuple[str, str]:
+        """Terminate a failed child process and return its captured output."""
+        stdout_text = ''
+        stderr_text = ''
+        if process.poll() is None:
+            process.terminate()
+            try:
+                await asyncio.to_thread(process.wait, 5)
+            except Exception:
+                process.kill()
+                await asyncio.to_thread(process.wait, 5)
+        try:
+            stdout_bytes, stderr_bytes = process.communicate(timeout=0.5)
+            if stdout_bytes:
+                stdout_text = stdout_bytes.decode(errors='ignore') if isinstance(stdout_bytes, (bytes, bytearray)) else stdout_bytes
+            if stderr_bytes:
+                stderr_text = stderr_bytes.decode(errors='ignore') if isinstance(stderr_bytes, (bytes, bytearray)) else stderr_bytes
+        except Exception:
+            pass
+        self.processes.pop(service_name, None)
+        self.status[service_name] = ServiceStatus.FAILED
+        return stdout_text, stderr_text
+
+    def _handle_start_failure(self, service_name: str, port: int, stderr_output: str) -> None:
+        """Emit contextual logs for common startup failures."""
+        stderr_lower = (stderr_output or '').lower()
+        if '10013' in stderr_lower or ('permission' in stderr_lower and 'denied' in stderr_lower):
+            logger.error(
+                "Service %s was blocked from binding to port %s (WinError 10013 / permission denied)."
+                " Try closing security software that reserves the port or launch this shell as Administrator.",
+                service_name,
+                port,
+            )
+        elif 'eaddrinuse' in stderr_lower or 'already in use' in stderr_lower:
+            logger.error(
+                "Service %s could not bind to port %s because it is already in use. Close the application using that port"
+                " or update the configured port in config.yaml.",
+                service_name,
+                port,
+            )
+        elif 'used by another process' in stderr_lower:
+            logger.error(
+                "Service %s encountered a file lock while starting. Close any running Electron/Node instances before retrying.",
+                service_name,
+            )
+        elif stderr_output:
+            logger.error("Service %s failed to start. stderr: %s", service_name, stderr_output.strip())
+        else:
+            logger.error("Service %s failed to reach ready state. Check logs for more details.", service_name)
 
     def __init__(self):
         self.services: Dict[str, ServiceConfig] = {}
@@ -64,35 +178,42 @@ class ServiceManager:
         config = self.services[service_name]
 
         async with self._lock:
-            # Check if port is available
+            command = list(config.command)
+            actual_port = config.port
+
             if not await self._is_port_available(config.port):
                 logger.warning("Port conflict detected", port=config.port, service=service_name)
-                # Try to find alternative port
+                self._log_port_conflicts(config.port, service_name)
                 alternative_port = await self._find_available_port(config.port)
                 if alternative_port:
-                    logger.info("Using alternative port",
-                              original_port=config.port,
-                              alternative_port=alternative_port,
-                              service=service_name)
-                    config.port = alternative_port
+                    logger.info(
+                        "Using alternative port",
+                        original_port=config.port,
+                        alternative_port=alternative_port,
+                        service=service_name,
+                    )
+                    actual_port = alternative_port
                 else:
                     logger.error("No available ports found", service=service_name)
                     return False
 
-            # Start the service
             try:
                 self.status[service_name] = ServiceStatus.STARTING
 
-                # Prepare environment
-                env = config.env_vars or {}
-                env.update({
-                    'PORT': str(config.port),
-                    'API_PORT': str(config.port),
-                })
+                env = os.environ.copy()
+                if config.env_vars:
+                    env.update(config.env_vars)
 
-                # Start process
+                if actual_port:
+                    env['PORT'] = str(actual_port)
+                    env['API_PORT'] = str(actual_port)
+                    env.setdefault('UVICORN_PORT', str(actual_port))
+                    env.setdefault('FASTAPI_PORT', str(actual_port))
+
+                prepared_command = self._prepare_command_with_port(command, actual_port)
+
                 process = subprocess.Popen(
-                    config.command,
+                    prepared_command,
                     cwd=config.working_dir,
                     env=env,
                     stdout=subprocess.PIPE,
@@ -101,19 +222,21 @@ class ServiceManager:
                 )
 
                 self.processes[service_name] = process
+                config.port = actual_port
 
-                # Wait for startup
                 if await self._wait_for_service_ready(service_name, config):
                     self.status[service_name] = ServiceStatus.RUNNING
-                    logger.info("Service started successfully",
-                              service=service_name,
-                              port=config.port,
-                              pid=process.pid)
+                    logger.info(
+                        "Service started successfully",
+                        service=service_name,
+                        port=actual_port,
+                        pid=process.pid,
+                    )
                     return True
-                else:
-                    self.status[service_name] = ServiceStatus.FAILED
-                    logger.error("Service failed to start", service=service_name)
-                    return False
+
+                stdout_text, stderr_text = await self._cleanup_failed_process(service_name, process)
+                self._handle_start_failure(service_name, actual_port, stderr_text)
+                return False
 
             except Exception as e:
                 self.status[service_name] = ServiceStatus.FAILED
@@ -281,3 +404,4 @@ def create_default_services() -> ServiceManager:
     ))
 
     return manager
+
