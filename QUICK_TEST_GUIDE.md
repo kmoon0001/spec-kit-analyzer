@@ -156,6 +156,21 @@ The following files were modified to fix the issues:
 - `frontend/electron-react-app/src/components/ui/Card.module.css`
 - `frontend/electron-react-app/src/theme/global.css`
 
+## 📊 Automated Coverage Checks
+
+1. **Backend (pytest)**  
+```bash
+python -m pytest
+```
+
+2. **Frontend (Electron + React)**  
+```bash
+cd frontend/electron-react-app
+npm install
+npm run test:coverage
+```
+   *Outputs coverage artifacts in `frontend/electron-react-app/coverage`.*
+
 ## 🎯 Next Steps
 
 After testing:

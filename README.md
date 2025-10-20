@@ -62,13 +62,16 @@
    pip install -r requirements-optimized.txt
    ```
 
-4. **Start the application**
+4. **Install frontend dependencies**
    ```bash
-   # Terminal 1: Start API server
-   python scripts/run_api.py
+   cd frontend/electron-react-app
+   npm install
+   ```
 
-   # Terminal 2: Start GUI
-   python scripts/run_gui.py
+5. **Start the desktop application**
+   ```bash
+   # Boots FastAPI backend + Electron renderer
+   python start_robust.py
    ```
 
 6. **Login**
@@ -96,16 +99,16 @@
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│   PySide6 GUI   │    │   FastAPI API   │
-│   (Frontend)    │◄──►│   (Backend)     │
-└─────────────────┘    └─────────────────┘
-         │                       │
-         ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐
-│  Local AI/ML    │    │ SQLite Database │
-│  Processing     │    │ (Encrypted)     │
-└─────────────────┘    └─────────────────┘
++----------------------+    +---------------------+
+| Electron + React UI  |    |     FastAPI API     |
+|      (Frontend)      |<-->|      (Backend)      |
++----------------------+    +---------------------+
+            |                           |
+            v                           v
++----------------------+    +---------------------+
+|   Local AI / ML      |    |   SQLite Database   |
+|   Processing         |    |     (Encrypted)     |
++----------------------+    +---------------------+
 ```
 
 ### Key Components

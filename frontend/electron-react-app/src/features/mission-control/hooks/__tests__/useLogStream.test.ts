@@ -1,12 +1,14 @@
 import { act, renderHook } from '@testing-library/react';
 
 import { useLogStream } from '../useLogStream';
-import { useAppStore } from '../../../store/useAppStore';
+import { useAppStore } from 'store/useAppStore';
+import * as configModule from 'lib/config';
+import * as backoffModule from 'lib/network/backoff';
 
 let originalWebSocket: typeof WebSocket | undefined;
 
-const nextMock = jest.fn(() => 1000);
-const resetMock = jest.fn();
+const mockNext = jest.fn(() => 1000);
+const mockReset = jest.fn();
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -23,17 +25,9 @@ class MockWebSocket {
   }
 }
 
-jest.mock('../../../lib/config', () => ({
-  getConfig: jest.fn(() => ({ apiBaseUrl: 'http://localhost:8100', isDesktop: false, isDev: false })),
-  getNormalizedApiBaseUrl: jest.fn((config) => config.apiBaseUrl),
-}));
-
-jest.mock('../../../lib/network/backoff', () => ({
-  createExponentialBackoff: jest.fn(() => ({
-    next: nextMock,
-    reset: resetMock,
-  })),
-}));
+const getConfigMock = jest.spyOn(configModule, 'getConfig');
+const getNormalizedBaseMock = jest.spyOn(configModule, 'getNormalizedApiBaseUrl');
+const createBackoffMock = jest.spyOn(backoffModule, 'createExponentialBackoff');
 
 describe('useLogStream', () => {
   beforeAll(() => {
@@ -63,8 +57,17 @@ describe('useLogStream', () => {
 
   beforeEach(() => {
     MockWebSocket.instances.length = 0;
-    resetMock.mockClear();
-    nextMock.mockClear();
+    mockReset.mockClear();
+    mockNext.mockClear();
+
+    getConfigMock.mockReturnValue({
+      apiBaseUrl: 'http://localhost:8100',
+      isDesktop: false,
+      isDev: false,
+    });
+    getNormalizedBaseMock.mockImplementation((config) => config.apiBaseUrl);
+    createBackoffMock.mockReturnValue({ next: mockNext, reset: mockReset });
+
     act(() => {
       useAppStore.setState((state) => ({
         auth: { ...state.auth, token: null, username: null },
@@ -101,7 +104,7 @@ describe('useLogStream', () => {
       socket.onopen?.();
     });
 
-    expect(resetMock).toHaveBeenCalledTimes(1);
+    expect(mockReset).toHaveBeenCalledTimes(1);
     expect(result.current.isConnected).toBe(true);
     expect(result.current.connectionError).toBeNull();
 
@@ -143,7 +146,7 @@ describe('useLogStream', () => {
 
     expect(result.current.isConnected).toBe(false);
     expect(result.current.connectionError).toBe('Log stream disconnected, attempting to reconnect...');
-    expect(nextMock).toHaveBeenCalledTimes(1);
+    expect(mockNext).toHaveBeenCalledTimes(1);
     expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
 
     const reconnectFn = setTimeoutSpy.mock.calls[0]?.[0] as () => void;

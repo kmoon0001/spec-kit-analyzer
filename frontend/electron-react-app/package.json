@@ -33,7 +33,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
+    "test": "cross-env CI=true react-scripts test --env=jsdom --watchAll=false --coverage",
     "eject": "react-scripts eject",
     "electron:dev": "wait-on http://127.0.0.1:3001 && npx electron . > electron.log 2>&1",
     "electron:build": "electron-builder",
@@ -45,7 +45,10 @@
     "preview": "serve -s build",
     "dev": "npm run start:electron",
     "dev:full": "concurrently --kill-others \"npm run start:renderer\" \"wait-on tcp:3001 && electron .\"",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test:watch": "react-scripts test --env=jsdom",
+    "test:coverage": "cross-env CI=true react-scripts test --env=jsdom --watchAll=false --coverage",
+    "test:ci": "cross-env CI=true react-scripts test --env=jsdom --watchAll=false --coverage"
   },
   "eslintConfig": {
     "extends": [
@@ -93,5 +96,18 @@
     "directories": {
       "buildResources": "assets"
     }
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/?(*.)+(spec|test).[tj]s?(x)",
+      "!src/**/*.d.ts",
+      "!src/**/__tests__/**"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ]
   }
 }

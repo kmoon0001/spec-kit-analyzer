@@ -37,6 +37,22 @@ Look for these Qt-like improvements:
 
 ---
 
+## 📈 Automated Coverage
+
+### Backend (pytest)
+```bash
+python -m pytest
+```
+
+### Frontend (Electron + React)
+```bash
+cd frontend/electron-react-app
+npm install
+npm run test:coverage
+```
+
+*Generates coverage reports in `frontend/electron-react-app/coverage` (text + HTML + lcov).*
+
 ## 📖 Documentation
 
 | Document | Purpose |

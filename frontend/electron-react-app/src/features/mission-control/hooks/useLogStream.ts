@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getConfig, getNormalizedApiBaseUrl } from '../../../lib/config';
-import { createExponentialBackoff } from '../../../lib/network/backoff';
-import { useAppStore } from '../../../store/useAppStore';
+import { getConfig, getNormalizedApiBaseUrl } from 'lib/config';
+import { createExponentialBackoff } from 'lib/network/backoff';
+import { useAppStore } from 'store/useAppStore';
 
 const MAX_MESSAGES = 100;
 const textDecoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
@@ -18,7 +18,9 @@ export type LogEntry = {
 
 const buildLogStreamUrl = (token: string) => {
   const runtimeConfig = getConfig();
-  const baseUrl = getNormalizedApiBaseUrl(runtimeConfig).replace(/^http/i, 'ws');
+  const normalizedBase = getNormalizedApiBaseUrl(runtimeConfig);
+  const fallbackBase = runtimeConfig.apiBaseUrl ?? 'http://127.0.0.1:8001';
+  const baseUrl = (normalizedBase ?? fallbackBase).replace(/^http/i, 'ws');
   const url = new URL(`${baseUrl}/ws/logs`);
   url.searchParams.set('token', token);
   return url.toString();
