@@ -15,11 +15,12 @@ os.environ["MKL_NUM_THREADS"] = "1"
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import uuid
 import time
+from typing import Optional
 
 app = FastAPI(
     title="Therapy Compliance Analyzer API",
@@ -90,6 +91,46 @@ async def start_analysis(file: UploadFile = File(...)):
     asyncio.create_task(update_progress())
     return {"task_id": task_id, "status": "started"}
 
+async def start_analysis_with_params(
+    file: UploadFile = File(...),
+    discipline: str = Form("pt"),
+    analysis_mode: str = Form("rubric"),
+    strictness: str = Form("balanced"),
+    rubric: Optional[str] = Form(None)
+):
+    """Start analysis with additional parameters"""
+    task_id = str(uuid.uuid4())
+    tasks[task_id] = {
+        "id": task_id,
+        "status": "running",
+        "progress": 0,
+        "created_at": time.time(),
+        "file_name": file.filename,
+        "discipline": discipline,
+        "analysis_mode": analysis_mode,
+        "strictness": strictness,
+        "rubric": rubric
+    }
+
+    # Simulate analysis progress
+    async def update_progress():
+        for i in range(5, 101, 5):
+            await asyncio.sleep(0.5)
+            if task_id in tasks:
+                tasks[task_id]["progress"] = i
+                if i == 100:
+                    tasks[task_id]["status"] = "completed"
+                    tasks[task_id]["result"] = {
+                        "compliance_score": 85.5,
+                        "findings": [
+                            {"id": "F-1", "severity": "medium", "description": "Missing functional goals documentation"},
+                            {"id": "F-2", "severity": "low", "description": "Plan of care could be more specific"}
+                        ]
+                    }
+
+    asyncio.create_task(update_progress())
+    return {"task_id": task_id, "status": "started"}
+
 @app.get("/api/analysis/status/{task_id}")
 def get_analysis_status(task_id: str):
     if task_id not in tasks:
@@ -113,14 +154,26 @@ def get_all_tasks_no_prefix():
     return {"tasks": list(tasks.values())}
 
 @app.post("/analysis/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    discipline: str = Form("pt"),
+    analysis_mode: str = Form("rubric"),
+    strictness: str = Form("balanced"),
+    rubric: Optional[str] = Form(None)
+):
     """Upload document for analysis - legacy endpoint"""
-    return await start_analysis(file)
+    return await start_analysis_with_params(file, discipline, analysis_mode, strictness, rubric)
 
 @app.post("/analysis/analyze")
-async def analyze_document(file: UploadFile = File(...)):
+async def analyze_document(
+    file: UploadFile = File(...),
+    discipline: str = Form("pt"),
+    analysis_mode: str = Form("rubric"),
+    strictness: str = Form("balanced"),
+    rubric: Optional[str] = Form(None)
+):
     """Analyze document - main endpoint"""
-    return await start_analysis(file)
+    return await start_analysis_with_params(file, discipline, analysis_mode, strictness, rubric)
 
 @app.get("/dashboard/statistics")
 def get_dashboard_statistics():

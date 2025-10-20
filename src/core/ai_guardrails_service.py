@@ -632,7 +632,7 @@ class AIGuardrailsService:
         self.violation_history.append(result)
 
         logger.info(
-            "Guardrail evaluation complete: %s violations, ",
+            "Guardrail evaluation complete: %s violations, %s",
             len(all_violations),
             f"risk level: {overall_risk.value}, action: {action_taken.value}",
         )
