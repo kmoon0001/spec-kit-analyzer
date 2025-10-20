@@ -343,19 +343,32 @@ async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str
     """Computes compliance metrics broken down by discipline, querying the JSON field."""
     cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_back)
 
+    try:
+        analysis_discipline = models.AnalysisReport.analysis_result["discipline"]
+        discipline_expr = analysis_discipline.as_string()
+    except NotImplementedError:
+        discipline_expr = models.AnalysisReport.discipline
+
     query = (
         select(
-            models.AnalysisReport.analysis_result["discipline"].as_string().label("discipline"),
+            discipline_expr.label("discipline"),
             func.avg(models.AnalysisReport.compliance_score).label("avg_score"),
             func.count(models.AnalysisReport.id).label("user_count"),
         )
         .filter(models.AnalysisReport.analysis_date >= cutoff_date)
-        .group_by(models.AnalysisReport.analysis_result["discipline"].as_string())
+        .group_by(discipline_expr)
     )
     result = await db.execute(query)
-    return {
-        row.discipline: {"avg_compliance_score": row.avg_score, "user_count": row.user_count} for row in result.all()
-    }
+
+    breakdown: dict[str, dict[str, Any]] = {}
+    for row in result.all():
+        discipline = row.discipline
+        if discipline:
+            breakdown[discipline] = {
+                "avg_compliance_score": float(row.avg_score or 0.0),
+                "user_count": int(row.user_count or 0),
+            }
+    return breakdown
 
 
 async def get_team_habit_breakdown(db: AsyncSession, days_back: int) -> dict[str, dict[str, Any]]:

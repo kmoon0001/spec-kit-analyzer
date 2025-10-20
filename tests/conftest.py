@@ -1,15 +1,21 @@
 """Comprehensive test utilities and fixtures."""
 
-import pytest
 import asyncio
-import tempfile
+import datetime
 import os
+import tempfile
 from unittest.mock import Mock, patch
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+
+import numpy as np
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from src.api.main import app
-from src.database import Base, get_async_db
+from src.core.vector_store import VectorStore, get_vector_store
+from src.database import Base, get_async_db, models
 
 
 @pytest.fixture(scope="session")
@@ -20,50 +26,156 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture
-def test_db():
-    """Create test database."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(bind=engine)
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+async def _truncate_all(session: AsyncSession) -> None:
+    for table in reversed(Base.metadata.sorted_tables):
+        await session.execute(table.delete())
+    await session.commit()
 
-    def override_get_db():
-        try:
-            db = TestingSessionLocal()
-            yield db
-        finally:
-            db.close()
+
+def _reset_vector_store() -> VectorStore:
+    VectorStore._instance = None  # type: ignore[attr-defined]
+    store = VectorStore()
+    store.initialize_index()
+    return store
+
+
+@pytest_asyncio.fixture(scope="session")
+async def async_engine(tmp_path_factory: pytest.TempPathFactory):
+    db_path = tmp_path_factory.mktemp("test_dbs") / "pytest.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", future=True)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def async_session_factory(async_engine):
+    return async_sessionmaker(bind=async_engine, expire_on_commit=False, autoflush=False)
+
+
+@pytest_asyncio.fixture(scope="session")
+async def test_db(async_session_factory):
+    async def override_get_db():
+        async with async_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     app.dependency_overrides[get_async_db] = override_get_db
-    yield TestingSessionLocal
-    app.dependency_overrides.clear()
+
+    async with async_session_factory() as session:
+        await _truncate_all(session)
+
+    try:
+        yield async_session_factory
+    finally:
+        app.dependency_overrides.pop(get_async_db, None)
 
 
-@pytest.fixture
-def client():
-    """Create test client."""
-    return TestClient(app)
+@pytest_asyncio.fixture
+async def db_session(async_session_factory):
+    async with async_session_factory() as session:
+        await _truncate_all(session)
+        yield session
+        await session.rollback()
 
 
-@pytest.fixture
-def authenticated_client(client):
-    """Create authenticated test client."""
-    # Mock authentication
-    with patch('src.auth.get_auth_service') as mock_auth:
-        mock_auth.return_value.verify_password.return_value = True
-        mock_auth.return_value.create_access_token.return_value = "test-token"
+@pytest_asyncio.fixture
+async def populated_db(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch):
+    await _truncate_all(db_session)
 
-        # Login to get token
-        response = client.post("/auth/login", json={
-            "username": "test",
-            "password": "test"
-        })
+    now = datetime.datetime.now(datetime.UTC)
+    report_specs = [
+        {"name": "Report 1", "score": 95.0, "doc_type": "Progress Note", "discipline": "PT", "days_ago": 5},
+        {"name": "Report 2", "score": 85.0, "doc_type": "Evaluation", "discipline": "PT", "days_ago": 10},
+        {"name": "Report 3", "score": 75.0, "doc_type": "Progress Note", "discipline": "OT", "days_ago": 15},
+        {"name": "Report 4", "score": 90.0, "doc_type": "Plan of Care", "discipline": "SLP", "days_ago": 20},
+    ]
 
-        if response.status_code == 200:
-            token = response.json().get("access_token", "test-token")
-            client.headers.update({"Authorization": f"Bearer {token}"})
+    reports = []
+    for spec in report_specs:
+        embedding = np.zeros(16, dtype=np.float32)
+        embedding[:4] = np.array([
+            spec["score"] / 100.0,
+            spec["days_ago"] / 30.0,
+            0.5,
+            0.1,
+        ], dtype=np.float32)
+        report = models.AnalysisReport(
+            document_name=spec["name"],
+            compliance_score=spec["score"],
+            document_type=spec["doc_type"],
+            discipline=spec["discipline"],
+            analysis_date=now - datetime.timedelta(days=spec["days_ago"]),
+            analysis_result={
+                "discipline": spec["discipline"],
+                "document_type": spec["doc_type"],
+                "summary": f"Summary for {spec['name']}",
+            },
+            document_embedding=embedding.tobytes(),
+        )
+        db_session.add(report)
+        reports.append(report)
 
-        yield client
+    await db_session.flush()
+    ids = [report.id for report in reports]
+    await db_session.commit()
+
+    class _StubVectorStore:
+        def __init__(self):
+            self.is_initialized = True
+            self._ids = ids
+
+        def initialize_index(self):
+            self.is_initialized = True
+
+        def add_vectors(self, *_, **__):
+            return None
+
+        def search(self, _query_vector, k: int, threshold: float = 0.85):
+            return [(rid, 0.99) for rid in self._ids if rid != 2][:k]
+
+    stub_store = _StubVectorStore()
+    monkeypatch.setattr('src.database.crud.get_vector_store', lambda: stub_store)
+
+    try:
+        yield db_session
+    finally:
+        await _truncate_all(db_session)
+
+
+@pytest_asyncio.fixture
+async def client(test_db, monkeypatch: pytest.MonkeyPatch):
+    async_session_factory = test_db
+
+    async def _passthrough(self, request, call_next):
+        return await call_next(request)
+
+    monkeypatch.setattr(
+        "src.api.middleware.csrf_protection.CSRFProtectionMiddleware.dispatch",
+        _passthrough,
+        raising=True,
+    )
+
+    async with async_session_factory() as session:
+        await _truncate_all(session)
+
+    app.user_middleware = [
+        m
+        for m in app.user_middleware
+        if not (callable(m.cls) and getattr(m.cls, '__name__', '') == '<lambda>')
+    ]
+    app.middleware_stack = app.build_middleware_stack()
+
+    transport = ASGITransport(app=app, lifespan="auto")
+    async with AsyncClient(transport=transport, base_url="http://test") as async_client:
+        yield async_client
 
 
 @pytest.fixture
