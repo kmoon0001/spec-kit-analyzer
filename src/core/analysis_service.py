@@ -408,7 +408,7 @@ class AnalysisService:
                     _update_progress(overall_progress, message or "Running compliance analysis...")
 
                 analysis_kwargs["progress_callback"] = compliance_progress_callback
-                
+
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(**analysis_kwargs)
