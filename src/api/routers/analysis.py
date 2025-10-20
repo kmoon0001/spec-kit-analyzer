@@ -25,11 +25,10 @@ from ...core.file_upload_validator import validate_uploaded_file, sanitize_filen
 from ...core.file_encryption import get_secure_storage
 from ...database import crud, models, schemas
 from ...database.database import get_async_db
-from ..task_registry import analysis_task_registry
 from ..dependencies import get_analysis_service
+from ..task_registry import analysis_task_registry
 from ..deps.request_tracking import RequestId, log_with_request_id
 from ...core.persistent_task_registry import persistent_task_registry, TaskStatus
-from ...core.enhanced_worker_manager import enhanced_worker_manager, TaskPriority
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -57,21 +56,58 @@ async def run_analysis_and_save(
     analysis_mode: str,
     strictness: str,
     analysis_service: AnalysisService,
-    user_id: int,
+    user_id: int | None = None,
 ) -> None:
     """Background task coordinator that schedules the async analysis workflow using persistent task registry."""
 
+    owner_id = user_id if user_id is not None else -1
+
     # Create task in persistent registry
-    await persistent_task_registry.create_task(
-        task_id=task_id,
-        status=TaskStatus.PENDING,
-        filename=original_filename,
-        user_id=user_id,
-        discipline=discipline,
-        analysis_mode=analysis_mode,
-        strictness=strictness,
-        max_retries=3
-    )
+    try:
+        await persistent_task_registry.create_task(
+            task_id=task_id,
+            status=TaskStatus.PENDING,
+            filename=original_filename,
+            user_id=user_id if user_id is not None else None,
+            discipline=discipline,
+            analysis_mode=analysis_mode,
+            strictness=strictness,
+            max_retries=3
+        )
+    except sqlite3.IntegrityError:
+        logger.warning(
+            "Persistent task %s already exists; resetting metadata before rerun",
+            task_id
+        )
+        await persistent_task_registry.update_task(
+            task_id,
+            status=TaskStatus.PENDING,
+            progress=0,
+            status_message="",
+            filename=original_filename,
+            user_id=user_id if user_id is not None else None,
+            discipline=discipline,
+            analysis_mode=analysis_mode,
+            strictness=strictness,
+            started_at=None,
+            completed_at=None,
+            error_message=None,
+            retry_count=0,
+            max_retries=3,
+            result_data={}
+        )
+
+    tasks[task_id] = {
+        "status": "queued",
+        "progress": 0,
+        "status_message": "Queued for processing",
+        "filename": original_filename,
+        "timestamp": datetime.datetime.now(datetime.UTC),
+        "user_id": owner_id,
+        "discipline": discipline,
+        "analysis_mode": analysis_mode,
+        "strictness": strictness,
+    }
 
     def _update_progress(percentage: int, message: str | None) -> None:
         # Update both legacy in-memory and persistent registry
@@ -138,7 +174,7 @@ async def run_analysis_and_save(
             task_entry["status"] = "analyzing"
             task_entry["status_message"] = "Finalizing analysis results..."
             task_entry["progress"] = max(task_entry.get("progress", 90), 95)
-            task_entry["user_id"] = user_id  # Track user ownership
+            task_entry["user_id"] = owner_id  # Track user ownership
 
             await asyncio.sleep(0.2)
 
@@ -207,14 +243,14 @@ async def run_analysis_and_save(
                 error_message=str(exc)
             )
 
-    # Use enhanced worker manager for better process isolation
-    await enhanced_worker_manager.submit_task(
-        _async_analysis,
-        task_id=task_id,
-        priority=TaskPriority.NORMAL,
-        timeout=300,  # 5 minute timeout
-        max_retries=3
-    )
+    # Schedule analysis asynchronously without process isolation to ensure progress updates
+    async def _runner() -> None:
+        try:
+            await _async_analysis()
+        except Exception as exc:
+            logger.exception("Analysis runner failed", task_id=task_id, error=str(exc))
+
+    await analysis_task_registry.start(task_id, _runner())
 
 
 @legacy_router.post("/upload-document")

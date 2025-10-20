@@ -1310,7 +1310,7 @@ async def get_database_health(db: AsyncSession) -> dict[str, Any]:
                 "reports_last_7_days": recent_reports or 0,
             },
             "metrics": {
-                "average_compliance_score": round(float(avg_score or 0.0), 2),
+                "average_compliance_score": round(float(avg_score), 2) if avg_score is not None else None,
                 "findings_per_report": round((finding_count or 0) / max(report_count or 1, 1), 2),
             },
             "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
