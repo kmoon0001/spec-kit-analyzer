@@ -12,12 +12,12 @@ from typing import Any, Optional, Type, TypeVar
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from sqlalchemy import TypeDecorator, String
+from sqlalchemy import String, TypeDecorator
 from sqlalchemy.types import Text
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class DatabaseEncryptionService:
@@ -54,8 +54,12 @@ class DatabaseEncryptionService:
                 raise ValueError("Invalid DATABASE_ENCRYPTION_KEY format")
 
         # Generate new key from password
-        password = os.environ.get("DATABASE_ENCRYPTION_PASSWORD", "default-db-password-change-in-production")
-        salt = os.environ.get("DATABASE_ENCRYPTION_SALT", "default-db-salt-change-in-production").encode()
+        password = os.environ.get(
+            "DATABASE_ENCRYPTION_PASSWORD", "default-db-password-change-in-production"
+        )
+        salt = os.environ.get(
+            "DATABASE_ENCRYPTION_SALT", "default-db-salt-change-in-production"
+        ).encode()
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -65,7 +69,9 @@ class DatabaseEncryptionService:
         )
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-        logger.warning("Generated database encryption key from password. Store DATABASE_ENCRYPTION_KEY in environment for production!")
+        logger.warning(
+            "Generated database encryption key from password. Store DATABASE_ENCRYPTION_KEY in environment for production!"
+        )
         return key
 
     def encrypt_field(self, value: str) -> str:
@@ -82,8 +88,8 @@ class DatabaseEncryptionService:
             return value
 
         try:
-            encrypted_bytes = self.cipher.encrypt(value.encode('utf-8'))
-            return base64.urlsafe_b64encode(encrypted_bytes).decode('utf-8')
+            encrypted_bytes = self.cipher.encrypt(value.encode("utf-8"))
+            return base64.urlsafe_b64encode(encrypted_bytes).decode("utf-8")
         except Exception as e:
             logger.error(f"Failed to encrypt database field: {e}")
             raise ValueError(f"Database field encryption failed: {e}")
@@ -102,9 +108,9 @@ class DatabaseEncryptionService:
             return encrypted_value
 
         try:
-            encrypted_bytes = base64.urlsafe_b64decode(encrypted_value.encode('utf-8'))
+            encrypted_bytes = base64.urlsafe_b64decode(encrypted_value.encode("utf-8"))
             decrypted_bytes = self.cipher.decrypt(encrypted_bytes)
-            return decrypted_bytes.decode('utf-8')
+            return decrypted_bytes.decode("utf-8")
         except Exception as e:
             logger.error(f"Failed to decrypt database field: {e}")
             raise ValueError(f"Database field decryption failed: {e}")
@@ -170,6 +176,7 @@ class EncryptedJSON(TypeDecorator):
         """Encrypt JSON value when storing to database."""
         if value is not None:
             import json
+
             json_str = json.dumps(value)
             return self._encryption_service.encrypt_field(json_str)
         return value
@@ -178,6 +185,7 @@ class EncryptedJSON(TypeDecorator):
         """Decrypt JSON value when loading from database."""
         if value is not None:
             import json
+
             decrypted_str = self._encryption_service.decrypt_field(value)
             return json.loads(decrypted_str)
         return value

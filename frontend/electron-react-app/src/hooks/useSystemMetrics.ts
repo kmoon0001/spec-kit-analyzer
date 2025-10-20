@@ -1,6 +1,6 @@
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from "../lib/api/client";
 
 export interface SystemMetrics {
   cpuPercent: number;
@@ -9,18 +9,21 @@ export interface SystemMetrics {
   timestamp: string;
 }
 
-type Options = Pick<UseQueryOptions<SystemMetrics>, 'enabled' | 'staleTime' | 'refetchInterval'>;
+type Options = Pick<
+  UseQueryOptions<SystemMetrics>,
+  "enabled" | "staleTime" | "refetchInterval"
+>;
 
 export const useSystemMetrics = (options?: Options) => {
   return useQuery<SystemMetrics>({
-    queryKey: ['system-metrics'],
+    queryKey: ["system-metrics"],
     queryFn: async () => {
       const { data } = await apiClient.get<{
         cpu_percent: number;
         memory_percent: number;
         memory_available_mb: number;
         timestamp: string;
-      }>('/health/system');
+      }>("/health/system");
 
       return {
         cpuPercent: data.cpu_percent,

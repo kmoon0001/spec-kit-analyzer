@@ -12,10 +12,12 @@ import json
 import logging
 import time
 from typing import Any, Dict
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Comprehensive request/response logging middleware."""
@@ -25,13 +27,16 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         self.log_body = log_body
         self.max_body_size = max_body_size
         self.sensitive_headers = {
-            'authorization', 'cookie', 'x-api-key', 'x-auth-token'
+            "authorization",
+            "cookie",
+            "x-api-key",
+            "x-auth-token",
         }
 
     async def dispatch(self, request: Request, call_next):
         """Log request and response details."""
         start_time = time.time()
-        request_id = getattr(request.state, 'request_id', 'unknown')
+        request_id = getattr(request.state, "request_id", "unknown")
 
         # Log request details
         await self._log_request(request, request_id)
@@ -72,13 +77,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 if body and len(body) <= self.max_body_size:
                     try:
                         body_json = json.loads(body.decode())
-                        logger.debug(f"Request body | id={request_id} | body={body_json}")
+                        logger.debug(
+                            f"Request body | id={request_id} | body={body_json}"
+                        )
                     except json.JSONDecodeError:
-                        logger.debug(f"Request body (raw) | id={request_id} | body={body.decode()[:200]}")
+                        logger.debug(
+                            f"Request body (raw) | id={request_id} | body={body.decode()[:200]}"
+                        )
             except Exception as e:
-                logger.debug(f"Could not read request body | id={request_id} | error={e}")
+                logger.debug(
+                    f"Could not read request body | id={request_id} | error={e}"
+                )
 
-    async def _log_response(self, request: Request, response: Response, process_time: float, request_id: str):
+    async def _log_response(
+        self, request: Request, response: Response, process_time: float, request_id: str
+    ):
         """Log response details."""
         # Determine log level based on status code
         if response.status_code >= 500:

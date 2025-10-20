@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from ...auth import get_current_active_user
 from ...core.compliance_service import ComplianceService
 from ...core.domain_models import TherapyDocument
-from ...auth import get_current_active_user
 from ...database import models
 
 router = APIRouter(prefix="/compliance", tags=["Compliance"])
@@ -74,14 +74,20 @@ async def get_rubrics(current_user: models.User = Depends(get_current_active_use
 @router.post("/evaluate", response_model=ComplianceResultModel)
 async def evaluate_document(
     payload: TherapyDocumentRequest,
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
 ) -> ComplianceResultModel:
     if not payload.text or not payload.discipline or not payload.document_type:
-        raise HTTPException(status_code=400, detail="Document text, discipline, and document_type are required.")
+        raise HTTPException(
+            status_code=400,
+            detail="Document text, discipline, and document_type are required.",
+        )
 
     result = service.evaluate_document(
         TherapyDocument(
-            id=payload.id, text=payload.text, discipline=payload.discipline, document_type=payload.document_type
+            id=payload.id,
+            text=payload.text,
+            discipline=payload.discipline,
+            document_type=payload.document_type,
         )
     )
     return ComplianceResultModel(**ComplianceService.to_dict(result))

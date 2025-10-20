@@ -335,7 +335,9 @@ class SevenHabitsFramework:
         self.use_ai_mapping = use_ai_mapping
         self.llm_service = llm_service
 
-    def map_finding_to_habit(self, finding: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    def map_finding_to_habit(
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Map a compliance finding to the most appropriate habit.
 
         Args:
@@ -370,7 +372,9 @@ class SevenHabitsFramework:
         habit_scores: dict[str, int] = {}
         for habit_id, habit_info in self.HABITS.items():
             score = sum(
-                1 for keyword in habit_info["keywords"] if re.search(r"\b" + re.escape(keyword) + r"\b", combined_text)
+                1
+                for keyword in habit_info["keywords"]
+                if re.search(r"\b" + re.escape(keyword) + r"\b", combined_text)
             )
             habit_scores[habit_id] = score
 
@@ -394,7 +398,9 @@ class SevenHabitsFramework:
             "confidence": min(habit_scores[best_habit_id] / 3.0, 1.0),  # Normalize
         }
 
-    def _ai_powered_mapping(self, finding: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _ai_powered_mapping(
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Use AI to map finding to habit with contextual understanding.
 
         Args:
@@ -430,21 +436,33 @@ class SevenHabitsFramework:
                 "principle": habit["principle"],
                 "explanation": result.get("explanation", habit["clinical_application"]),
                 "detailed_description": habit["description"].strip(),
-                "improvement_strategies": result.get("strategies", habit["improvement_strategies"]),
+                "improvement_strategies": result.get(
+                    "strategies", habit["improvement_strategies"]
+                ),
                 "clinical_examples": habit["clinical_examples"],
                 "common_issues": habit["common_issues"],
                 "confidence": result.get("confidence", 0.8),
                 "ai_generated": True,
             }
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             logger.exception("AI mapping failed: %s", e)
             return self._rule_based_mapping(finding)
 
-    def _build_ai_mapping_prompt(self, finding: dict[str, Any], context: dict[str, Any] | None = None) -> str:
+    def _build_ai_mapping_prompt(
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+    ) -> str:
         """Build prompt for AI-powered habit mapping."""
         habits_summary = "\n".join(
-            [f"- Habit {h['number']}: {h['name']} - {h['clinical_application']}" for h in self.HABITS.values()]
+            [
+                f"- Habit {h['number']}: {h['name']} - {h['clinical_application']}"
+                for h in self.HABITS.values()
+            ]
         )
 
         context_str = ""
@@ -497,9 +515,13 @@ Return a JSON object:
             List of all habit dictionaries
 
         """
-        return [{**habit, "habit_id": habit_id} for habit_id, habit in self.HABITS.items()]
+        return [
+            {**habit, "habit_id": habit_id} for habit_id, habit in self.HABITS.items()
+        ]
 
-    def get_habit_progression_metrics(self, findings_history: list[dict[str, Any]]) -> dict[str, Any]:
+    def get_habit_progression_metrics(
+        self, findings_history: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate habit progression metrics from historical findings.
 
         Args:
@@ -533,7 +555,11 @@ Return a JSON object:
             }
 
         top_focus_areas: list[tuple[str, HabitMetrics]] = sorted(
-            [(hid, metrics) for hid, metrics in habit_metrics.items() if metrics["needs_focus"]],
+            [
+                (hid, metrics)
+                for hid, metrics in habit_metrics.items()
+                if metrics["needs_focus"]
+            ],
             key=lambda item: item[1]["percentage"],
             reverse=True,
         )[:3]

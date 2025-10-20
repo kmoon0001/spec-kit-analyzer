@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import React, { useState, useCallback } from "react";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   Plus,
   Trash2,
@@ -12,20 +12,27 @@ import {
   AlertTriangle,
   CheckCircle,
   Brain,
-  Target
-} from 'lucide-react';
-import styles from './ReportBuilder.module.css';
+  Target,
+} from "lucide-react";
+import styles from "./ReportBuilder.module.css";
 
 interface ReportSection {
   id: string;
-  type: 'summary' | 'findings' | 'charts' | 'recommendations' | 'metadata' | 'reasoning' | 'custom';
+  type:
+    | "summary"
+    | "findings"
+    | "charts"
+    | "recommendations"
+    | "metadata"
+    | "reasoning"
+    | "custom";
   title: string;
   content?: any;
   settings?: {
     showConfidence?: boolean;
     groupByRisk?: boolean;
     includeEvidence?: boolean;
-    chartType?: 'bar' | 'pie' | 'line';
+    chartType?: "bar" | "pie" | "line";
     customContent?: string;
   };
   order: number;
@@ -40,13 +47,48 @@ interface ReportBuilderProps {
 }
 
 const SECTION_TYPES = [
-  { type: 'summary', title: 'Executive Summary', icon: FileText, description: 'High-level compliance overview' },
-  { type: 'findings', title: 'Detailed Findings', icon: AlertTriangle, description: 'Compliance issues and violations' },
-  { type: 'recommendations', title: 'Recommendations', icon: Target, description: 'Actionable improvement suggestions' },
-  { type: 'reasoning', title: 'AI Reasoning', icon: Brain, description: 'Step-by-step analysis process' },
-  { type: 'charts', title: 'Charts & Metrics', icon: BarChart3, description: 'Visual compliance data' },
-  { type: 'metadata', title: 'Report Metadata', icon: Settings, description: 'Document and analysis details' },
-  { type: 'custom', title: 'Custom Section', icon: Plus, description: 'Add your own content' }
+  {
+    type: "summary",
+    title: "Executive Summary",
+    icon: FileText,
+    description: "High-level compliance overview",
+  },
+  {
+    type: "findings",
+    title: "Detailed Findings",
+    icon: AlertTriangle,
+    description: "Compliance issues and violations",
+  },
+  {
+    type: "recommendations",
+    title: "Recommendations",
+    icon: Target,
+    description: "Actionable improvement suggestions",
+  },
+  {
+    type: "reasoning",
+    title: "AI Reasoning",
+    icon: Brain,
+    description: "Step-by-step analysis process",
+  },
+  {
+    type: "charts",
+    title: "Charts & Metrics",
+    icon: BarChart3,
+    description: "Visual compliance data",
+  },
+  {
+    type: "metadata",
+    title: "Report Metadata",
+    icon: Settings,
+    description: "Document and analysis details",
+  },
+  {
+    type: "custom",
+    title: "Custom Section",
+    icon: Plus,
+    description: "Add your own content",
+  },
 ] as const;
 
 const DraggableSection: React.FC<{
@@ -59,7 +101,7 @@ const DraggableSection: React.FC<{
   const [isEditing, setIsEditing] = useState(false);
 
   const [{ isDragging }, drag] = useDrag({
-    type: 'section',
+    type: "section",
     item: { index },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
@@ -67,7 +109,7 @@ const DraggableSection: React.FC<{
   });
 
   const [, drop] = useDrop({
-    accept: 'section',
+    accept: "section",
     hover: (item: { index: number }) => {
       if (item.index !== index) {
         onMove(item.index, index);
@@ -76,7 +118,8 @@ const DraggableSection: React.FC<{
     },
   });
 
-  const sectionIcon = SECTION_TYPES.find(t => t.type === section.type)?.icon || FileText;
+  const sectionIcon =
+    SECTION_TYPES.find((t) => t.type === section.type)?.icon || FileText;
   const IconComponent = sectionIcon;
 
   const handleSettingsChange = (key: string, value: any) => {
@@ -84,15 +127,15 @@ const DraggableSection: React.FC<{
       ...section,
       settings: {
         ...section.settings,
-        [key]: value
-      }
+        [key]: value,
+      },
     });
   };
 
   return (
     <div
       ref={(node) => drag(drop(node))}
-      className={`${styles.section} ${isDragging ? styles.dragging : ''} ${!section.enabled ? styles.disabled : ''}`}
+      className={`${styles.section} ${isDragging ? styles.dragging : ""} ${!section.enabled ? styles.disabled : ""}`}
     >
       <div className={styles.sectionHeader}>
         <div className={styles.sectionLeft}>
@@ -106,7 +149,9 @@ const DraggableSection: React.FC<{
             <input
               type="checkbox"
               checked={section.enabled}
-              onChange={(e) => onUpdate({ ...section, enabled: e.target.checked })}
+              onChange={(e) =>
+                onUpdate({ ...section, enabled: e.target.checked })
+              }
             />
             <span className={styles.toggleSlider} />
           </label>
@@ -137,19 +182,23 @@ const DraggableSection: React.FC<{
               <input
                 type="text"
                 value={section.title}
-                onChange={(e) => onUpdate({ ...section, title: e.target.value })}
+                onChange={(e) =>
+                  onUpdate({ ...section, title: e.target.value })
+                }
                 className={styles.settingInput}
               />
             </div>
 
-            {section.type === 'findings' && (
+            {section.type === "findings" && (
               <>
                 <div className={styles.settingGroup}>
                   <label className={styles.checkboxLabel}>
                     <input
                       type="checkbox"
                       checked={section.settings?.showConfidence || false}
-                      onChange={(e) => handleSettingsChange('showConfidence', e.target.checked)}
+                      onChange={(e) =>
+                        handleSettingsChange("showConfidence", e.target.checked)
+                      }
                     />
                     Show AI Confidence Scores
                   </label>
@@ -160,7 +209,9 @@ const DraggableSection: React.FC<{
                     <input
                       type="checkbox"
                       checked={section.settings?.groupByRisk || false}
-                      onChange={(e) => handleSettingsChange('groupByRisk', e.target.checked)}
+                      onChange={(e) =>
+                        handleSettingsChange("groupByRisk", e.target.checked)
+                      }
                     />
                     Group by Risk Level
                   </label>
@@ -171,7 +222,12 @@ const DraggableSection: React.FC<{
                     <input
                       type="checkbox"
                       checked={section.settings?.includeEvidence || false}
-                      onChange={(e) => handleSettingsChange('includeEvidence', e.target.checked)}
+                      onChange={(e) =>
+                        handleSettingsChange(
+                          "includeEvidence",
+                          e.target.checked,
+                        )
+                      }
                     />
                     Include Evidence Citations
                   </label>
@@ -179,12 +235,14 @@ const DraggableSection: React.FC<{
               </>
             )}
 
-            {section.type === 'charts' && (
+            {section.type === "charts" && (
               <div className={styles.settingGroup}>
                 <label className={styles.settingLabel}>Chart Type:</label>
                 <select
-                  value={section.settings?.chartType || 'bar'}
-                  onChange={(e) => handleSettingsChange('chartType', e.target.value)}
+                  value={section.settings?.chartType || "bar"}
+                  onChange={(e) =>
+                    handleSettingsChange("chartType", e.target.value)
+                  }
                   className={styles.settingSelect}
                 >
                   <option value="bar">Bar Chart</option>
@@ -194,12 +252,14 @@ const DraggableSection: React.FC<{
               </div>
             )}
 
-            {section.type === 'custom' && (
+            {section.type === "custom" && (
               <div className={styles.settingGroup}>
                 <label className={styles.settingLabel}>Custom Content:</label>
                 <textarea
-                  value={section.settings?.customContent || ''}
-                  onChange={(e) => handleSettingsChange('customContent', e.target.value)}
+                  value={section.settings?.customContent || ""}
+                  onChange={(e) =>
+                    handleSettingsChange("customContent", e.target.value)
+                  }
                   className={styles.settingTextarea}
                   placeholder="Enter custom content for this section..."
                   rows={4}
@@ -217,39 +277,39 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({
   analysisData,
   onReportGenerate,
   onPreview,
-  className = ''
+  className = "",
 }) => {
   const [sections, setSections] = useState<ReportSection[]>([
     {
-      id: '1',
-      type: 'summary',
-      title: 'Executive Summary',
+      id: "1",
+      type: "summary",
+      title: "Executive Summary",
       order: 0,
-      enabled: true
+      enabled: true,
     },
     {
-      id: '2',
-      type: 'findings',
-      title: 'Compliance Findings',
+      id: "2",
+      type: "findings",
+      title: "Compliance Findings",
       order: 1,
       enabled: true,
       settings: {
         showConfidence: true,
         groupByRisk: true,
-        includeEvidence: true
-      }
+        includeEvidence: true,
+      },
     },
     {
-      id: '3',
-      type: 'recommendations',
-      title: 'Improvement Recommendations',
+      id: "3",
+      type: "recommendations",
+      title: "Improvement Recommendations",
       order: 2,
-      enabled: true
-    }
+      enabled: true,
+    },
   ]);
 
   const moveSection = useCallback((dragIndex: number, hoverIndex: number) => {
-    setSections(prev => {
+    setSections((prev) => {
       const newSections = [...prev];
       const draggedSection = newSections[dragIndex];
       newSections.splice(dragIndex, 1);
@@ -258,13 +318,13 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({
       // Update order values
       return newSections.map((section, index) => ({
         ...section,
-        order: index
+        order: index,
       }));
     });
   }, []);
 
-  const addSection = (type: ReportSection['type']) => {
-    const sectionType = SECTION_TYPES.find(t => t.type === type);
+  const addSection = (type: ReportSection["type"]) => {
+    const sectionType = SECTION_TYPES.find((t) => t.type === type);
     if (!sectionType) return;
 
     const newSection: ReportSection = {
@@ -273,29 +333,35 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({
       title: sectionType.title,
       order: sections.length,
       enabled: true,
-      settings: type === 'custom' ? { customContent: '' } : {}
+      settings: type === "custom" ? { customContent: "" } : {},
     };
 
-    setSections(prev => [...prev, newSection]);
+    setSections((prev) => [...prev, newSection]);
   };
 
   const updateSection = (updatedSection: ReportSection) => {
-    setSections(prev => prev.map(section =>
-      section.id === updatedSection.id ? updatedSection : section
-    ));
+    setSections((prev) =>
+      prev.map((section) =>
+        section.id === updatedSection.id ? updatedSection : section,
+      ),
+    );
   };
 
   const removeSection = (id: string) => {
-    setSections(prev => prev.filter(section => section.id !== id));
+    setSections((prev) => prev.filter((section) => section.id !== id));
   };
 
   const handlePreview = () => {
-    const enabledSections = sections.filter(s => s.enabled).sort((a, b) => a.order - b.order);
+    const enabledSections = sections
+      .filter((s) => s.enabled)
+      .sort((a, b) => a.order - b.order);
     onPreview?.(enabledSections);
   };
 
   const handleGenerate = () => {
-    const enabledSections = sections.filter(s => s.enabled).sort((a, b) => a.order - b.order);
+    const enabledSections = sections
+      .filter((s) => s.enabled)
+      .sort((a, b) => a.order - b.order);
     onReportGenerate?.(enabledSections);
   };
 
@@ -312,7 +378,7 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({
             <button
               onClick={handlePreview}
               className={`${styles.actionBtn} ${styles.secondary}`}
-              disabled={sections.filter(s => s.enabled).length === 0}
+              disabled={sections.filter((s) => s.enabled).length === 0}
             >
               <Eye size={16} />
               Preview
@@ -321,7 +387,7 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({
             <button
               onClick={handleGenerate}
               className={`${styles.actionBtn} ${styles.primary}`}
-              disabled={sections.filter(s => s.enabled).length === 0}
+              disabled={sections.filter((s) => s.enabled).length === 0}
             >
               <CheckCircle size={16} />
               Generate Report
@@ -366,7 +432,9 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({
 
         <div className={styles.footer}>
           <div className={styles.footerStats}>
-            <span>{sections.filter(s => s.enabled).length} sections enabled</span>
+            <span>
+              {sections.filter((s) => s.enabled).length} sections enabled
+            </span>
             <span>•</span>
             <span>{sections.length} total sections</span>
           </div>

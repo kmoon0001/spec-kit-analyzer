@@ -9,7 +9,6 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +25,9 @@ class PerformanceIntegrationService:
         self.performance_warning_callbacks: list[Callable[[str, str], None]] = []
         self.memory_pressure_callbacks: list[Callable[[float], None]] = []
         self.profile_changed_callbacks: list[Callable[[str], None]] = []
-        self.optimization_completed_callbacks: list[Callable[[dict[str, Any]], None]] = []
+        self.optimization_completed_callbacks: list[
+            Callable[[dict[str, Any]], None]
+        ] = []
 
         # Service references
         self.performance_manager: Any = None
@@ -43,6 +44,7 @@ class PerformanceIntegrationService:
         """Initialize the performance manager."""
         try:
             from src.core.performance_manager import performance_manager
+
             self.performance_manager = performance_manager
             logger.info("Performance manager connected")
         except ImportError as e:
@@ -52,6 +54,7 @@ class PerformanceIntegrationService:
         """Initialize the cache service."""
         try:
             from src.core.cache_service import cache_service
+
             self.cache_service = cache_service
             logger.info("Cache service connected")
         except ImportError as e:
@@ -69,16 +72,20 @@ class PerformanceIntegrationService:
         if self.performance_manager:
             try:
                 memory_stats = self.performance_manager.get_memory_usage()
-                status.update({
-                    "current_profile": getattr(
-                        self.performance_manager.current_profile, 'value', 'unknown'
-                    ),
-                    "system_memory_percent": memory_stats.get("system_used_percent", 0),
-                    "process_memory_mb": memory_stats.get("process_memory_mb", 0),
-                    "gpu_available": self.performance_manager.system_info.get(
-                        "cuda_available", False
-                    ),
-                })
+                status.update(
+                    {
+                        "current_profile": getattr(
+                            self.performance_manager.current_profile, "value", "unknown"
+                        ),
+                        "system_memory_percent": memory_stats.get(
+                            "system_used_percent", 0
+                        ),
+                        "process_memory_mb": memory_stats.get("process_memory_mb", 0),
+                        "gpu_available": self.performance_manager.system_info.get(
+                            "cuda_available", False
+                        ),
+                    }
+                )
             except Exception as e:
                 logger.exception("Error getting performance manager status: %s", e)
                 status["performance_error"] = str(e)
@@ -86,12 +93,15 @@ class PerformanceIntegrationService:
         if self.cache_service:
             try:
                 from src.core.cache_service import get_cache_stats
+
                 cache_stats = get_cache_stats()
-                status.update({
-                    "cache_memory_mb": cache_stats.get("memory_usage_mb", 0),
-                    "cache_entries": cache_stats.get("total_entries", 0),
-                    "cache_hit_rate": self._get_cache_hit_rate(),
-                })
+                status.update(
+                    {
+                        "cache_memory_mb": cache_stats.get("memory_usage_mb", 0),
+                        "cache_entries": cache_stats.get("total_entries", 0),
+                        "cache_hit_rate": self._get_cache_hit_rate(),
+                    }
+                )
             except Exception as e:
                 logger.exception("Error getting cache status: %s", e)
                 status["cache_error"] = str(e)
@@ -120,23 +130,25 @@ class PerformanceIntegrationService:
                     )
 
                     # Trigger adaptive cleanup
-                    if hasattr(self.performance_manager, 'adaptive_cleanup'):
+                    if hasattr(self.performance_manager, "adaptive_cleanup"):
                         self.performance_manager.adaptive_cleanup()
                         optimization_results["cache_cleanup"] = True
 
             if self.cache_service:
                 # Clean up cache if needed
                 try:
-                    from src.core.cache_service import cleanup_all_caches, get_cache_stats
+                    from src.core.cache_service import (
+                        cleanup_all_caches,
+                        get_cache_stats,
+                    )
 
                     cache_stats_before = get_cache_stats()
                     cleanup_all_caches()
                     cache_stats_after = get_cache_stats()
 
-                    memory_freed = (
-                        cache_stats_before.get("memory_usage_mb", 0) -
-                        cache_stats_after.get("memory_usage_mb", 0)
-                    )
+                    memory_freed = cache_stats_before.get(
+                        "memory_usage_mb", 0
+                    ) - cache_stats_after.get("memory_usage_mb", 0)
                     if memory_freed > 0:
                         optimization_results["memory_freed_mb"] = memory_freed
                         optimization_results["cache_cleanup"] = True
@@ -192,9 +204,13 @@ class PerformanceIntegrationService:
 
             # Check for warning conditions
             if memory_percent > 90:
-                self._emit_performance_warning("critical", f"Critical memory usage: {memory_percent}%")
+                self._emit_performance_warning(
+                    "critical", f"Critical memory usage: {memory_percent}%"
+                )
             elif memory_percent > 80:
-                self._emit_performance_warning("warning", f"High memory usage: {memory_percent}%")
+                self._emit_performance_warning(
+                    "warning", f"High memory usage: {memory_percent}%"
+                )
 
             # Check process memory
             process_memory = memory_stats.get("process_memory_mb", 0)
@@ -246,8 +262,9 @@ class PerformanceIntegrationService:
         """Get cache hit rate if available."""
         try:
             from src.core.advanced_cache_service import advanced_cache_service
+
             # Get cache performance stats if available
-            if hasattr(advanced_cache_service, 'get_cache_performance_stats'):
+            if hasattr(advanced_cache_service, "get_cache_performance_stats"):
                 stats = advanced_cache_service.get_cache_performance_stats()
                 return stats.get("hit_rate_percent", 0.0)
             return 0.0

@@ -91,7 +91,10 @@ class EnhancedError(Exception):
             ErrorCategory.PERMISSION: "You don't have permission to perform this action. Please contact your administrator.",
             ErrorCategory.CONFIGURATION: "There's a configuration issue. Please contact your system administrator.",
         }
-        return messages.get(self.category, "An unexpected error occurred. Please try again or contact support.")
+        return messages.get(
+            self.category,
+            "An unexpected error occurred. Please try again or contact support.",
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert error to dictionary for API responses."""
@@ -159,7 +162,9 @@ class ErrorHandler:
             severity, category = self._classify_error(exception, component)
 
             # Generate recovery suggestions
-            recovery_suggestions = self._get_recovery_suggestions(exception, category, component)
+            recovery_suggestions = self._get_recovery_suggestions(
+                exception, category, component
+            )
 
             # Create enhanced error
             enhanced_error = EnhancedError(
@@ -199,7 +204,11 @@ class ErrorHandler:
             )
 
     async def handle_with_retry(
-        self, operation: Callable, max_retries: int = 3, component: str = "unknown", backoff_factor: float = 1.0
+        self,
+        operation: Callable,
+        max_retries: int = 3,
+        component: str = "unknown",
+        backoff_factor: float = 1.0,
     ) -> Any:
         """Execute an operation with automatic retry on transient errors.
 
@@ -226,7 +235,11 @@ class ErrorHandler:
 
                     await asyncio.sleep(backoff_factor * (2 ** (attempt - 1)))
 
-                return await operation() if asyncio.iscoroutinefunction(operation) else operation()
+                return (
+                    await operation()
+                    if asyncio.iscoroutinefunction(operation)
+                    else operation()
+                )
 
             except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 last_exception = e
@@ -236,15 +249,22 @@ class ErrorHandler:
                     break
 
                 if attempt < max_retries:
-                    logger.warning("Operation failed (attempt %s/{max_retries + 1}): {e}", attempt + 1)
+                    logger.warning(
+                        "Operation failed (attempt %s/{max_retries + 1}): {e}",
+                        attempt + 1,
+                    )
                     continue
 
         # All retries failed
         if last_exception is None:
-            last_exception = RuntimeError("Operation failed after all retries with no specific exception")
+            last_exception = RuntimeError(
+                "Operation failed after all retries with no specific exception"
+            )
         return self.handle_error(last_exception, component, "retry_operation")
 
-    def _classify_error(self, exception: Exception, component: str) -> tuple[ErrorSeverity, ErrorCategory]:
+    def _classify_error(
+        self, exception: Exception, component: str
+    ) -> tuple[ErrorSeverity, ErrorCategory]:
         """Classify error severity and category."""
         exception_type = type(exception).__name__
         exception_message = str(exception).lower()
@@ -285,7 +305,9 @@ class ErrorHandler:
 
         return severity, category
 
-    def _get_recovery_suggestions(self, exception: Exception, category: ErrorCategory, component: str) -> list[str]:
+    def _get_recovery_suggestions(
+        self, exception: Exception, category: ErrorCategory, component: str
+    ) -> list[str]:
         """Generate recovery suggestions based on error type."""
         suggestions = []
 
@@ -382,7 +404,9 @@ class ErrorHandler:
         exception_type = type(exception).__name__
         exception_message = str(exception).lower()
 
-        return exception_type in retryable_types or any(msg in exception_message for msg in retryable_messages)
+        return exception_type in retryable_types or any(
+            msg in exception_message for msg in retryable_messages
+        )
 
     def _log_error(self, error: EnhancedError, user_id: int | None):
         """Log error with appropriate level and context."""
@@ -410,7 +434,11 @@ class ErrorHandler:
                 "component": error.component,
                 "category": error.category.value,
                 "severity": error.severity.value,
-                "error_type": type(error.original_exception).__name__ if error.original_exception else "Unknown",
+                "error_type": (
+                    type(error.original_exception).__name__
+                    if error.original_exception
+                    else "Unknown"
+                ),
             }
         )
 
@@ -421,10 +449,15 @@ class ErrorHandler:
     def _analyze_error_patterns(self, error: EnhancedError):
         """Analyze error patterns for proactive prevention."""
         # Simple pattern detection - in production, this would be more sophisticated
-        recent_errors = [e for e in self.error_history[-10:] if e["component"] == error.component]
+        recent_errors = [
+            e for e in self.error_history[-10:] if e["component"] == error.component
+        ]
 
         if len(recent_errors) >= 3:
-            logger.warning("Error pattern detected in %s: {len(recent_errors)} recent errors", error.component)
+            logger.warning(
+                "Error pattern detected in %s: {len(recent_errors)} recent errors",
+                error.component,
+            )
 
     def _initialize_recovery_strategies(self):
         """Initialize recovery strategies for different error types."""

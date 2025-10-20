@@ -11,8 +11,8 @@ from typing import Any
 import numpy as np
 from sentence_transformers import CrossEncoder
 
-from src.core.hybrid_retriever import HybridRetriever
 from src.config import get_settings
+from src.core.hybrid_retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -73,7 +73,9 @@ class RAGFactChecker:
             relevant_rules = await self._retrieve_relevant_rules(finding_text)
 
             # Step 2: Calculate semantic similarity scores
-            similarity_scores = await self._calculate_similarity_scores(finding_text, relevant_rules)
+            similarity_scores = await self._calculate_similarity_scores(
+                finding_text, relevant_rules
+            )
 
             # Step 3: Apply similarity threshold
             if not self._meets_similarity_threshold(similarity_scores):
@@ -82,14 +84,18 @@ class RAGFactChecker:
 
             # Step 4: Optional reranking for higher confidence
             if deep_check and self.reranker:
-                rerank_scores = await self._rerank_findings(finding_text, relevant_rules)
+                rerank_scores = await self._rerank_findings(
+                    finding_text, relevant_rules
+                )
                 if not self._meets_rerank_threshold(rerank_scores):
                     logger.debug("Finding does not meet rerank threshold")
                     return False
 
             # Step 5: Deep check with 7B model if requested
             if deep_check:
-                return await self._deep_validation_with_llm(finding_text, relevant_rules)
+                return await self._deep_validation_with_llm(
+                    finding_text, relevant_rules
+                )
 
             return True
 
@@ -113,7 +119,9 @@ class RAGFactChecker:
             logger.warning(f"Error retrieving rules: {e}")
             return []
 
-    async def _calculate_similarity_scores(self, finding_text: str, rules: list[dict[str, Any]]) -> list[float]:
+    async def _calculate_similarity_scores(
+        self, finding_text: str, rules: list[dict[str, Any]]
+    ) -> list[float]:
         """Calculate semantic similarity scores between finding and rules."""
         try:
             # Use the retriever's embedding service for consistency
@@ -127,7 +135,8 @@ class RAGFactChecker:
 
                     # Calculate cosine similarity
                     similarity = np.dot(finding_embedding, rule_embedding) / (
-                        np.linalg.norm(finding_embedding) * np.linalg.norm(rule_embedding)
+                        np.linalg.norm(finding_embedding)
+                        * np.linalg.norm(rule_embedding)
                     )
                     scores.append(float(similarity))
                 else:
@@ -147,7 +156,9 @@ class RAGFactChecker:
         max_score = max(scores)
         return max_score >= self._similarity_threshold
 
-    async def _rerank_findings(self, finding_text: str, rules: list[dict[str, Any]]) -> list[float]:
+    async def _rerank_findings(
+        self, finding_text: str, rules: list[dict[str, Any]]
+    ) -> list[float]:
         """Rerank findings using cross-encoder."""
         if not self.reranker:
             return [0.0] * len(rules)
@@ -178,18 +189,21 @@ class RAGFactChecker:
         max_score = max(scores)
         return max_score >= self._rerank_threshold
 
-    async def _deep_validation_with_llm(self, finding_text: str, rules: list[dict[str, Any]]) -> bool:
+    async def _deep_validation_with_llm(
+        self, finding_text: str, rules: list[dict[str, Any]]
+    ) -> bool:
         """Perform deep validation using the 7B LLM model."""
         try:
             from src.core.llm_service import LLMService
 
             llm_service = LLMService(
-                model_repo_id="microsoft/DialoGPT-medium",
-                model_filename="model.gguf"
+                model_repo_id="microsoft/DialoGPT-medium", model_filename="model.gguf"
             )
 
             # Create a focused prompt for validation
-            rules_text = "\n".join([rule.get("content", "") for rule in rules[:3]])  # Top 3 rules
+            rules_text = "\n".join(
+                [rule.get("content", "") for rule in rules[:3]]
+            )  # Top 3 rules
 
             prompt = f"""Given the following clinical finding and relevant rules, determine if the finding is plausible:
 
@@ -200,7 +214,9 @@ Relevant Rules:
 
 Is this finding plausible based on the rules? Answer with only "YES" or "NO"."""
 
-            response = llm_service.generate(prompt=prompt, max_tokens=10, temperature=0.1)
+            response = llm_service.generate(
+                prompt=prompt, max_tokens=10, temperature=0.1
+            )
 
             # Parse response
             response_text = response.strip().upper()
@@ -210,8 +226,12 @@ Is this finding plausible based on the rules? Answer with only "YES" or "NO"."""
             logger.warning(f"Error in deep LLM validation: {e}")
             return True  # Fail open
 
-    def set_thresholds(self, similarity_threshold: float = 0.7, rerank_threshold: float = 0.8) -> None:
+    def set_thresholds(
+        self, similarity_threshold: float = 0.7, rerank_threshold: float = 0.8
+    ) -> None:
         """Set the thresholds for fact-checking."""
         self._similarity_threshold = similarity_threshold
         self._rerank_threshold = rerank_threshold
-        logger.info(f"RAG fact-checker thresholds set: similarity={similarity_threshold}, rerank={rerank_threshold}")
+        logger.info(
+            f"RAG fact-checker thresholds set: similarity={similarity_threshold}, rerank={rerank_threshold}"
+        )

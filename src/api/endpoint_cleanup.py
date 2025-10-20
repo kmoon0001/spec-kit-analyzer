@@ -19,22 +19,23 @@ class EndpointCleanupService:
             "analysis": {
                 "remove": ["/submit"],
                 "keep": ["/analyze"],
-                "reason": "Submit endpoint is just an alias for analyze_document"
+                "reason": "Submit endpoint is just an alias for analyze_document",
             },
-
             # Health endpoints - multiple /health endpoints exist
             "health": {
                 "remove": ["/health"],  # From health.py - basic version
-                "keep": ["/health/detailed", "/health/system"],  # More comprehensive versions
-                "reason": "Basic health endpoint is redundant with detailed health checks"
+                "keep": [
+                    "/health/detailed",
+                    "/health/system",
+                ],  # More comprehensive versions
+                "reason": "Basic health endpoint is redundant with detailed health checks",
             },
-
             # Auth endpoints - legacy login endpoint
             "auth": {
                 "remove": ["/login"],  # Legacy endpoint
                 "keep": ["/token"],  # OAuth2 standard endpoint
-                "reason": "Legacy login endpoint duplicates OAuth2 token endpoint"
-            }
+                "reason": "Legacy login endpoint duplicates OAuth2 token endpoint",
+            },
         }
 
     def identify_redundant_endpoints(self) -> Dict[str, List[str]]:

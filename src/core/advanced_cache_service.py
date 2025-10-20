@@ -11,7 +11,13 @@ from typing import Any
 import requests
 from requests.exceptions import HTTPError
 
-from src.core.cache_service import DocumentCache, EmbeddingCache, LLMResponseCache, NERCache, get_cache_stats
+from src.core.cache_service import (
+    DocumentCache,
+    EmbeddingCache,
+    LLMResponseCache,
+    NERCache,
+    get_cache_stats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +62,9 @@ class CachePerformanceMonitor:
         self.cache_metrics: defaultdict[str, CacheMetrics] = defaultdict(CacheMetrics)
         self._lock = threading.Lock()
 
-    def record_operation(self, cache_name: str, operation: str, duration_ms: float, hit: bool) -> None:
+    def record_operation(
+        self, cache_name: str, operation: str, duration_ms: float, hit: bool
+    ) -> None:
         """Record a cache operation for performance tracking."""
         with self._lock:
             timestamp = datetime.now()
@@ -89,14 +97,20 @@ class CachePerformanceMonitor:
                 metrics.misses += 1
 
             metrics.total_requests += 1
-            metrics.hit_rate = metrics.hits / metrics.total_requests if metrics.total_requests > 0 else 0.0
+            metrics.hit_rate = (
+                metrics.hits / metrics.total_requests
+                if metrics.total_requests > 0
+                else 0.0
+            )
 
             # Update average response time (exponential moving average)
             if metrics.avg_response_time_ms == 0:
                 metrics.avg_response_time_ms = duration_ms
             else:
                 alpha = 0.1  # Smoothing factor
-                metrics.avg_response_time_ms = alpha * duration_ms + (1 - alpha) * metrics.avg_response_time_ms
+                metrics.avg_response_time_ms = (
+                    alpha * duration_ms + (1 - alpha) * metrics.avg_response_time_ms
+                )
 
             metrics.last_updated = timestamp
 
@@ -129,7 +143,9 @@ class CachePerformanceMonitor:
             "avg_response_time_ms": avg_duration,
             "operations_per_minute": self._calculate_ops_per_minute(),
         }
-        overall_stats_dict["cache_efficiency_score"] = self._calculate_efficiency_score(overall_stats_dict)
+        overall_stats_dict["cache_efficiency_score"] = self._calculate_efficiency_score(
+            overall_stats_dict
+        )
         return overall_stats_dict
 
     def _analyze_recent_performance(self) -> dict[str, Any]:
@@ -138,7 +154,11 @@ class CachePerformanceMonitor:
             return {"insufficient_data": True}
 
         recent_ops = list(self.operation_times)[-100:]  # Last 100 operations
-        older_ops = list(self.operation_times)[-200:-100] if len(self.operation_times) >= 200 else []
+        older_ops = (
+            list(self.operation_times)[-200:-100]
+            if len(self.operation_times) >= 200
+            else []
+        )
 
         recent_hit_rate = sum(1 for op in recent_ops if op["hit"]) / len(recent_ops)
         recent_avg_time = sum(op["duration_ms"] for op in recent_ops) / len(recent_ops)
@@ -151,16 +171,16 @@ class CachePerformanceMonitor:
             time_change = recent_avg_time - older_avg_time
 
             trend_analysis: dict[str, Any] = {
-                "hit_rate_trend": "improving"
-                if hit_rate_change > 0.05
-                else "declining"
-                if hit_rate_change < -0.05
-                else "stable",
-                "response_time_trend": "improving"
-                if time_change < -5
-                else "declining"
-                if time_change > 5
-                else "stable",
+                "hit_rate_trend": (
+                    "improving"
+                    if hit_rate_change > 0.05
+                    else "declining" if hit_rate_change < -0.05 else "stable"
+                ),
+                "response_time_trend": (
+                    "improving"
+                    if time_change < -5
+                    else "declining" if time_change > 5 else "stable"
+                ),
                 "hit_rate_change": hit_rate_change,
                 "response_time_change_ms": time_change,
             }
@@ -179,12 +199,16 @@ class CachePerformanceMonitor:
             return 0.0
 
         five_minutes_ago = datetime.now() - timedelta(minutes=5)
-        recent_ops = [op for op in self.operation_times if op["timestamp"] > five_minutes_ago]
+        recent_ops = [
+            op for op in self.operation_times if op["timestamp"] > five_minutes_ago
+        ]
 
         if not recent_ops:
             return 0.0
 
-        time_span_minutes = (datetime.now() - recent_ops[0]["timestamp"]).total_seconds() / 60
+        time_span_minutes = (
+            datetime.now() - recent_ops[0]["timestamp"]
+        ).total_seconds() / 60
         return len(recent_ops) / max(time_span_minutes, 1.0)
 
     def _calculate_efficiency_score(self, overall_stats: dict[str, Any]) -> float:
@@ -223,21 +247,31 @@ class CachePerformanceMonitor:
         avg_time = overall_stats["avg_response_time_ms"]
 
         if hit_rate < 0.6:
-            recommendations.append("Low hit rate detected. Consider increasing cache size or TTL values.")
+            recommendations.append(
+                "Low hit rate detected. Consider increasing cache size or TTL values."
+            )
 
         if avg_time > 100:
-            recommendations.append("High response times detected. Consider cache warming or prefetching.")
+            recommendations.append(
+                "High response times detected. Consider cache warming or prefetching."
+            )
 
         # Analyze cache-specific performance
         for cache_name, metrics in self.cache_metrics.items():
             if metrics.hit_rate < 0.5:
-                recommendations.append(f"Poor performance in {cache_name} cache. Review caching strategy.")
+                recommendations.append(
+                    f"Poor performance in {cache_name} cache. Review caching strategy."
+                )
 
             if metrics.avg_response_time_ms > 200:
-                recommendations.append(f"Slow {cache_name} cache operations. Consider optimization.")
+                recommendations.append(
+                    f"Slow {cache_name} cache operations. Consider optimization."
+                )
 
         if not recommendations:
-            recommendations.append("Cache performance is optimal. No immediate optimizations needed.")
+            recommendations.append(
+                "Cache performance is optimal. No immediate optimizations needed."
+            )
 
         return recommendations
 
@@ -261,7 +295,9 @@ class BatchCacheOperations:
     def get_single_embedding(text: str) -> tuple[str, list[float] | None]:
         return text, EmbeddingCache.get_embedding(text)
 
-    async def batch_get_embeddings(self, texts: list[str]) -> dict[str, list[float] | None]:
+    async def batch_get_embeddings(
+        self, texts: list[str]
+    ) -> dict[str, list[float] | None]:
         """Batch retrieve embeddings for multiple texts."""
         import time
 
@@ -269,7 +305,10 @@ class BatchCacheOperations:
 
         # Execute batch operations in parallel
         loop = asyncio.get_event_loop()
-        tasks = [loop.run_in_executor(self.executor, self.get_single_embedding, text) for text in texts]
+        tasks = [
+            loop.run_in_executor(self.executor, self.get_single_embedding, text)
+            for text in texts
+        ]
 
         results = await asyncio.gather(*tasks)
         result_dict = dict(results)
@@ -280,7 +319,9 @@ class BatchCacheOperations:
             hits = sum(1 for embedding in result_dict.values() if embedding is not None)
             hit_rate = hits / len(texts) if texts else 0
 
-            self.performance_monitor.record_operation("embedding_batch", "batch_get", duration_ms, hit_rate > 0.5)
+            self.performance_monitor.record_operation(
+                "embedding_batch", "batch_get", duration_ms, hit_rate > 0.5
+            )
 
         logger.debug(
             "Batch embedding retrieval: %s texts, %s hits",
@@ -290,7 +331,9 @@ class BatchCacheOperations:
 
         return result_dict
 
-    async def batch_set_embeddings(self, embeddings: dict[str, list[float]], ttl_hours: float | None = None) -> None:
+    async def batch_set_embeddings(
+        self, embeddings: dict[str, list[float]], ttl_hours: float | None = None
+    ) -> None:
         """Batch store embeddings for multiple texts.
 
         Args:
@@ -306,18 +349,25 @@ class BatchCacheOperations:
 
         # Execute batch operations in parallel
         loop = asyncio.get_event_loop()
-        tasks = [loop.run_in_executor(self.executor, set_single_embedding, item) for item in embeddings.items()]
+        tasks = [
+            loop.run_in_executor(self.executor, set_single_embedding, item)
+            for item in embeddings.items()
+        ]
 
         await asyncio.gather(*tasks)
 
         # Record performance metrics
         if self.performance_monitor:
             duration_ms = (time.time() - start_time) * 1000
-            self.performance_monitor.record_operation("embedding_batch", "batch_set", duration_ms, True)
+            self.performance_monitor.record_operation(
+                "embedding_batch", "batch_set", duration_ms, True
+            )
 
         logger.debug("Batch embedding storage: %s embeddings stored", len(embeddings))
 
-    async def batch_get_ner_results(self, texts: list[str], model_name: str) -> dict[str, list[dict[str, Any]] | None]:
+    async def batch_get_ner_results(
+        self, texts: list[str], model_name: str
+    ) -> dict[str, list[dict[str, Any]] | None]:
         """Batch retrieve NER results for multiple texts.
 
         Args:
@@ -335,7 +385,9 @@ class BatchCacheOperations:
 
         # Execute batch operations in parallel
         loop = asyncio.get_event_loop()
-        tasks = [loop.run_in_executor(self.executor, get_single_ner, text) for text in texts]
+        tasks = [
+            loop.run_in_executor(self.executor, get_single_ner, text) for text in texts
+        ]
 
         results = await asyncio.gather(*tasks)
         result_dict = dict(results)
@@ -346,7 +398,9 @@ class BatchCacheOperations:
             hits = sum(1 for result in result_dict.values() if result is not None)
             hit_rate = hits / len(texts) if texts else 0
 
-            self.performance_monitor.record_operation("ner_batch", "batch_get", duration_ms, hit_rate > 0.5)
+            self.performance_monitor.record_operation(
+                "ner_batch", "batch_get", duration_ms, hit_rate > 0.5
+            )
 
         logger.debug(
             "Batch NER retrieval: %s texts, ",
@@ -376,10 +430,18 @@ class CacheWarmingService:
         self.warming_in_progress = False
         self.batch_operations = BatchCacheOperations()
         self.performance_monitor = None  # Will be set by AdvancedCacheService
-        self._warming_stats = {"total_warmed": 0, "warming_time_ms": 0, "last_warming": None}
+        self._warming_stats = {
+            "total_warmed": 0,
+            "warming_time_ms": 0,
+            "last_warming": None,
+        }
 
     def schedule_warming(
-        self, cache_type: str, items: list[Any], priority: int = 5, compute_func: Callable | None = None
+        self,
+        cache_type: str,
+        items: list[Any],
+        priority: int = 5,
+        compute_func: Callable | None = None,
     ) -> None:
         """Schedule items for cache warming.
 
@@ -410,7 +472,12 @@ class CacheWarmingService:
             if not inserted:
                 self.warming_queue.append(warming_request)
 
-        logger.debug("Scheduled %s items for %s cache warming (priority: %s)", len(items), cache_type, priority)
+        logger.debug(
+            "Scheduled %s items for %s cache warming (priority: %s)",
+            len(items),
+            cache_type,
+            priority,
+        )
 
     async def execute_warming(self, max_items: int = 100) -> dict[str, Any]:
         """Execute cache warming for queued items.
@@ -455,15 +522,24 @@ class CacheWarmingService:
                         await self._warm_ner_results(items, request.get("compute_func"))
                         warming_results["ner_warmed"] += len(items)
                     elif cache_type == "llm":
-                        await self._warm_llm_responses(items, request.get("compute_func"))
+                        await self._warm_llm_responses(
+                            items, request.get("compute_func")
+                        )
                         warming_results["llm_warmed"] += len(items)
                     elif cache_type == "document":
-                        await self._warm_document_classifications(items, request.get("compute_func"))
+                        await self._warm_document_classifications(
+                            items, request.get("compute_func")
+                        )
                         warming_results["documents_warmed"] += len(items)
 
                     warmed_items += len(items)
 
-                except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+                except (
+                    requests.RequestException,
+                    ConnectionError,
+                    TimeoutError,
+                    HTTPError,
+                ) as e:
                     error_msg = f"Error warming {cache_type} cache: {e!s}"
                     warming_results["errors"].append(error_msg)
                     logger.warning(error_msg)
@@ -472,7 +548,9 @@ class CacheWarmingService:
 
             # Record performance metrics
             if self.performance_monitor:
-                self.performance_monitor.record_operation("cache_warming", "execute", duration_ms, warmed_items > 0)
+                self.performance_monitor.record_operation(
+                    "cache_warming", "execute", duration_ms, warmed_items > 0
+                )
 
             warming_results.update(
                 {
@@ -483,13 +561,19 @@ class CacheWarmingService:
                 }
             )
 
-            logger.info("Cache warming completed: %s items warmed in %.2fms", warmed_items, duration_ms)
+            logger.info(
+                "Cache warming completed: %s items warmed in %.2fms",
+                warmed_items,
+                duration_ms,
+            )
             return warming_results
 
         finally:
             self.warming_in_progress = False
 
-    async def _warm_embeddings(self, texts: list[str], compute_func: Callable | None) -> None:
+    async def _warm_embeddings(
+        self, texts: list[str], compute_func: Callable | None
+    ) -> None:
         """Warm embedding cache for given texts."""
         if not compute_func:
             logger.warning("No compute function provided for embedding warming")
@@ -497,7 +581,9 @@ class CacheWarmingService:
 
         # Check which embeddings are missing
         existing_embeddings = await self.batch_operations.batch_get_embeddings(texts)
-        missing_texts = [text for text, embedding in existing_embeddings.items() if embedding is None]
+        missing_texts = [
+            text for text, embedding in existing_embeddings.items() if embedding is None
+        ]
 
         if not missing_texts:
             logger.debug("All embeddings already cached")
@@ -519,7 +605,9 @@ class CacheWarmingService:
         except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error computing embeddings for warming: %s", e)
 
-    async def _warm_ner_results(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
+    async def _warm_ner_results(
+        self, items: list[dict[str, str]], compute_func: Callable | None
+    ) -> None:
         """Warm NER cache for given text/model pairs."""
         if not compute_func:
             logger.warning("No compute function provided for NER warming")
@@ -531,8 +619,12 @@ class CacheWarmingService:
             model_groups[item["model_name"]].append(item["text"])
 
         for model_name, texts in model_groups.items():
-            existing_results = await self.batch_operations.batch_get_ner_results(texts, model_name)
-            missing_texts = [text for text, result in existing_results.items() if result is None]
+            existing_results = await self.batch_operations.batch_get_ner_results(
+                texts, model_name
+            )
+            missing_texts = [
+                text for text, result in existing_results.items() if result is None
+            ]
 
             if missing_texts:
                 try:
@@ -541,12 +633,18 @@ class CacheWarmingService:
                         if result is not None:
                             NERCache.set_ner_results(text, model_name, result)
 
-                    logger.debug("Warmed %s NER results for model %s", len(missing_texts), model_name)
+                    logger.debug(
+                        "Warmed %s NER results for model %s",
+                        len(missing_texts),
+                        model_name,
+                    )
 
                 except (FileNotFoundError, PermissionError, OSError) as e:
                     logger.exception("Error computing NER results for warming: %s", e)
 
-    async def _warm_llm_responses(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
+    async def _warm_llm_responses(
+        self, items: list[dict[str, str]], compute_func: Callable | None
+    ) -> None:
         """Warm LLM response cache for given prompt/model pairs."""
         if not compute_func:
             logger.warning("No compute function provided for LLM warming")
@@ -568,7 +666,9 @@ class CacheWarmingService:
 
         logger.debug("Warmed %s LLM responses", len(items))
 
-    async def _warm_document_classifications(self, doc_hashes: list[str], compute_func: Callable | None) -> None:
+    async def _warm_document_classifications(
+        self, doc_hashes: list[str], compute_func: Callable | None
+    ) -> None:
         """Warm document classification cache for given document hashes."""
         if not compute_func:
             logger.warning("No compute function provided for document warming")
@@ -584,12 +684,16 @@ class CacheWarmingService:
                 for doc_hash in missing_hashes:
                     classification = await asyncio.to_thread(compute_func, doc_hash)
                     if classification is not None:
-                        DocumentCache.set_document_classification(doc_hash, classification)
+                        DocumentCache.set_document_classification(
+                            doc_hash, classification
+                        )
 
                 logger.debug("Warmed %s document classifications", len(missing_hashes))
 
             except (FileNotFoundError, PermissionError, OSError) as e:
-                logger.exception("Error computing document classifications for warming: %s", e)
+                logger.exception(
+                    "Error computing document classifications for warming: %s", e
+                )
 
     def get_warming_status(self) -> dict[str, Any]:
         """Get current cache warming status."""
@@ -657,12 +761,19 @@ class AdvancedCacheService:
 
             # Generate performance recommendations
             performance_summary = self.performance_monitor.get_performance_summary()
-            optimization_results["recommendations"] = performance_summary.get("optimization_recommendations", [])
+            optimization_results["recommendations"] = performance_summary.get(
+                "optimization_recommendations", []
+            )
             optimization_results["recommendations_generated"] = True
 
             logger.info("Cache performance optimization completed")
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             logger.exception("Error during cache optimization: %s", e)
             optimization_results["error"] = str(e)
 

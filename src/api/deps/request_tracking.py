@@ -22,7 +22,7 @@ def get_request_id_dependency(request: Request) -> Optional[str]:
     Returns:
         Request ID if available
     """
-    return getattr(request.state, 'request_id', None)
+    return getattr(request.state, "request_id", None)
 
 
 def log_with_request_context(message: str, level: str = "info", **kwargs):
@@ -37,6 +37,7 @@ def log_with_request_context(message: str, level: str = "info", **kwargs):
     Returns:
         Function that logs with request context
     """
+
     def _log():
         log_with_request_id(message, level, **kwargs)
 

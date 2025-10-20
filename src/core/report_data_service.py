@@ -33,7 +33,9 @@ class DataAggregationService:
             del self.data_providers[name]
             logger.info("Unregistered data provider: %s", name)
 
-    def get_aggregated_data(self, report_type: ReportType, filters: dict[str, Any]) -> dict[str, Any]:
+    def get_aggregated_data(
+        self, report_type: ReportType, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get aggregated data from all relevant providers"""
         cache_key = f"{report_type.value}_{hash(str(sorted(filters.items())))}"
 
@@ -51,7 +53,9 @@ class DataAggregationService:
                     aggregated_data[provider_name] = provider_data
                     logger.debug("Got data from provider: %s", provider_name)
             except (ImportError, ModuleNotFoundError) as e:
-                logger.exception("Error getting data from provider %s: {e}", provider_name)
+                logger.exception(
+                    "Error getting data from provider %s: {e}", provider_name
+                )
                 aggregated_data[provider_name] = {"error": str(e)}
 
         # Cache the result
@@ -85,7 +89,11 @@ class DataAggregationService:
                 _ = provider.get_data(ReportType.PERFORMANCE_ANALYSIS, {})  # Test call
                 status[name] = {
                     "status": "healthy",
-                    "supports_types": [rt.value for rt in ReportType if provider.supports_report_type(rt)],
+                    "supports_types": [
+                        rt.value
+                        for rt in ReportType
+                        if provider.supports_report_type(rt)
+                    ],
                     "last_check": datetime.now().isoformat(),
                 }
             except (ValueError, TypeError, AttributeError) as e:

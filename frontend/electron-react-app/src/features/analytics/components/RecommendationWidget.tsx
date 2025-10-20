@@ -1,8 +1,8 @@
-import React from 'react';
-import styles from './RecommendationWidget.module.css';
+import React from "react";
+import styles from "./RecommendationWidget.module.css";
 
 interface Recommendation {
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   action: string;
   impact: string;
   effort: string;
@@ -12,17 +12,19 @@ interface RecommendationWidgetProps {
   recommendation: Recommendation;
 }
 
-export const RecommendationWidget: React.FC<RecommendationWidgetProps> = ({ recommendation }) => {
+export const RecommendationWidget: React.FC<RecommendationWidgetProps> = ({
+  recommendation,
+}) => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return '#dc3545';
-      case 'medium':
-        return '#ffc107';
-      case 'low':
-        return '#28a745';
+      case "high":
+        return "#dc3545";
+      case "medium":
+        return "#ffc107";
+      case "low":
+        return "#28a745";
       default:
-        return '#007acc';
+        return "#007acc";
     }
   };
 
@@ -35,8 +37,12 @@ export const RecommendationWidget: React.FC<RecommendationWidgetProps> = ({ reco
       </div>
       <div className={styles.action}>{recommendation.action}</div>
       <div className={styles.details}>
-        <div className={styles.impact}>Expected Impact: {recommendation.impact}</div>
-        <div className={styles.effort}>Effort Required: {recommendation.effort}</div>
+        <div className={styles.impact}>
+          Expected Impact: {recommendation.impact}
+        </div>
+        <div className={styles.effort}>
+          Effort Required: {recommendation.effort}
+        </div>
       </div>
     </div>
   );

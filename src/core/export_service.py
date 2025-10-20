@@ -26,7 +26,11 @@ class ExportService:
     """
 
     def __init__(
-        self, enable_excel: bool = True, enable_csv: bool = True, enable_json: bool = True, max_file_size_mb: int = 100
+        self,
+        enable_excel: bool = True,
+        enable_csv: bool = True,
+        enable_json: bool = True,
+        max_file_size_mb: int = 100,
     ):
         self.enable_excel = enable_excel and PANDAS_AVAILABLE
         self.enable_csv = enable_csv
@@ -51,7 +55,11 @@ class ExportService:
         return formats
 
     def export_compliance_data(
-        self, reports_data: list[dict[str, Any]], format_type: str, output_path: str, include_findings: bool = True
+        self,
+        reports_data: list[dict[str, Any]],
+        format_type: str,
+        output_path: str,
+        include_findings: bool = True,
     ) -> bool:
         """Export compliance data in specified format.
 
@@ -92,7 +100,9 @@ class ExportService:
             logger.exception("Export failed: %s", e)
             return False
 
-    def _prepare_export_data(self, reports_data: list[dict[str, Any]], include_findings: bool) -> dict[str, Any]:
+    def _prepare_export_data(
+        self, reports_data: list[dict[str, Any]], include_findings: bool
+    ) -> dict[str, Any]:
         """Prepare data for export with metadata."""
 
         # Basic report data
@@ -119,7 +129,9 @@ class ExportService:
                         "analysis_date": report.get("analysis_date", ""),
                         "rule_id": finding.get("rule_id", "Unknown"),
                         "risk_level": finding.get("risk", "Unknown"),
-                        "problematic_text": finding.get("problematic_text", "")[:200],  # Truncate long text
+                        "problematic_text": finding.get("problematic_text", "")[
+                            :200
+                        ],  # Truncate long text
                         "recommendation": finding.get("personalized_tip", "")[:200],
                     }
                     all_findings.append(finding_data)
@@ -143,7 +155,11 @@ class ExportService:
             size_mb = len(json_str.encode("utf-8")) / (1024 * 1024)
 
             if size_mb > self.max_file_size_mb:
-                logger.warning("Export size (%.1fMB) exceeds limit (%.1fMB)", size_mb, self.max_file_size_mb)
+                logger.warning(
+                    "Export size (%.1fMB) exceeds limit (%.1fMB)",
+                    size_mb,
+                    self.max_file_size_mb,
+                )
                 return False
 
             return True
@@ -165,7 +181,9 @@ class ExportService:
             logger.exception("JSON export failed: %s", e)
             return False
 
-    def _export_csv(self, data: dict[str, Any], output_path: str, include_findings: bool) -> bool:
+    def _export_csv(
+        self, data: dict[str, Any], output_path: str, include_findings: bool
+    ) -> bool:
         """Export data as CSV file(s)."""
         try:
             base_path = Path(output_path)
@@ -195,7 +213,9 @@ class ExportService:
             logger.exception("CSV export failed: %s", e)
             return False
 
-    def _export_excel(self, data: dict[str, Any], output_path: str, include_findings: bool) -> bool:
+    def _export_excel(
+        self, data: dict[str, Any], output_path: str, include_findings: bool
+    ) -> bool:
         """Export data as Excel file with multiple sheets."""
         if not self.enable_excel:
             logger.error("Excel export not available")
@@ -225,7 +245,10 @@ class ExportService:
             return False
 
     def export_analytics_summary(
-        self, analytics_data: dict[str, Any], output_path: str, format_type: str = "json"
+        self,
+        analytics_data: dict[str, Any],
+        output_path: str,
+        format_type: str = "json",
     ) -> bool:
         """Export analytics summary data.
 
@@ -262,19 +285,25 @@ class ExportService:
             logger.exception("Analytics export failed: %s", e)
             return False
 
-    def create_export_summary(self, reports_data: list[dict[str, Any]]) -> dict[str, Any]:
+    def create_export_summary(
+        self, reports_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Create a summary of exportable data for user preview."""
         try:
             total_reports = len(reports_data)
             total_findings = sum(len(r.get("findings", [])) for r in reports_data)
 
             # Date range
-            dates = [r.get("analysis_date") for r in reports_data if r.get("analysis_date")]
+            dates = [
+                r.get("analysis_date") for r in reports_data if r.get("analysis_date")
+            ]
             date_range = "Unknown"
             if dates:
                 try:
                     parsed_dates = [
-                        datetime.fromisoformat(d.replace("Z", "+00:00")) for d in dates if isinstance(d, str)
+                        datetime.fromisoformat(d.replace("Z", "+00:00"))
+                        for d in dates
+                        if isinstance(d, str)
                     ]
                     if parsed_dates:
                         min_date = min(parsed_dates).strftime("%Y-%m-%d")
@@ -298,7 +327,12 @@ class ExportService:
                 "estimated_size_mb": self._estimate_export_size(reports_data),
             }
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             logger.exception("Error creating export summary: %s", e)
             return {}
 
@@ -331,9 +365,13 @@ class ExportService:
 export_service = ExportService()
 
 
-def get_export_service(enable_excel: bool = True, enable_csv: bool = True, enable_json: bool = True) -> ExportService:
+def get_export_service(
+    enable_excel: bool = True, enable_csv: bool = True, enable_json: bool = True
+) -> ExportService:
     """Get export service with specified configuration."""
-    return ExportService(enable_excel=enable_excel, enable_csv=enable_csv, enable_json=enable_json)
+    return ExportService(
+        enable_excel=enable_excel, enable_csv=enable_csv, enable_json=enable_json
+    )
 
 
 # Configuration

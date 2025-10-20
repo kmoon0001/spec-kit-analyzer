@@ -1,8 +1,13 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-export type DiagnosticSeverity = 'info' | 'warning' | 'error' | 'critical';
+export type DiagnosticSeverity = "info" | "warning" | "error" | "critical";
 
-export type DiagnosticSource = 'window-error' | 'unhandled-rejection' | 'manual' | 'network' | 'process';
+export type DiagnosticSource =
+  | "window-error"
+  | "unhandled-rejection"
+  | "manual"
+  | "network"
+  | "process";
 
 export interface DiagnosticEvent {
   id: string;
@@ -17,12 +22,16 @@ export interface DiagnosticEvent {
 interface DiagnosticsState {
   events: DiagnosticEvent[];
   lastEvent: DiagnosticEvent | null;
-  pushEvent: (event: Omit<DiagnosticEvent, 'id' | 'timestamp'> & Partial<Pick<DiagnosticEvent, 'timestamp'>>) => void;
+  pushEvent: (
+    event: Omit<DiagnosticEvent, "id" | "timestamp"> &
+      Partial<Pick<DiagnosticEvent, "timestamp">>,
+  ) => void;
   acknowledge: (id: string) => void;
   clear: () => void;
 }
 
-const createEventId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+const createEventId = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
 export const useDiagnosticsStore = create<DiagnosticsState>((set) => ({
   events: [],
@@ -48,7 +57,10 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set) => ({
   acknowledge: (id) =>
     set((state) => {
       const filtered = state.events.filter((event) => event.id !== id);
-      const lastEvent = state.lastEvent && state.lastEvent.id === id ? filtered.at(-1) ?? null : state.lastEvent;
+      const lastEvent =
+        state.lastEvent && state.lastEvent.id === id
+          ? (filtered.at(-1) ?? null)
+          : state.lastEvent;
       return {
         events: filtered,
         lastEvent,

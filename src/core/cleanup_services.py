@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.core.file_encryption import get_secure_storage
 from src.core.service_interfaces import BaseService
 from src.core.session_manager import get_session_manager
-from src.core.file_encryption import get_secure_storage
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +103,7 @@ class DocumentCleanupService(CleanupService):
         try:
             # Clean up expired documents from secure storage
             await asyncio.get_event_loop().run_in_executor(
-                None,
-                self.secure_storage.cleanup_expired_documents,
-                self.max_age_hours
+                None, self.secure_storage.cleanup_expired_documents, self.max_age_hours
             )
 
             # Clean up temporary files
@@ -113,7 +111,7 @@ class DocumentCleanupService(CleanupService):
                 Path("temp"),
                 Path(".cache"),
                 Path("secure_storage") / "temp",
-                Path("uploads") / "temp"
+                Path("uploads") / "temp",
             ]
 
             cleaned_files = 0
@@ -121,7 +119,9 @@ class DocumentCleanupService(CleanupService):
 
             for temp_dir in temp_dirs:
                 if temp_dir.exists():
-                    cleaned_files += await self._cleanup_directory(temp_dir, cutoff_time)
+                    cleaned_files += await self._cleanup_directory(
+                        temp_dir, cutoff_time
+                    )
 
             logger.info(f"Document cleanup completed: {cleaned_files} files cleaned")
 
@@ -163,21 +163,21 @@ class SessionCleanupService(CleanupService):
         try:
             # Get session statistics
             stats = self.session_manager.get_session_stats()
-            initial_sessions = stats['active_sessions']
+            initial_sessions = stats["active_sessions"]
 
             # Clean up expired sessions
             await asyncio.get_event_loop().run_in_executor(
-                None,
-                self.session_manager.cleanup_expired_documents,
-                self.max_age_hours
+                None, self.session_manager.cleanup_expired_documents, self.max_age_hours
             )
 
             # Get updated statistics
             stats_after = self.session_manager.get_session_stats()
-            final_sessions = stats_after['active_sessions']
+            final_sessions = stats_after["active_sessions"]
             cleaned_sessions = initial_sessions - final_sessions
 
-            logger.info(f"Session cleanup completed: {cleaned_sessions} sessions cleaned")
+            logger.info(
+                f"Session cleanup completed: {cleaned_sessions} sessions cleaned"
+            )
 
         except Exception as e:
             logger.error(f"Session cleanup failed: {e}")
@@ -200,7 +200,7 @@ class LogCleanupService(CleanupService):
             log_dirs = [
                 Path("logs"),
                 Path("."),  # Check for log files in root
-                Path("secure_storage") / "logs"
+                Path("secure_storage") / "logs",
             ]
 
             cleaned_files = 0
@@ -208,7 +208,9 @@ class LogCleanupService(CleanupService):
 
             for log_dir in log_dirs:
                 if log_dir.exists():
-                    cleaned_files += await self._cleanup_log_directory(log_dir, cutoff_time)
+                    cleaned_files += await self._cleanup_log_directory(
+                        log_dir, cutoff_time
+                    )
 
             logger.info(f"Log cleanup completed: {cleaned_files} files cleaned")
 
@@ -217,7 +219,9 @@ class LogCleanupService(CleanupService):
 
         self._last_cleanup = time.time()
 
-    async def _cleanup_log_directory(self, directory: Path, cutoff_time: datetime) -> int:
+    async def _cleanup_log_directory(
+        self, directory: Path, cutoff_time: datetime
+    ) -> int:
         """Clean up log files in a directory."""
         cleaned_count = 0
 
@@ -270,9 +274,13 @@ class SystemResourceCleanupService(CleanupService):
         try:
             # Clean up temporary system files
             temp_system_dirs = [
-                Path("/tmp") if os.name != 'nt' else Path(os.environ.get('TEMP', 'C:\\temp')),
+                (
+                    Path("/tmp")
+                    if os.name != "nt"
+                    else Path(os.environ.get("TEMP", "C:\\temp"))
+                ),
                 Path(".cache"),
-                Path("__pycache__")
+                Path("__pycache__"),
             ]
 
             cleaned_items = 0
@@ -281,7 +289,9 @@ class SystemResourceCleanupService(CleanupService):
                 if temp_dir.exists():
                     cleaned_items += await self._cleanup_system_directory(temp_dir)
 
-            logger.info(f"System resource cleanup completed: {cleaned_items} items cleaned")
+            logger.info(
+                f"System resource cleanup completed: {cleaned_items} items cleaned"
+            )
 
         except Exception as e:
             logger.error(f"System resource cleanup failed: {e}")
@@ -363,14 +373,13 @@ class CleanupManager:
             try:
                 health_status[name] = await service.health_check()
             except Exception as e:
-                health_status[name] = {
-                    "status": "error",
-                    "error": str(e)
-                }
+                health_status[name] = {"status": "error", "error": str(e)}
 
         return health_status
 
-    async def run_cleanup_now(self, service_name: Optional[str] = None) -> Dict[str, Any]:
+    async def run_cleanup_now(
+        self, service_name: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Run cleanup immediately for specified service or all services."""
         results = {}
 
@@ -400,7 +409,7 @@ class CleanupManager:
         stats = {
             "total_services": len(self._services),
             "running": self._running,
-            "services": {}
+            "services": {},
         }
 
         for name, service in self._services.items():

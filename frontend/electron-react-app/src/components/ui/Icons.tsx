@@ -1,9 +1,9 @@
-import React from 'react';
+import React from "react";
 
 // Simple SVG icon components to replace lucide-react icons
 export const Download: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -24,7 +24,7 @@ export const Download: React.FC<{ size?: number; className?: string }> = ({
 
 export const Send: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -44,7 +44,7 @@ export const Send: React.FC<{ size?: number; className?: string }> = ({
 
 export const MessageSquare: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -63,7 +63,7 @@ export const MessageSquare: React.FC<{ size?: number; className?: string }> = ({
 
 export const Loader2: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -82,7 +82,7 @@ export const Loader2: React.FC<{ size?: number; className?: string }> = ({
 
 export const AlertCircle: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -103,7 +103,7 @@ export const AlertCircle: React.FC<{ size?: number; className?: string }> = ({
 
 export const RefreshCw: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -124,7 +124,7 @@ export const RefreshCw: React.FC<{ size?: number; className?: string }> = ({
 
 export const ChevronDown: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -143,7 +143,7 @@ export const ChevronDown: React.FC<{ size?: number; className?: string }> = ({
 
 export const ChevronRight: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -162,7 +162,7 @@ export const ChevronRight: React.FC<{ size?: number; className?: string }> = ({
 
 export const Brain: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -189,7 +189,7 @@ export const Brain: React.FC<{ size?: number; className?: string }> = ({
 
 export const CheckCircle: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -209,7 +209,7 @@ export const CheckCircle: React.FC<{ size?: number; className?: string }> = ({
 
 export const Clock: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}
@@ -229,7 +229,7 @@ export const Clock: React.FC<{ size?: number; className?: string }> = ({
 
 export const FileText: React.FC<{ size?: number; className?: string }> = ({
   size = 24,
-  className = ''
+  className = "",
 }) => (
   <svg
     width={size}

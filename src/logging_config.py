@@ -28,7 +28,9 @@ class CorrelationIdMiddleware:
             try:
                 await self.app(scope, receive, send_wrapper)
             except Exception:
-                structlog.get_logger().exception("Unhandled exception in API request", correlation_id=correlation_id)
+                structlog.get_logger().exception(
+                    "Unhandled exception in API request", correlation_id=correlation_id
+                )
                 raise
 
 

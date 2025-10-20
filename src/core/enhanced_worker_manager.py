@@ -55,9 +55,11 @@ class EnhancedWorkerManager:
         self._task_queue = asyncio.PriorityQueue()
         self._worker_task = None
 
-        logger.info("Enhanced WorkerManager initialized",
-                   max_workers=max_workers,
-                   max_queue_size=max_queue_size)
+        logger.info(
+            "Enhanced WorkerManager initialized",
+            max_workers=max_workers,
+            max_queue_size=max_queue_size,
+        )
 
     async def start(self) -> None:
         """Start the worker manager."""
@@ -92,7 +94,7 @@ class EnhancedWorkerManager:
         priority: TaskPriority = TaskPriority.NORMAL,
         timeout: Optional[float] = None,
         max_retries: int = 3,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Submit a task for background processing with retry logic."""
 
@@ -116,7 +118,7 @@ class EnhancedWorkerManager:
                 priority=priority,
                 timeout=timeout,
                 max_retries=max_retries,
-                created_at=time.time()
+                created_at=time.time(),
             )
 
             self.tasks[task_id] = task
@@ -124,10 +126,12 @@ class EnhancedWorkerManager:
             # Add to priority queue
             await self._task_queue.put((priority.value, task_id))
 
-            logger.info("Task submitted",
-                       task_id=task_id,
-                       priority=priority.value,
-                       max_retries=max_retries)
+            logger.info(
+                "Task submitted",
+                task_id=task_id,
+                priority=priority.value,
+                max_retries=max_retries,
+            )
 
             return task_id
 
@@ -154,7 +158,7 @@ class EnhancedWorkerManager:
             "retry_count": task.retry_count,
             "max_retries": task.max_retries,
             "error_message": task.error_message,
-            "priority": task.priority.value
+            "priority": task.priority.value,
         }
 
     async def cancel_task(self, task_id: str) -> bool:
@@ -195,8 +199,10 @@ class EnhancedWorkerManager:
 
             tasks_to_remove = []
             for task_id, task in self.tasks.items():
-                if (task.completed_at and
-                    current_time - task.completed_at > max_age_seconds):
+                if (
+                    task.completed_at
+                    and current_time - task.completed_at > max_age_seconds
+                ):
                     tasks_to_remove.append(task_id)
 
             for task_id in tasks_to_remove:
@@ -212,14 +218,20 @@ class EnhancedWorkerManager:
         """Get worker manager statistics."""
         async with self._lock:
             total_tasks = len(self.tasks)
-            pending_tasks = sum(1 for task in self.tasks.values()
-                               if not task.started_at)
-            running_tasks = sum(1 for task in self.tasks.values()
-                               if task.started_at and not task.completed_at)
-            completed_tasks = sum(1 for task in self.tasks.values()
-                                 if task.completed_at and task.result is not None)
-            failed_tasks = sum(1 for task in self.tasks.values()
-                              if task.error_message)
+            pending_tasks = sum(
+                1 for task in self.tasks.values() if not task.started_at
+            )
+            running_tasks = sum(
+                1
+                for task in self.tasks.values()
+                if task.started_at and not task.completed_at
+            )
+            completed_tasks = sum(
+                1
+                for task in self.tasks.values()
+                if task.completed_at and task.result is not None
+            )
+            failed_tasks = sum(1 for task in self.tasks.values() if task.error_message)
 
             return {
                 "total_tasks": total_tasks,
@@ -229,7 +241,7 @@ class EnhancedWorkerManager:
                 "failed_tasks": failed_tasks,
                 "max_workers": self.max_workers,
                 "max_queue_size": self.max_queue_size,
-                "queue_size": self._task_queue.qsize()
+                "queue_size": self._task_queue.qsize(),
             }
 
     async def _worker_loop(self) -> None:
@@ -239,10 +251,7 @@ class EnhancedWorkerManager:
         while not self._shutdown:
             try:
                 # Get next task from priority queue
-                _, task_id = await asyncio.wait_for(
-                    self._task_queue.get(),
-                    timeout=1.0
-                )
+                _, task_id = await asyncio.wait_for(self._task_queue.get(), timeout=1.0)
 
                 task = self.tasks.get(task_id)
                 if not task:
@@ -273,32 +282,35 @@ class EnhancedWorkerManager:
             if task.timeout:
                 try:
                     result = await asyncio.wait_for(
-                        asyncio.wrap_future(future),
-                        timeout=task.timeout
+                        asyncio.wrap_future(future), timeout=task.timeout
                     )
                     task.result = result
                     task.completed_at = time.time()
 
-                    logger.info("Task completed",
-                               task_id=task.task_id,
-                               duration=task.completed_at - task.started_at)
+                    logger.info(
+                        "Task completed",
+                        task_id=task.task_id,
+                        duration=task.completed_at - task.started_at,
+                    )
 
                 except asyncio.TimeoutError:
                     future.cancel()
                     task.error_message = f"Task timed out after {task.timeout} seconds"
                     task.completed_at = time.time()
 
-                    logger.warning("Task timed out",
-                                  task_id=task.task_id,
-                                  timeout=task.timeout)
+                    logger.warning(
+                        "Task timed out", task_id=task.task_id, timeout=task.timeout
+                    )
             else:
                 result = await asyncio.wrap_future(future)
                 task.result = result
                 task.completed_at = time.time()
 
-                logger.info("Task completed",
-                           task_id=task.task_id,
-                           duration=task.completed_at - task.started_at)
+                logger.info(
+                    "Task completed",
+                    task_id=task.task_id,
+                    duration=task.completed_at - task.started_at,
+                )
 
         except Exception as e:
             task.error_message = str(e)
@@ -311,21 +323,25 @@ class EnhancedWorkerManager:
                 task.error_message = None
 
                 # Exponential backoff
-                delay = min(2 ** task.retry_count, 60)  # Max 60 seconds
+                delay = min(2**task.retry_count, 60)  # Max 60 seconds
                 await asyncio.sleep(delay)
 
                 # Re-queue task
                 await self._task_queue.put((task.priority.value, task.task_id))
 
-                logger.info("Task retry scheduled",
-                           task_id=task.task_id,
-                           retry_count=task.retry_count,
-                           delay=delay)
+                logger.info(
+                    "Task retry scheduled",
+                    task_id=task.task_id,
+                    retry_count=task.retry_count,
+                    delay=delay,
+                )
             else:
-                logger.error("Task failed after max retries",
-                           task_id=task.task_id,
-                           error=str(e),
-                           retry_count=task.retry_count)
+                logger.error(
+                    "Task failed after max retries",
+                    task_id=task.task_id,
+                    error=str(e),
+                    retry_count=task.retry_count,
+                )
 
         finally:
             # Clean up future reference

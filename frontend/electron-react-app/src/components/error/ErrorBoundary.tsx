@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
 
     this.setState({
       error,
@@ -37,18 +37,22 @@ export class ErrorBoundary extends Component<Props, State> {
     this.props.onError?.(error, errorInfo);
 
     // Report to diagnostics store
-    import('../../store/useDiagnosticsStore').then(({ useDiagnosticsStore }) => {
-      useDiagnosticsStore.getState().pushEvent({
-        message: error.message,
-        severity: 'error',
-        source: 'window-error',
-        stack: error.stack,
-        context: {
-          componentStack: errorInfo.componentStack,
-          errorBoundary: true,
-        },
-      });
-    }).catch(e => console.warn('Failed to report error to diagnostics store:', e));
+    import("../../store/useDiagnosticsStore")
+      .then(({ useDiagnosticsStore }) => {
+        useDiagnosticsStore.getState().pushEvent({
+          message: error.message,
+          severity: "error",
+          source: "window-error",
+          stack: error.stack,
+          context: {
+            componentStack: errorInfo.componentStack,
+            errorBoundary: true,
+          },
+        });
+      })
+      .catch((e) =>
+        console.warn("Failed to report error to diagnostics store:", e),
+      );
   }
 
   private handleRetry = () => {
@@ -70,10 +74,11 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="error-boundary__container">
             <h2 className="error-boundary__title">Something went wrong</h2>
             <p className="error-boundary__message">
-              An unexpected error occurred. You can try to recover or reload the application.
+              An unexpected error occurred. You can try to recover or reload the
+              application.
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {process.env.NODE_ENV === "development" && this.state.error && (
               <details className="error-boundary__details">
                 <summary>Error Details (Development)</summary>
                 <pre className="error-boundary__stack">
@@ -117,7 +122,10 @@ interface NetworkErrorBoundaryState {
   networkError?: Error;
 }
 
-export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, NetworkErrorBoundaryState> {
+export class NetworkErrorBoundary extends Component<
+  NetworkErrorBoundaryProps,
+  NetworkErrorBoundaryState
+> {
   constructor(props: NetworkErrorBoundaryProps) {
     super(props);
     this.state = { hasNetworkError: false };
@@ -126,10 +134,10 @@ export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, N
   static getDerivedStateFromError(error: Error): NetworkErrorBoundaryState {
     // Check if this is a network-related error
     const isNetworkError =
-      error.message.includes('Network Error') ||
-      error.message.includes('fetch') ||
-      error.message.includes('connection') ||
-      error.name === 'NetworkError';
+      error.message.includes("Network Error") ||
+      error.message.includes("fetch") ||
+      error.message.includes("connection") ||
+      error.name === "NetworkError";
 
     if (isNetworkError) {
       return {
@@ -143,7 +151,11 @@ export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, N
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('NetworkErrorBoundary caught a network error:', error, errorInfo);
+    console.error(
+      "NetworkErrorBoundary caught a network error:",
+      error,
+      errorInfo,
+    );
   }
 
   private handleRetry = () => {
@@ -159,9 +171,12 @@ export class NetworkErrorBoundary extends Component<NetworkErrorBoundaryProps, N
       return (
         <div className="network-error-boundary">
           <div className="network-error-boundary__container">
-            <h3 className="network-error-boundary__title">Connection Problem</h3>
+            <h3 className="network-error-boundary__title">
+              Connection Problem
+            </h3>
             <p className="network-error-boundary__message">
-              Unable to connect to the server. Please check your connection and try again.
+              Unable to connect to the server. Please check your connection and
+              try again.
             </p>
             <button
               onClick={this.handleRetry}
@@ -195,41 +210,49 @@ export const useAsyncError = () => {
 // Global error handler setup
 export const setupGlobalErrorHandlers = () => {
   // Handle unhandled promise rejections
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error("Unhandled promise rejection:", event.reason);
 
     // Report to diagnostics store
-    import('../../store/useDiagnosticsStore').then(({ useDiagnosticsStore }) => {
-      useDiagnosticsStore.getState().pushEvent({
-        message: event.reason?.message || 'Unhandled promise rejection',
-        severity: 'error',
-        source: 'unhandled-rejection',
-        stack: event.reason?.stack,
-        context: {
-          reason: event.reason,
-          promise: event.promise,
-        },
-      });
-    }).catch(e => console.warn('Failed to report error to diagnostics store:', e));
+    import("../../store/useDiagnosticsStore")
+      .then(({ useDiagnosticsStore }) => {
+        useDiagnosticsStore.getState().pushEvent({
+          message: event.reason?.message || "Unhandled promise rejection",
+          severity: "error",
+          source: "unhandled-rejection",
+          stack: event.reason?.stack,
+          context: {
+            reason: event.reason,
+            promise: event.promise,
+          },
+        });
+      })
+      .catch((e) =>
+        console.warn("Failed to report error to diagnostics store:", e),
+      );
   });
 
   // Handle general errors
-  window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
+  window.addEventListener("error", (event) => {
+    console.error("Global error:", event.error);
 
     // Report to diagnostics store
-    import('../../store/useDiagnosticsStore').then(({ useDiagnosticsStore }) => {
-      useDiagnosticsStore.getState().pushEvent({
-        message: event.error?.message || event.message,
-        severity: 'error',
-        source: 'window-error',
-        stack: event.error?.stack,
-        context: {
-          filename: event.filename,
-          lineno: event.lineno,
-          colno: event.colno,
-        },
-      });
-    }).catch(e => console.warn('Failed to report error to diagnostics store:', e));
+    import("../../store/useDiagnosticsStore")
+      .then(({ useDiagnosticsStore }) => {
+        useDiagnosticsStore.getState().pushEvent({
+          message: event.error?.message || event.message,
+          severity: "error",
+          source: "window-error",
+          stack: event.error?.stack,
+          context: {
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+          },
+        });
+      })
+      .catch((e) =>
+        console.warn("Failed to report error to diagnostics store:", e),
+      );
   });
 };

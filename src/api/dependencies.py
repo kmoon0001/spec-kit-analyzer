@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth import get_current_active_user
 from src.core.hybrid_retriever import HybridRetriever
-from src.database import models, get_async_db
+from src.database import get_async_db, models
 
 from ..core.analysis_service import AnalysisService
 
@@ -28,7 +28,8 @@ def require_admin(current_user: models.User = Depends(get_current_active_user)):
     """Dependency that requires the current user to be an admin."""
     if not current_user.is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="The user does not have administrative privileges"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have administrative privileges",
         )
     return current_user
 
@@ -59,8 +60,9 @@ async def startup_event():
     try:
         # Check if we should use mocks
         from src.config import get_settings
+
         settings = get_settings()
-        use_mocks = getattr(settings, 'use_ai_mocks', False)
+        use_mocks = getattr(settings, "use_ai_mocks", False)
 
         if use_mocks:
             logger.info("Initializing AnalysisService with AI mocks enabled.")
@@ -78,9 +80,13 @@ async def startup_event():
             logger.info("Application startup complete. Services are initialized.")
 
     except Exception as e:
-        logger.error(f"Failed to initialize services during startup: {e}", exc_info=True)
+        logger.error(
+            f"Failed to initialize services during startup: {e}", exc_info=True
+        )
         # Create a fallback mock service so the API can still start
-        logger.warning("Falling back to mock AnalysisService due to initialization error.")
+        logger.warning(
+            "Falling back to mock AnalysisService due to initialization error."
+        )
         analysis_service = AnalysisService()
         analysis_service.use_mocks = True
         app_state["analysis_service"] = analysis_service

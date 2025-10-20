@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './BenchmarkComparison.module.css';
+import React from "react";
+import styles from "./BenchmarkComparison.module.css";
 
 interface BenchmarkComparisonProps {
   name: string;
@@ -15,9 +15,9 @@ export const BenchmarkComparison: React.FC<BenchmarkComparisonProps> = ({
   topPerformer,
 }) => {
   const comparisons = [
-    { label: 'Your Performance', score: yourScore, color: '#007acc' },
-    { label: 'Industry Average', score: industryAvg, color: '#6c757d' },
-    { label: 'Top Performers', score: topPerformer, color: '#28a745' },
+    { label: "Your Performance", score: yourScore, color: "#007acc" },
+    { label: "Industry Average", score: industryAvg, color: "#6c757d" },
+    { label: "Top Performers", score: topPerformer, color: "#28a745" },
   ];
 
   return (

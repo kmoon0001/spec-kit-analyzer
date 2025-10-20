@@ -10,7 +10,7 @@ import logging
 import secrets
 from typing import Optional
 
-from fastapi import Request, Response, HTTPException, status
+from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -20,9 +20,17 @@ logger = logging.getLogger(__name__)
 class CSRFProtectionMiddleware(BaseHTTPMiddleware):
     """CSRF protection middleware using double-submit cookie pattern."""
 
-    def __init__(self, app, secret_key: str, cookie_name: str = "csrf_token", header_name: str = "X-CSRF-Token"):
+    def __init__(
+        self,
+        app,
+        secret_key: str,
+        cookie_name: str = "csrf_token",
+        header_name: str = "X-CSRF-Token",
+    ):
         super().__init__(app)
-        self.secret_key = secret_key.encode() if isinstance(secret_key, str) else secret_key
+        self.secret_key = (
+            secret_key.encode() if isinstance(secret_key, str) else secret_key
+        )
         self.cookie_name = cookie_name
         self.header_name = header_name
         self.cookie_max_age = 3600  # 1 hour
@@ -46,13 +54,15 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             # Validate CSRF token for state-changing methods
             if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
                 if not self._validate_csrf_token(request):
-                    logger.warning(f"CSRF validation failed for {request.method} {request.url}")
+                    logger.warning(
+                        f"CSRF validation failed for {request.method} {request.url}"
+                    )
                     return JSONResponse(
                         status_code=status.HTTP_403_FORBIDDEN,
                         content={
                             "error": "CSRF_TOKEN_INVALID",
-                            "message": "CSRF token validation failed. Please refresh the page and try again."
-                        }
+                            "message": "CSRF token validation failed. Please refresh the page and try again.",
+                        },
                     )
 
             response = await call_next(request)
@@ -67,7 +77,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             logger.error(f"CSRF middleware error: {e}")
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"error": "CSRF_MIDDLEWARE_ERROR", "message": "Internal server error"}
+                content={
+                    "error": "CSRF_MIDDLEWARE_ERROR",
+                    "message": "Internal server error",
+                },
             )
 
     def _should_skip_csrf(self, request: Request) -> bool:
@@ -112,7 +125,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
                 return False
 
             # Validate token format
-            if not self._is_valid_token_format(header_token) or not self._is_valid_token_format(cookie_token):
+            if not self._is_valid_token_format(
+                header_token
+            ) or not self._is_valid_token_format(cookie_token):
                 logger.debug("Invalid CSRF token format")
                 return False
 
@@ -156,9 +171,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
 
             # Verify signature
             expected_signature = hmac.new(
-                self.secret_key,
-                payload.encode(),
-                hashlib.sha256
+                self.secret_key, payload.encode(), hashlib.sha256
             ).hexdigest()[:32]
 
             return hmac.compare_digest(signature, expected_signature)
@@ -176,7 +189,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
                 secure=self.cookie_secure,
                 httponly=self.cookie_httponly,
                 samesite=self.cookie_samesite,
-                path="/"
+                path="/",
             )
         except Exception as e:
             logger.error(f"Failed to set CSRF cookie: {e}")
@@ -189,10 +202,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
 
             # Generate signature
             signature = hmac.new(
-                self.secret_key,
-                payload.encode(),
-                hashlib.sha256
-            ).hexdigest()[:32]  # First 32 chars of signature
+                self.secret_key, payload.encode(), hashlib.sha256
+            ).hexdigest()[
+                :32
+            ]  # First 32 chars of signature
 
             return payload + signature
         except Exception as e:

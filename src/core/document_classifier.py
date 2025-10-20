@@ -28,10 +28,18 @@ class DocumentClassifier:
                     from src.config import get_settings
 
                     template_path = get_settings().models.doc_classifier_prompt
-                except (PermissionError, ImportError, FileNotFoundError, ModuleNotFoundError, OSError):
+                except (
+                    PermissionError,
+                    ImportError,
+                    FileNotFoundError,
+                    ModuleNotFoundError,
+                    OSError,
+                ):
                     template_path = "src/resources/prompts/doc_classifier_prompt.txt"
             template_name = (
-                os.path.basename(template_path) or os.path.basename(template_path.rstrip(os.sep)) or template_path
+                os.path.basename(template_path)
+                or os.path.basename(template_path.rstrip(os.sep))
+                or template_path
             )
             self.prompt_manager = PromptManager(template_name=template_name)
         self.possible_types = [
@@ -71,7 +79,10 @@ class DocumentClassifier:
             if classification in self.possible_types:
                 logger.info("Document classified as: %s", classification)
                 return classification
-            logger.warning("LLM returned an unexpected document type: '%s'. Defaulting to 'Unknown'.", classification)
+            logger.warning(
+                "LLM returned an unexpected document type: '%s'. Defaulting to 'Unknown'.",
+                classification,
+            )
             return "Unknown"
 
         except Exception as e:

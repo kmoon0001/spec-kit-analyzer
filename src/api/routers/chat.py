@@ -19,7 +19,10 @@ async def chat_with_ai(
     analysis_service: Any = Depends(get_analysis_service),  # Changed to Any
 ):
     """Handles a conversational chat request with the AI."""
-    chat_llm = getattr(analysis_service, "chat_llm_service", None) or analysis_service.llm_service
+    chat_llm = (
+        getattr(analysis_service, "chat_llm_service", None)
+        or analysis_service.llm_service
+    )
     if not chat_llm.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -34,5 +37,6 @@ async def chat_with_ai(
         return schemas.ChatResponse(response=response_text)
     except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An error occurred during the chat session: {e}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during the chat session: {e}",
         ) from e

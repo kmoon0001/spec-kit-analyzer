@@ -63,21 +63,28 @@ class PooledResource(Generic[T]):
         """Acquire the resource for use."""
         with self._lock:
             if self.state != ResourceState.AVAILABLE:
-                raise RuntimeError(f"Resource {self.resource_id} is not available (state: {self.state})")
+                raise RuntimeError(
+                    f"Resource {self.resource_id} is not available (state: {self.state})"
+                )
 
             self.state = ResourceState.IN_USE
             self.last_used = datetime.now()
             self._use_start_time = self.last_used
             self.use_count += 1
 
-            logger.debug("Resource %s acquired (use #{self.use_count})", self.resource_id)
+            logger.debug(
+                "Resource %s acquired (use #{self.use_count})", self.resource_id
+            )
             return self.resource
 
     def release(self) -> None:
         """Release the resource back to the pool."""
         with self._lock:
             if self.state != ResourceState.IN_USE:
-                logger.warning("Attempting to release resource %s that is not in use", self.resource_id)
+                logger.warning(
+                    "Attempting to release resource %s that is not in use",
+                    self.resource_id,
+                )
                 return
 
             if self._use_start_time:
@@ -172,7 +179,9 @@ class ResourcePool(Generic[T]):
     - Graceful shutdown handling
     """
 
-    def __init__(self, name: str, factory: ResourceFactory[T], config: PoolConfiguration):
+    def __init__(
+        self, name: str, factory: ResourceFactory[T], config: PoolConfiguration
+    ):
         """Initialize the resource pool.
 
         Args:
@@ -209,7 +218,9 @@ class ResourcePool(Generic[T]):
 
         logger.info("Resource pool '%s' initialized with config: %s", name, config)
 
-    def acquire_resource(self, timeout: float | None = None) -> PooledResource[T] | None:
+    def acquire_resource(
+        self, timeout: float | None = None
+    ) -> PooledResource[T] | None:
         """Acquire a resource from the pool."""
         if self._shutdown:
             raise RuntimeError(f"Resource pool '{self.name}' is shut down")
@@ -267,7 +278,9 @@ class ResourcePool(Generic[T]):
             if current_size > self._peak_size:
                 self._peak_size = current_size
 
-            logger.debug("Created resource %s (pool size: %d)", resource_id, current_size)
+            logger.debug(
+                "Created resource %s (pool size: %d)", resource_id, current_size
+            )
             return pooled_resource
 
         except Exception as e:
@@ -278,7 +291,9 @@ class ResourcePool(Generic[T]):
         """Handle resource release notification."""
         if not self._shutdown and resource.state == ResourceState.AVAILABLE:
             self._available_queue.put(resource.resource_id)
-            logger.debug("Resource %s returned to available queue", resource.resource_id)
+            logger.debug(
+                "Resource %s returned to available queue", resource.resource_id
+            )
 
     def _preload_resources(self) -> None:
         """Preload minimum number of resources."""
@@ -288,12 +303,16 @@ class ResourcePool(Generic[T]):
                 if resource:
                     self._available_queue.put(resource.resource_id)
 
-        logger.info("Preloaded %d resources for pool '%s'", self.config.min_size, self.name)
+        logger.info(
+            "Preloaded %d resources for pool '%s'", self.config.min_size, self.name
+        )
 
     def _start_maintenance_thread(self) -> None:
         """Start background maintenance thread."""
         self._maintenance_thread = threading.Thread(
-            target=self._maintenance_loop, name=f"ResourcePool-{self.name}-Maintenance", daemon=True
+            target=self._maintenance_loop,
+            name=f"ResourcePool-{self.name}-Maintenance",
+            daemon=True,
         )
         self._maintenance_thread.start()
 
@@ -317,7 +336,10 @@ class ResourcePool(Generic[T]):
         with self._lock:
             for _resource_id, resource in list(self._resources.items()):
                 # Check for expired resources
-                if resource.state == ResourceState.AVAILABLE and now - resource.last_used > self.config.max_idle_time:
+                if (
+                    resource.state == ResourceState.AVAILABLE
+                    and now - resource.last_used > self.config.max_idle_time
+                ):
                     resource.mark_expired()
 
                 # Check for lifetime exceeded
@@ -338,12 +360,17 @@ class ResourcePool(Generic[T]):
 
         with self._lock:
             for resource in self._resources.values():
-                if resource.state == ResourceState.AVAILABLE and not self.factory.validate_resource(resource.resource):
+                if (
+                    resource.state == ResourceState.AVAILABLE
+                    and not self.factory.validate_resource(resource.resource)
+                ):
                     invalid_resources.append(resource)
 
         # Dispose invalid resources
         for resource in invalid_resources:
-            logger.warning("Resource %s failed validation, disposing", resource.resource_id)
+            logger.warning(
+                "Resource %s failed validation, disposing", resource.resource_id
+            )
             self._dispose_resource(resource)
 
     def _dispose_resource(self, resource: PooledResource[T]) -> None:
@@ -366,7 +393,11 @@ class ResourcePool(Generic[T]):
     def _ensure_minimum_resources(self) -> None:
         """Ensure minimum number of resources are available."""
         with self._lock:
-            available_count = sum(1 for r in self._resources.values() if r.state == ResourceState.AVAILABLE)
+            available_count = sum(
+                1
+                for r in self._resources.values()
+                if r.state == ResourceState.AVAILABLE
+            )
 
             needed = self.config.min_size - available_count
             for _ in range(needed):
@@ -387,9 +418,17 @@ class ResourcePool(Generic[T]):
         """Get current pool status and metrics."""
         with self._lock:
             total_resources = len(self._resources)
-            available_count = sum(1 for r in self._resources.values() if r.state == ResourceState.AVAILABLE)
-            in_use_count = sum(1 for r in self._resources.values() if r.state == ResourceState.IN_USE)
-            expired_count = sum(1 for r in self._resources.values() if r.state == ResourceState.EXPIRED)
+            available_count = sum(
+                1
+                for r in self._resources.values()
+                if r.state == ResourceState.AVAILABLE
+            )
+            in_use_count = sum(
+                1 for r in self._resources.values() if r.state == ResourceState.IN_USE
+            )
+            expired_count = sum(
+                1 for r in self._resources.values() if r.state == ResourceState.EXPIRED
+            )
 
             # Calculate average metrics
             total_uses = sum(r.use_count for r in self._resources.values())
@@ -443,7 +482,9 @@ class ResourcePool(Generic[T]):
                             resource.mark_expired()
                             invalid_resources.append(resource_id)
                     except (ValueError, TypeError, AttributeError):
-                        logger.exception("Error validating resource %s: {e}", resource_id)
+                        logger.exception(
+                            "Error validating resource %s: {e}", resource_id
+                        )
                         resource.mark_expired()
                         invalid_resources.append(resource_id)
 
@@ -457,7 +498,9 @@ class ResourcePool(Generic[T]):
                         del self._resources[resource_id]
                         logger.debug("Removed invalid resource: %s", resource_id)
                     except Exception:
-                        logger.exception("Error disposing invalid resource %s: {e}", resource_id)
+                        logger.exception(
+                            "Error disposing invalid resource %s: {e}", resource_id
+                        )
 
 
 class ResourcePoolManager:
@@ -467,7 +510,9 @@ class ResourcePoolManager:
         self._pools = {}
         self._lock = threading.Lock()
 
-    def create_pool(self, name: str, factory: ResourceFactory[T], config: PoolConfiguration) -> ResourcePool[T]:
+    def create_pool(
+        self, name: str, factory: ResourceFactory[T], config: PoolConfiguration
+    ) -> ResourcePool[T]:
         """Create a new resource pool."""
         with self._lock:
             if name in self._pools:

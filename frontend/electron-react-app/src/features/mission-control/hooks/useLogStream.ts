@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
-import { getConfig, getNormalizedApiBaseUrl } from 'lib/config';
-import { createExponentialBackoff } from 'lib/network/backoff';
-import { useAppStore } from 'store/useAppStore';
+import { getConfig, getNormalizedApiBaseUrl } from "lib/config";
+import { createExponentialBackoff } from "lib/network/backoff";
+import { useAppStore } from "store/useAppStore";
 
 const MAX_MESSAGES = 100;
-const textDecoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
+const textDecoder =
+  typeof TextDecoder !== "undefined" ? new TextDecoder() : null;
 
 export type LogEntry = {
   id: string;
@@ -19,15 +20,17 @@ export type LogEntry = {
 const buildLogStreamUrl = (token: string) => {
   const runtimeConfig = getConfig();
   const normalizedBase = getNormalizedApiBaseUrl(runtimeConfig);
-  const fallbackBase = runtimeConfig.apiBaseUrl ?? 'http://127.0.0.1:8001';
-  const baseUrl = (normalizedBase ?? fallbackBase).replace(/^http/i, 'ws');
+  const fallbackBase = runtimeConfig.apiBaseUrl ?? "http://127.0.0.1:8001";
+  const baseUrl = (normalizedBase ?? fallbackBase).replace(/^http/i, "ws");
   const url = new URL(`${baseUrl}/ws/logs`);
-  url.searchParams.set('token', token);
+  url.searchParams.set("token", token);
   return url.toString();
 };
 
-const decodePayload = async (data: MessageEvent['data']): Promise<string | null> => {
-  if (typeof data === 'string') {
+const decodePayload = async (
+  data: MessageEvent["data"],
+): Promise<string | null> => {
+  if (typeof data === "string") {
     return data;
   }
 
@@ -50,20 +53,25 @@ const decodePayload = async (data: MessageEvent['data']): Promise<string | null>
   return null;
 };
 
-const normalizeLogEntry = (payload: unknown, fallbackMessage: string): LogEntry | null => {
-  if (payload && typeof payload === 'object') {
+const normalizeLogEntry = (
+  payload: unknown,
+  fallbackMessage: string,
+): LogEntry | null => {
+  if (payload && typeof payload === "object") {
     const maybeType = (payload as { type?: string }).type;
-    if (maybeType === 'heartbeat') {
+    if (maybeType === "heartbeat") {
       return null;
     }
 
     const logger = (payload as { logger?: string }).logger;
     const timestamp = (payload as { timestamp?: string }).timestamp;
     const rawMessage = (payload as { message?: unknown }).message;
-    const level = ((payload as { level?: string }).level ?? 'info').toLowerCase();
+    const level = (
+      (payload as { level?: string }).level ?? "info"
+    ).toLowerCase();
 
     let resolvedMessage: string;
-    if (typeof rawMessage === 'string') {
+    if (typeof rawMessage === "string") {
       resolvedMessage = rawMessage;
     } else if (rawMessage !== undefined) {
       try {
@@ -91,8 +99,8 @@ const normalizeLogEntry = (payload: unknown, fallbackMessage: string): LogEntry 
 
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-    message: typeof payload === 'string' ? payload : fallbackMessage,
-    level: 'info',
+    message: typeof payload === "string" ? payload : fallbackMessage,
+    level: "info",
   };
 };
 
@@ -117,7 +125,7 @@ export const useLogStream = () => {
         try {
           socketRef.current.close();
         } catch (error) {
-          console.warn('Failed to close log stream socket', error);
+          console.warn("Failed to close log stream socket", error);
         }
       }
       socketRef.current = null;
@@ -126,7 +134,7 @@ export const useLogStream = () => {
     if (!token) {
       setIsConnected(false);
       setMessages([]);
-      setConnectionError('Authentication required to view logs');
+      setConnectionError("Authentication required to view logs");
       cleanupTimer();
       cleanupSocket();
       return () => {
@@ -136,7 +144,10 @@ export const useLogStream = () => {
     }
 
     let disposed = false;
-    const backoff = createExponentialBackoff({ initialDelayMs: 750, maxDelayMs: 15000 });
+    const backoff = createExponentialBackoff({
+      initialDelayMs: 750,
+      maxDelayMs: 15000,
+    });
 
     const scheduleReconnect = () => {
       if (disposed) {
@@ -146,7 +157,7 @@ export const useLogStream = () => {
       reconnectTimerRef.current = window.setTimeout(connect, delay);
     };
 
-    const handleMessage = async (data: MessageEvent['data']) => {
+    const handleMessage = async (data: MessageEvent["data"]) => {
       if (disposed) {
         return;
       }
@@ -194,7 +205,7 @@ export const useLogStream = () => {
       };
 
       socket.onerror = () => {
-        setConnectionError('Log stream connection error');
+        setConnectionError("Log stream connection error");
       };
 
       socket.onclose = () => {
@@ -202,7 +213,9 @@ export const useLogStream = () => {
         if (disposed) {
           return;
         }
-        setConnectionError('Log stream disconnected, attempting to reconnect...');
+        setConnectionError(
+          "Log stream disconnected, attempting to reconnect...",
+        );
         scheduleReconnect();
       };
     };

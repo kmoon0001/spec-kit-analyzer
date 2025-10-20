@@ -51,9 +51,14 @@ class ComplianceSyncService:
                 "user_id": user_id,
                 "parameters": {
                     "patient_ids": patient_ids,
-                    "date_range_start": date_range_start.isoformat() if date_range_start else None,
-                    "date_range_end": date_range_end.isoformat() if date_range_end else None,
-                    "document_types": document_types or ["progress_notes", "evaluations", "treatment_plans"],
+                    "date_range_start": (
+                        date_range_start.isoformat() if date_range_start else None
+                    ),
+                    "date_range_end": (
+                        date_range_end.isoformat() if date_range_end else None
+                    ),
+                    "document_types": document_types
+                    or ["progress_notes", "evaluations", "treatment_plans"],
                     "auto_analyze": auto_analyze,
                 },
                 "results": {
@@ -87,12 +92,16 @@ class ComplianceSyncService:
                     # Simulate downloading documents
                     total_docs = len(patient_ids) * 3 if patient_ids else 50
                     documents_synced = total_docs
-                    self.sync_tasks[sync_task_id]["results"]["documents_synced"] = documents_synced
+                    self.sync_tasks[sync_task_id]["results"][
+                        "documents_synced"
+                    ] = documents_synced
 
                 elif "processing" in step_message.lower() and auto_analyze:
                     # Simulate analyzing documents
                     documents_analyzed = int(documents_synced * 0.8)  # 80% analyzed
-                    self.sync_tasks[sync_task_id]["results"]["documents_analyzed"] = documents_analyzed
+                    self.sync_tasks[sync_task_id]["results"][
+                        "documents_analyzed"
+                    ] = documents_analyzed
 
             # Complete the sync task
             self.sync_tasks[sync_task_id].update(
@@ -131,7 +140,9 @@ class ComplianceSyncService:
         """Get the status of an EHR synchronization task."""
         return self.sync_tasks.get(sync_task_id)
 
-    async def analyze_ehr_document(self, document_id: str, analysis_task_id: str, user_id: str) -> None:
+    async def analyze_ehr_document(
+        self, document_id: str, analysis_task_id: str, user_id: str
+    ) -> None:
         """Analyze a specific EHR document for compliance (background task).
 
         Args:
@@ -214,7 +225,9 @@ class ComplianceSyncService:
                 "failed_at": datetime.now().isoformat(),
             }
 
-    async def get_compliance_trends(self, days: int = 30, department: str | None = None) -> dict[str, Any]:
+    async def get_compliance_trends(
+        self, days: int = 30, department: str | None = None
+    ) -> dict[str, Any]:
         """Get compliance trends from EHR-synchronized documents.
 
         Args:
@@ -258,7 +271,11 @@ class ComplianceSyncService:
                     "dates": dates,
                     "scores": compliance_scores,
                     "average_score": sum(compliance_scores) / len(compliance_scores),
-                    "trend_direction": "improving" if compliance_scores[-1] > compliance_scores[0] else "declining",
+                    "trend_direction": (
+                        "improving"
+                        if compliance_scores[-1] > compliance_scores[0]
+                        else "declining"
+                    ),
                 },
                 "volume_trends": {
                     "dates": dates,
@@ -284,7 +301,9 @@ class ComplianceSyncService:
                     },
                 ],
                 "department_comparison": {
-                    "current_department": compliance_scores[-1] if compliance_scores else 0.8,
+                    "current_department": (
+                        compliance_scores[-1] if compliance_scores else 0.8
+                    ),
                     "facility_average": 0.82,
                     "national_benchmark": 0.85,
                 },

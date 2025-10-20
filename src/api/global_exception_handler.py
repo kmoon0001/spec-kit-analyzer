@@ -97,7 +97,9 @@ def _get_status_code_for_error(error: ApplicationError) -> int:
     return error_status_map.get(type(error), 500)
 
 
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
     """Handler for HTTP exceptions with consistent formatting.
 
     This handler ensures that all HTTP exceptions, whether raised by FastAPI
@@ -137,19 +139,28 @@ def _sanitize_error_message(message: str) -> str:
     import re
 
     # Remove file paths
-    message = re.sub(r'/[^\s]*', '[PATH]', message)
+    message = re.sub(r"/[^\s]*", "[PATH]", message)
 
     # Remove email addresses
-    message = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', message)
+    message = re.sub(
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL]", message
+    )
 
     # Remove IP addresses
-    message = re.sub(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', '[IP]', message)
+    message = re.sub(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b", "[IP]", message)
 
     # Remove database connection strings
-    message = re.sub(r'(?:sqlite|postgresql|mysql)://[^\s]*', '[DB_CONNECTION]', message)
+    message = re.sub(
+        r"(?:sqlite|postgresql|mysql)://[^\s]*", "[DB_CONNECTION]", message
+    )
 
     # Remove API keys and tokens
-    message = re.sub(r'(?:api[_-]?key|token|secret|password)[=:]\s*[^\s]+', '[CREDENTIAL]', message, flags=re.IGNORECASE)
+    message = re.sub(
+        r"(?:api[_-]?key|token|secret|password)[=:]\s*[^\s]+",
+        "[CREDENTIAL]",
+        message,
+        flags=re.IGNORECASE,
+    )
 
     # Remove stack trace information
     message = re.sub(r'File "[^"]*", line \d+', 'File "[PATH]", line [NUMBER]', message)
@@ -168,8 +179,17 @@ def _sanitize_error_details(details: dict) -> dict:
 
     sanitized = {}
     sensitive_keys = {
-        'password', 'secret', 'key', 'token', 'credential', 'auth',
-        'file_path', 'path', 'url', 'connection', 'database'
+        "password",
+        "secret",
+        "key",
+        "token",
+        "credential",
+        "auth",
+        "file_path",
+        "path",
+        "url",
+        "connection",
+        "database",
     }
 
     for key, value in details.items():
@@ -177,7 +197,7 @@ def _sanitize_error_details(details: dict) -> dict:
 
         # Skip sensitive keys
         if any(sensitive in key_lower for sensitive in sensitive_keys):
-            sanitized[key] = '[REDACTED]'
+            sanitized[key] = "[REDACTED]"
         elif isinstance(value, str):
             sanitized[key] = _sanitize_error_message(value)
         elif isinstance(value, dict):

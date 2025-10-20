@@ -314,7 +314,8 @@
 }
 
 @keyframes skeleton-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.4;
   }
   50% {
@@ -351,8 +352,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .page-error {
@@ -395,19 +400,19 @@
     gap: 8px;
     align-items: stretch;
   }
-  
+
   .document-info {
     justify-content: center;
   }
-  
+
   .document-actions {
     justify-content: center;
   }
-  
+
   .document-page {
     padding: 12px;
   }
-  
+
   .page-text {
     font-size: 13px;
   }
@@ -418,11 +423,11 @@
   .document-page {
     border: 2px solid;
   }
-  
+
   .document-highlight {
     outline: 2px solid;
   }
-  
+
   .control-button {
     border-width: 2px;
   }

@@ -44,7 +44,9 @@ def create_bm25_index():
     logger.info("Split text into %s documents.", len(corpus))
 
     if len(corpus) <= 1:
-        logger.error("Error: The document was not split into multiple sections. The index will not be effective.")
+        logger.error(
+            "Error: The document was not split into multiple sections. The index will not be effective."
+        )
         return  # Exit if we still can't split the document
 
     # Preprocess and tokenize the corpus

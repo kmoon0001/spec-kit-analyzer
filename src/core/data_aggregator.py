@@ -66,7 +66,9 @@ class MetricBuffer:
             if len(self._buffer) > self.max_size:
                 overflow = len(self._buffer) - self.max_size
                 self._buffer = self._buffer[overflow:]
-                logger.warning("Metric buffer overflow, dropped %s oldest metrics", overflow)
+                logger.warning(
+                    "Metric buffer overflow, dropped %s oldest metrics", overflow
+                )
 
     def get_and_clear(self) -> list[dict[str, Any]]:
         """Get all buffered metrics and clear the buffer.
@@ -107,7 +109,8 @@ class TimeSeriesStorage:
             conn = sqlite3.connect(self.db_path)
             try:
                 # Raw metrics table
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS raw_metrics (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
@@ -120,10 +123,12 @@ class TimeSeriesStorage:
                         metadata TEXT,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # Aggregated metrics table
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS aggregated_metrics (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
@@ -140,16 +145,29 @@ class TimeSeriesStorage:
                         metadata TEXT,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # Create indexes for better query performance
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_timestamp ON raw_metrics(timestamp)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_name ON raw_metrics(name)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_raw_source ON raw_metrics(source)")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_raw_timestamp ON raw_metrics(timestamp)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_raw_name ON raw_metrics(name)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_raw_source ON raw_metrics(source)"
+                )
 
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_agg_timestamp ON aggregated_metrics(timestamp)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_agg_name ON aggregated_metrics(name)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_agg_level ON aggregated_metrics(aggregation_level)")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_agg_timestamp ON aggregated_metrics(timestamp)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_agg_name ON aggregated_metrics(name)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_agg_level ON aggregated_metrics(aggregation_level)"
+                )
 
                 conn.commit()
                 logger.debug("Database schema initialized")
@@ -197,7 +215,12 @@ class TimeSeriesStorage:
                 conn.commit()
                 return len(metrics)
 
-            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+            except (
+                requests.RequestException,
+                ConnectionError,
+                TimeoutError,
+                HTTPError,
+            ) as e:
                 logger.exception("Error storing raw metrics: %s", e)
                 conn.rollback()
                 return 0
@@ -257,7 +280,11 @@ class TimeSeriesStorage:
                 conn.close()
 
     def query_raw_metrics(
-        self, start_time: datetime, end_time: datetime, metric_name: str | None = None, source: str | None = None
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        metric_name: str | None = None,
+        source: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query raw metrics from database.
 
@@ -351,7 +378,11 @@ class TimeSeriesStorage:
                     FROM aggregated_metrics
                     WHERE timestamp >= ? AND timestamp <= ? AND aggregation_level = ?
                 """
-                params = [start_time.isoformat(), end_time.isoformat(), aggregation_level.value]
+                params = [
+                    start_time.isoformat(),
+                    end_time.isoformat(),
+                    aggregation_level.value,
+                ]
 
                 if metric_name:
                     query += " AND name = ?"
@@ -411,11 +442,17 @@ class TimeSeriesStorage:
                 cursor = conn.cursor()
 
                 # Delete old raw metrics
-                cursor.execute("DELETE FROM raw_metrics WHERE timestamp < ?", (cutoff_time.isoformat()))
+                cursor.execute(
+                    "DELETE FROM raw_metrics WHERE timestamp < ?",
+                    (cutoff_time.isoformat()),
+                )
                 raw_deleted = cursor.rowcount
 
                 # Delete old aggregated metrics
-                cursor.execute("DELETE FROM aggregated_metrics WHERE timestamp < ?", (cutoff_time.isoformat()))
+                cursor.execute(
+                    "DELETE FROM aggregated_metrics WHERE timestamp < ?",
+                    (cutoff_time.isoformat()),
+                )
                 aggregated_deleted = cursor.rowcount
 
                 conn.commit()
@@ -453,7 +490,11 @@ class TimeSeriesStorage:
                 agg_count = cursor.fetchone()[0]
 
                 # Get database file size
-                db_size = Path(self.db_path).stat().st_size if Path(self.db_path).exists() else 0
+                db_size = (
+                    Path(self.db_path).stat().st_size
+                    if Path(self.db_path).exists()
+                    else 0
+                )
 
                 # Get oldest and newest timestamps
                 cursor.execute("SELECT MIN(timestamp), MAX(timestamp) FROM raw_metrics")
@@ -522,12 +563,16 @@ class DataAggregator:
         """Start background processing threads."""
         # Aggregation thread
         self._aggregation_thread = threading.Thread(
-            target=self._aggregation_loop, name="DataAggregator-Aggregation", daemon=True
+            target=self._aggregation_loop,
+            name="DataAggregator-Aggregation",
+            daemon=True,
         )
         self._aggregation_thread.start()
 
         # Cleanup thread
-        self._cleanup_thread = threading.Thread(target=self._cleanup_loop, name="DataAggregator-Cleanup", daemon=True)
+        self._cleanup_thread = threading.Thread(
+            target=self._cleanup_loop, name="DataAggregator-Cleanup", daemon=True
+        )
         self._cleanup_thread.start()
 
         logger.debug("Background threads started")
@@ -561,10 +606,15 @@ class DataAggregator:
         while not self._stop_event.is_set():
             try:
                 # Clean up old data
-                raw_deleted, agg_deleted = self.storage.cleanup_old_data(self.config.retention_days)
+                raw_deleted, agg_deleted = self.storage.cleanup_old_data(
+                    self.config.retention_days
+                )
 
                 if raw_deleted > 0 or agg_deleted > 0:
-                    logger.info("Cleaned up %s raw metrics and {agg_deleted} aggregated metrics", raw_deleted)
+                    logger.info(
+                        "Cleaned up %s raw metrics and {agg_deleted} aggregated metrics",
+                        raw_deleted,
+                    )
 
                 # Sleep for an hour before next cleanup
                 self._stop_event.wait(3600.0)
@@ -578,17 +628,25 @@ class DataAggregator:
         now = datetime.now()
 
         # Short-term aggregation (1-minute)
-        if (now - self._last_aggregation[AggregationLevel.SHORT_TERM]).total_seconds() >= 60:
+        if (
+            now - self._last_aggregation[AggregationLevel.SHORT_TERM]
+        ).total_seconds() >= 60:
             self._create_aggregations(AggregationLevel.SHORT_TERM, timedelta(minutes=1))
             self._last_aggregation[AggregationLevel.SHORT_TERM] = now
 
         # Medium-term aggregation (5-minute)
-        if (now - self._last_aggregation[AggregationLevel.MEDIUM_TERM]).total_seconds() >= 300:
-            self._create_aggregations(AggregationLevel.MEDIUM_TERM, timedelta(minutes=5))
+        if (
+            now - self._last_aggregation[AggregationLevel.MEDIUM_TERM]
+        ).total_seconds() >= 300:
+            self._create_aggregations(
+                AggregationLevel.MEDIUM_TERM, timedelta(minutes=5)
+            )
             self._last_aggregation[AggregationLevel.MEDIUM_TERM] = now
 
         # Long-term aggregation (1-hour)
-        if (now - self._last_aggregation[AggregationLevel.LONG_TERM]).total_seconds() >= 3600:
+        if (
+            now - self._last_aggregation[AggregationLevel.LONG_TERM]
+        ).total_seconds() >= 3600:
             self._create_aggregations(AggregationLevel.LONG_TERM, timedelta(hours=1))
             self._last_aggregation[AggregationLevel.LONG_TERM] = now
 
@@ -693,7 +751,9 @@ class DataAggregator:
         """
         try:
             if aggregation_level == AggregationLevel.RAW:
-                return self.storage.query_raw_metrics(start_time, end_time, metric_name, source)
+                return self.storage.query_raw_metrics(
+                    start_time, end_time, metric_name, source
+                )
             aggregated = self.storage.query_aggregated_metrics(
                 start_time, end_time, aggregation_level, metric_name, source
             )
@@ -738,7 +798,8 @@ class DataAggregator:
                 "aggregations_created": self._aggregations_created,
                 "buffer_size": self.buffer.size(),
                 "last_aggregations": {
-                    level.value: timestamp.isoformat() for level, timestamp in self._last_aggregation.items()
+                    level.value: timestamp.isoformat()
+                    for level, timestamp in self._last_aggregation.items()
                 },
             }
 
@@ -759,7 +820,11 @@ class DataAggregator:
             results = {}
 
             # Force all aggregation levels
-            for level in [AggregationLevel.SHORT_TERM, AggregationLevel.MEDIUM_TERM, AggregationLevel.LONG_TERM]:
+            for level in [
+                AggregationLevel.SHORT_TERM,
+                AggregationLevel.MEDIUM_TERM,
+                AggregationLevel.LONG_TERM,
+            ]:
                 if level == AggregationLevel.SHORT_TERM:
                     window = timedelta(minutes=1)
                 elif level == AggregationLevel.MEDIUM_TERM:
@@ -805,7 +870,9 @@ class DataAggregator:
             buffered_metrics = self.buffer.get_and_clear()
             if buffered_metrics:
                 self.storage.store_raw_metrics(buffered_metrics)
-                logger.debug("Stored %s final metrics during cleanup", len(buffered_metrics))
+                logger.debug(
+                    "Stored %s final metrics during cleanup", len(buffered_metrics)
+                )
 
             logger.debug("Data aggregator cleaned up")
 

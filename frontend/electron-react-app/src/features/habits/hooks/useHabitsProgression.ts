@@ -1,19 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
-import { useAppStore } from '../../../store/useAppStore';
-import { fetchHabitsProgression, fetchHabitsAchievements } from '../api';
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "../../../store/useAppStore";
+import { fetchHabitsProgression, fetchHabitsAchievements } from "../api";
 
 export const useHabitsProgression = () => {
   const token = useAppStore((state) => state.auth.token);
 
   const progressionQuery = useQuery({
-    queryKey: ['habits-progression'],
+    queryKey: ["habits-progression"],
     queryFn: fetchHabitsProgression,
     enabled: Boolean(token),
     staleTime: 300000, // 5 minutes
   });
 
   const achievementsQuery = useQuery({
-    queryKey: ['habits-achievements'],
+    queryKey: ["habits-achievements"],
     queryFn: fetchHabitsAchievements,
     enabled: Boolean(token),
     staleTime: 300000, // 5 minutes

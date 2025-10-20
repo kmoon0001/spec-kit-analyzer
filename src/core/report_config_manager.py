@@ -27,7 +27,9 @@ class ReportConfigurationManager:
     def _load_configurations(self) -> None:
         """Load report configurations from files"""
         if not self.config_dir.exists():
-            logger.info("Config directory not found: %s, creating defaults", self.config_dir)
+            logger.info(
+                "Config directory not found: %s, creating defaults", self.config_dir
+            )
             self.config_dir.mkdir(parents=True, exist_ok=True)
             self._create_default_configurations()
             return
@@ -90,7 +92,9 @@ class ReportConfigurationManager:
             elif "last_hours" in tr_data:
                 time_range = TimeRange.last_hours(tr_data["last_hours"])
 
-        export_formats = [ReportFormat(fmt) for fmt in config_data.get("export_formats", ["html"])]
+        export_formats = [
+            ReportFormat(fmt) for fmt in config_data.get("export_formats", ["html"])
+        ]
 
         return ReportConfig(
             report_type=ReportType(config_data["report_type"]),
@@ -132,7 +136,9 @@ class ReportConfigurationManager:
 
     def get_default_configuration(self, report_type: ReportType) -> ReportConfig:
         """Get default configuration for a report type"""
-        return self.default_configs.get(report_type, self.default_configs[ReportType.PERFORMANCE_ANALYSIS])
+        return self.default_configs.get(
+            report_type, self.default_configs[ReportType.PERFORMANCE_ANALYSIS]
+        )
 
     def save_configuration(self, config_id: str, config: ReportConfig) -> None:
         """Save a report configuration"""
@@ -166,7 +172,9 @@ class ReportConfigurationManager:
 
     def list_configurations(self) -> dict[str, str]:
         """List all available configurations with their titles"""
-        return {config_id: config.title for config_id, config in self.configurations.items()}
+        return {
+            config_id: config.title for config_id, config in self.configurations.items()
+        }
 
     def reload_configurations(self) -> None:
         """Reload all configurations from disk"""

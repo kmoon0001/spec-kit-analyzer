@@ -31,11 +31,11 @@ import sqlalchemy.exc
 from src.core.confidence_calibrator import ConfidenceCalibrator
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
-from src.core.rag_fact_checker import RAGFactChecker
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.ner import ClinicalNERService
 from src.core.nlg_service import NLGService
+from src.core.rag_fact_checker import RAGFactChecker
 from src.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
@@ -112,16 +112,22 @@ class ComplianceAnalyzer:
                 import warnings
 
                 with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+                    warnings.filterwarnings(
+                        "ignore", category=UserWarning, module="sklearn"
+                    )
                     self.confidence_calibrator.load(calibrator_path)
                 logger.info("Loaded existing confidence calibrator")
             except (FileNotFoundError, PermissionError, OSError, Exception) as e:
                 logger.warning("Failed to load calibrator: %s. Will create new one.", e)
                 self.confidence_calibrator = ConfidenceCalibrator(method="auto")
         else:
-            logger.info("No existing calibrator found. Will train on first batch of data.")
+            logger.info(
+                "No existing calibrator found. Will train on first batch of data."
+            )
 
-    def _calibrate_confidence_scores(self, findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _calibrate_confidence_scores(
+        self, findings: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Apply confidence calibration to findings if calibrator is fitted."""
         if not self.confidence_calibrator or not self.confidence_calibrator.is_fitted:
             logger.debug("Confidence calibrator not fitted yet. Using raw scores.")
@@ -143,7 +149,9 @@ class ComplianceAnalyzer:
             # Calibrate confidence scores
             raw_confidences_array = np.array(raw_confidences)
             if self.confidence_calibrator:
-                calibrated_confidences = self.confidence_calibrator.calibrate(raw_confidences_array)
+                calibrated_confidences = self.confidence_calibrator.calibrate(
+                    raw_confidences_array
+                )
             else:
                 calibrated_confidences = raw_confidences_array
 
@@ -166,7 +174,9 @@ class ComplianceAnalyzer:
             logger.debug("Calibrated confidence scores for %s findings", len(findings))
 
         except Exception as e:
-            logger.warning("Failed to calibrate confidence scores: %s. Using raw scores.", e)
+            logger.warning(
+                "Failed to calibrate confidence scores: %s. Using raw scores.", e
+            )
 
         return findings
 
@@ -194,7 +204,10 @@ class ComplianceAnalyzer:
                     labels.append(1 if item["is_correct"] else 0)
 
             if len(confidences) < 10:
-                logger.warning("Insufficient training data (%s samples). Need at least 10.", len(confidences))
+                logger.warning(
+                    "Insufficient training data (%s samples). Need at least 10.",
+                    len(confidences),
+                )
                 return
 
             # Train the calibrator
@@ -207,13 +220,17 @@ class ComplianceAnalyzer:
                 # Save the trained calibrator
                 calibrator_path = Path("models")
                 calibrator_path.mkdir(exist_ok=True)
-                self.confidence_calibrator.save(calibrator_path / "confidence_calibrator.pkl")
+                self.confidence_calibrator.save(
+                    calibrator_path / "confidence_calibrator.pkl"
+                )
 
                 # Log calibration metrics
                 metrics = self.confidence_calibrator.get_calibration_metrics()
             else:
                 metrics = {}
-            logger.info("Confidence calibrator trained with %s samples", len(confidences))
+            logger.info(
+                "Confidence calibrator trained with %s samples", len(confidences)
+            )
             logger.info("Calibration metrics: %s", metrics)
 
         except Exception as e:
@@ -222,7 +239,10 @@ class ComplianceAnalyzer:
     def get_calibration_metrics(self) -> dict[str, Any]:
         """Get calibration quality metrics."""
         if not self.confidence_calibrator or not self.confidence_calibrator.is_fitted:
-            return {"status": "not_fitted", "message": "Calibrator has not been trained yet"}
+            return {
+                "status": "not_fitted",
+                "message": "Calibrator has not been trained yet",
+            }
 
         metrics = self.confidence_calibrator.get_calibration_metrics()
         return {
@@ -282,7 +302,9 @@ class ComplianceAnalyzer:
             logger.exception("NER extraction failed: %s", e)
             entities = []
         entity_list_str = (
-            ", ".join(f"{entity['entity_group']}: {entity['word']}" for entity in entities)
+            ", ".join(
+                f"{entity['entity_group']}: {entity['word']}" for entity in entities
+            )
             if entities
             else "No specific entities extracted."
         )
@@ -298,7 +320,9 @@ class ComplianceAnalyzer:
                     category_filter=discipline,
                     discipline=discipline,
                     document_type=doc_type,
-                    context_entities=[entity["word"] for entity in entities] if entities else None,
+                    context_entities=(
+                        [entity["word"] for entity in entities] if entities else None
+                    ),
                 ),
                 timeout=60.0,  # 1 minute timeout for rule retrieval
             )
@@ -313,7 +337,9 @@ class ComplianceAnalyzer:
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
         if self.prompt_manager:
             # Cap document_text length to keep prompt compact for local CPU models
-            doc_for_prompt = document_text[:1500] if len(document_text) > 1500 else document_text
+            doc_for_prompt = (
+                document_text[:1500] if len(document_text) > 1500 else document_text
+            )
             prompt = self.prompt_manager.get_prompt(
                 document_text=doc_for_prompt,
                 entity_list=entity_list_str,
@@ -323,7 +349,9 @@ class ComplianceAnalyzer:
                 deterministic_focus=self.deterministic_focus,
             )
         else:
-            doc_for_prompt = document_text[:1500] if len(document_text) > 1500 else document_text
+            doc_for_prompt = (
+                document_text[:1500] if len(document_text) > 1500 else document_text
+            )
             prompt = f"Analyze this document for compliance:\n{doc_for_prompt}\n\nRules:\n{formatted_rules}"
 
         if self.llm_service:
@@ -340,7 +368,9 @@ class ComplianceAnalyzer:
                     timeout=60.0,  # Reduced to 60 seconds for faster response
                 )
             except TimeoutError:
-                logger.exception("LLM generation timed out after 60 seconds - using fallback analysis")
+                logger.exception(
+                    "LLM generation timed out after 60 seconds - using fallback analysis"
+                )
                 # Provide a basic fallback analysis when LLM times out
                 raw_analysis_result = """{
                     "findings": [
@@ -360,7 +390,7 @@ class ComplianceAnalyzer:
             except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.exception("LLM generation failed: %s", e)
                 # Provide a basic fallback analysis when LLM fails
-                raw_analysis_result = f'''{{
+                raw_analysis_result = f"""{{
                     "findings": [
                         {{
                             "issue_title": "Analysis Error",
@@ -375,7 +405,7 @@ class ComplianceAnalyzer:
                     "summary": "Analysis failed but basic compliance check completed",
                     "error": "{e!s}",
                     "exception": true
-                }}'''
+                }}"""
         else:
             # Provide a basic analysis when no LLM is available
             raw_analysis_result = """{
@@ -397,15 +427,22 @@ class ComplianceAnalyzer:
         try:
             initial_analysis = json.loads(raw_analysis_result)
         except json.JSONDecodeError:
-            logger.warning("LLM returned non-JSON payload, attempting to extract findings: %s", raw_analysis_result[:200])
+            logger.warning(
+                "LLM returned non-JSON payload, attempting to extract findings: %s",
+                raw_analysis_result[:200],
+            )
             # Try to extract findings from non-JSON response
-            initial_analysis = self._extract_findings_from_text(raw_analysis_result, document_text)
+            initial_analysis = self._extract_findings_from_text(
+                raw_analysis_result, document_text
+            )
 
         # Create explanation context with discipline and document type
         from src.core.explanation import ExplanationContext
 
         explanation_context = ExplanationContext(
-            document_type=doc_type, discipline=discipline, rubric_name=f"{discipline.upper()} Compliance Rubric"
+            document_type=doc_type,
+            discipline=discipline,
+            rubric_name=f"{discipline.upper()} Compliance Rubric",
         )
 
         if progress_callback:
@@ -420,25 +457,35 @@ class ComplianceAnalyzer:
         # Apply confidence calibration before final post-processing
         if progress_callback:
             progress_callback(90, "Calibrating confidence scores...")
-        if "findings" in explained_analysis and isinstance(explained_analysis["findings"], list):
-            explained_analysis["findings"] = self._calibrate_confidence_scores(explained_analysis["findings"])
+        if "findings" in explained_analysis and isinstance(
+            explained_analysis["findings"], list
+        ):
+            explained_analysis["findings"] = self._calibrate_confidence_scores(
+                explained_analysis["findings"]
+            )
 
         if progress_callback:
             progress_callback(95, "Finalizing analysis...")
-        final_analysis = await self._post_process_findings(explained_analysis, retrieved_rules)
+        final_analysis = await self._post_process_findings(
+            explained_analysis, retrieved_rules
+        )
         if isinstance(final_analysis, dict):
             score = final_analysis.get("compliance_score")
             if isinstance(score, (int, float)):
                 adjustments = {"lenient": 5.0, "strict": -7.0}
                 if strictness_level in adjustments:
-                    adjusted_score = max(0.0, min(100.0, float(score) + adjustments[strictness_level]))
+                    adjusted_score = max(
+                        0.0, min(100.0, float(score) + adjustments[strictness_level])
+                    )
                     final_analysis["compliance_score"] = adjusted_score
         if progress_callback:
             progress_callback(100, "Analysis complete!")
         logger.info("Compliance analysis complete.")
         return final_analysis
 
-    def _extract_findings_from_text(self, text_response: str, document_text: str) -> dict[str, Any]:
+    def _extract_findings_from_text(
+        self, text_response: str, document_text: str
+    ) -> dict[str, Any]:
         """Extract findings from non-JSON LLM response."""
         findings = []
 
@@ -446,126 +493,161 @@ class ComplianceAnalyzer:
         doc_lower = document_text.lower()
 
         # Check for SOAP structure
-        soap_present = any(term in doc_lower for term in ['subjective', 'objective', 'assessment', 'plan'])
+        soap_present = any(
+            term in doc_lower
+            for term in ["subjective", "objective", "assessment", "plan"]
+        )
         if not soap_present:
-            findings.append({
-                "id": "soap-structure",
-                "issue_title": "SOAP Structure Missing",
-                "rule_id": "soap-required",
-                "text": "Document lacks clear SOAP (Subjective, Objective, Assessment, Plan) structure",
-                "regulation": "Medicare therapy documentation standards",
-                "confidence": 0.9,
-                "personalized_tip": "Organize documentation using SOAP format for better compliance",
-                "severity_reason": "SOAP structure is required for Medicare compliance",
-                "priority": "High",
-                "severity": "high"
-            })
+            findings.append(
+                {
+                    "id": "soap-structure",
+                    "issue_title": "SOAP Structure Missing",
+                    "rule_id": "soap-required",
+                    "text": "Document lacks clear SOAP (Subjective, Objective, Assessment, Plan) structure",
+                    "regulation": "Medicare therapy documentation standards",
+                    "confidence": 0.9,
+                    "personalized_tip": "Organize documentation using SOAP format for better compliance",
+                    "severity_reason": "SOAP structure is required for Medicare compliance",
+                    "priority": "High",
+                    "severity": "high",
+                }
+            )
 
         # Check for goals and plan
-        goals_present = any(term in doc_lower for term in ['goal', 'objective', 'target', 'outcome'])
-        plan_present = any(term in doc_lower for term in ['plan', 'treatment', 'intervention', 'therapy'])
+        goals_present = any(
+            term in doc_lower for term in ["goal", "objective", "target", "outcome"]
+        )
+        plan_present = any(
+            term in doc_lower
+            for term in ["plan", "treatment", "intervention", "therapy"]
+        )
 
         if not goals_present:
-            findings.append({
-                "id": "goals-missing",
-                "issue_title": "Treatment Goals Not Documented",
-                "rule_id": "goals-required",
-                "text": "Document lacks clear treatment goals and objectives",
-                "regulation": "Medicare therapy requirements",
-                "confidence": 0.8,
-                "personalized_tip": "Include specific, measurable treatment goals",
-                "severity_reason": "Goals are required for therapy compliance",
-                "priority": "High",
-                "severity": "high"
-            })
+            findings.append(
+                {
+                    "id": "goals-missing",
+                    "issue_title": "Treatment Goals Not Documented",
+                    "rule_id": "goals-required",
+                    "text": "Document lacks clear treatment goals and objectives",
+                    "regulation": "Medicare therapy requirements",
+                    "confidence": 0.8,
+                    "personalized_tip": "Include specific, measurable treatment goals",
+                    "severity_reason": "Goals are required for therapy compliance",
+                    "priority": "High",
+                    "severity": "high",
+                }
+            )
 
         if not plan_present:
-            findings.append({
-                "id": "plan-missing",
-                "issue_title": "Treatment Plan Not Documented",
-                "rule_id": "plan-required",
-                "text": "Document lacks clear treatment plan and interventions",
-                "regulation": "Medicare therapy requirements",
-                "confidence": 0.8,
-                "personalized_tip": "Include detailed treatment plan with specific interventions",
-                "severity_reason": "Treatment plan is required for therapy compliance",
-                "priority": "High",
-                "severity": "high"
-            })
+            findings.append(
+                {
+                    "id": "plan-missing",
+                    "issue_title": "Treatment Plan Not Documented",
+                    "rule_id": "plan-required",
+                    "text": "Document lacks clear treatment plan and interventions",
+                    "regulation": "Medicare therapy requirements",
+                    "confidence": 0.8,
+                    "personalized_tip": "Include detailed treatment plan with specific interventions",
+                    "severity_reason": "Treatment plan is required for therapy compliance",
+                    "priority": "High",
+                    "severity": "high",
+                }
+            )
 
         # Check for functional status
-        functional_present = any(term in doc_lower for term in ['functional', 'mobility', 'adl', 'activities of daily living'])
+        functional_present = any(
+            term in doc_lower
+            for term in ["functional", "mobility", "adl", "activities of daily living"]
+        )
         if not functional_present:
-            findings.append({
-                "id": "functional-status",
-                "issue_title": "Functional Status Assessment Missing",
-                "rule_id": "functional-required",
-                "text": "Document lacks functional status assessment",
-                "regulation": "Therapy documentation standards",
-                "confidence": 0.7,
-                "personalized_tip": "Include functional status assessment and baseline measurements",
-                "severity_reason": "Functional status is essential for therapy documentation",
-                "priority": "Medium",
-                "severity": "medium"
-            })
+            findings.append(
+                {
+                    "id": "functional-status",
+                    "issue_title": "Functional Status Assessment Missing",
+                    "rule_id": "functional-required",
+                    "text": "Document lacks functional status assessment",
+                    "regulation": "Therapy documentation standards",
+                    "confidence": 0.7,
+                    "personalized_tip": "Include functional status assessment and baseline measurements",
+                    "severity_reason": "Functional status is essential for therapy documentation",
+                    "priority": "Medium",
+                    "severity": "medium",
+                }
+            )
 
         # Check for progress indicators
-        progress_present = any(term in doc_lower for term in ['progress', 'improvement', 'decline', 'change'])
+        progress_present = any(
+            term in doc_lower
+            for term in ["progress", "improvement", "decline", "change"]
+        )
         if not progress_present:
-            findings.append({
-                "id": "progress-tracking",
-                "issue_title": "Progress Tracking Incomplete",
-                "rule_id": "progress-required",
-                "text": "Document lacks clear progress indicators and measurements",
-                "regulation": "Therapy documentation standards",
-                "confidence": 0.6,
-                "personalized_tip": "Include specific progress measurements and functional changes",
-                "severity_reason": "Progress tracking is important for therapy compliance",
-                "priority": "Medium",
-                "severity": "medium"
-            })
+            findings.append(
+                {
+                    "id": "progress-tracking",
+                    "issue_title": "Progress Tracking Incomplete",
+                    "rule_id": "progress-required",
+                    "text": "Document lacks clear progress indicators and measurements",
+                    "regulation": "Therapy documentation standards",
+                    "confidence": 0.6,
+                    "personalized_tip": "Include specific progress measurements and functional changes",
+                    "severity_reason": "Progress tracking is important for therapy compliance",
+                    "priority": "Medium",
+                    "severity": "medium",
+                }
+            )
 
         # Check for therapist identification
-        therapist_present = any(term in doc_lower for term in ['therapist', 'therapist signature', 'licensed', 'credential'])
+        therapist_present = any(
+            term in doc_lower
+            for term in ["therapist", "therapist signature", "licensed", "credential"]
+        )
         if not therapist_present:
-            findings.append({
-                "id": "therapist-id",
-                "issue_title": "Therapist Identification Missing",
-                "rule_id": "therapist-required",
-                "text": "Document lacks clear therapist identification and credentials",
-                "regulation": "Professional documentation standards",
-                "confidence": 0.9,
-                "personalized_tip": "Include therapist name, credentials, and signature",
-                "severity_reason": "Therapist identification is required for professional accountability",
-                "priority": "High",
-                "severity": "high"
-            })
+            findings.append(
+                {
+                    "id": "therapist-id",
+                    "issue_title": "Therapist Identification Missing",
+                    "rule_id": "therapist-required",
+                    "text": "Document lacks clear therapist identification and credentials",
+                    "regulation": "Professional documentation standards",
+                    "confidence": 0.9,
+                    "personalized_tip": "Include therapist name, credentials, and signature",
+                    "severity_reason": "Therapist identification is required for professional accountability",
+                    "priority": "High",
+                    "severity": "high",
+                }
+            )
 
         # If no findings, add a positive one
         if not findings:
-            findings.append({
-                "id": "analysis-complete",
-                "issue_title": "Document Analysis Completed",
-                "rule_id": "analysis-complete",
-                "text": "Comprehensive compliance analysis completed successfully",
-                "regulation": "General compliance review",
-                "confidence": 0.8,
-                "personalized_tip": "Document appears to meet basic compliance requirements",
-                "severity_reason": "Analysis completed without major issues detected",
-                "priority": "Low",
-                "severity": "low"
-            })
+            findings.append(
+                {
+                    "id": "analysis-complete",
+                    "issue_title": "Document Analysis Completed",
+                    "rule_id": "analysis-complete",
+                    "text": "Comprehensive compliance analysis completed successfully",
+                    "regulation": "General compliance review",
+                    "confidence": 0.8,
+                    "personalized_tip": "Document appears to meet basic compliance requirements",
+                    "severity_reason": "Analysis completed without major issues detected",
+                    "priority": "Low",
+                    "severity": "low",
+                }
+            )
 
         # Calculate compliance score based on findings
-        high_severity = len([f for f in findings if f.get('severity') == 'high'])
-        medium_severity = len([f for f in findings if f.get('severity') == 'medium'])
-        low_severity = len([f for f in findings if f.get('severity') == 'low'])
+        high_severity = len([f for f in findings if f.get("severity") == "high"])
+        medium_severity = len([f for f in findings if f.get("severity") == "medium"])
+        low_severity = len([f for f in findings if f.get("severity") == "low"])
 
         # Base score calculation
         base_score = 100
-        base_score -= high_severity * 20  # High severity issues reduce score significantly
-        base_score -= medium_severity * 10  # Medium severity issues reduce score moderately
-        base_score -= low_severity * 5   # Low severity issues reduce score slightly
+        base_score -= (
+            high_severity * 20
+        )  # High severity issues reduce score significantly
+        base_score -= (
+            medium_severity * 10
+        )  # Medium severity issues reduce score moderately
+        base_score -= low_severity * 5  # Low severity issues reduce score slightly
 
         compliance_score = max(0, min(100, base_score))
 
@@ -573,7 +655,7 @@ class ComplianceAnalyzer:
             "summary": f"Compliance analysis completed. Found {len(findings)} compliance observations. Overall score: {compliance_score}%",
             "findings": findings,
             "compliance_score": compliance_score,
-            "citations": ["AI Analysis", "Medicare Guidelines", "Therapy Standards"]
+            "citations": ["AI Analysis", "Medicare Guidelines", "Therapy Standards"],
         }
 
     async def _post_process_findings(
@@ -600,7 +682,9 @@ class ComplianceAnalyzer:
 
         for finding in findings:
             rule_id = finding.get("rule_id")
-            associated_rule = next((r for r in retrieved_rules if r.get("id") == rule_id), None)
+            associated_rule = next(
+                (r for r in retrieved_rules if r.get("id") == rule_id), None
+            )
 
             # RAG-based fact-checking (preferred) or traditional fact-checking
             if associated_rule:
@@ -613,20 +697,32 @@ class ComplianceAnalyzer:
                         from src.config import get_settings
 
                         settings = get_settings()
-                        deep_check = getattr(settings.performance, "enable_deep_fact_checking", False)
+                        deep_check = getattr(
+                            settings.performance, "enable_deep_fact_checking", False
+                        )
 
-                        is_plausible = await self.rag_fact_checker.check_finding_plausibility(
-                            finding, associated_rule, deep_check=deep_check
+                        is_plausible = (
+                            await self.rag_fact_checker.check_finding_plausibility(
+                                finding, associated_rule, deep_check=deep_check
+                            )
                         )
                     except Exception as e:
-                        logger.warning(f"RAG fact-checking failed: {e}, falling back to traditional")
+                        logger.warning(
+                            f"RAG fact-checking failed: {e}, falling back to traditional"
+                        )
                         # Fall back to traditional fact-checking
                         if self.fact_checker_service:
-                            is_plausible = self.fact_checker_service.is_finding_plausible(finding, associated_rule)
+                            is_plausible = (
+                                self.fact_checker_service.is_finding_plausible(
+                                    finding, associated_rule
+                                )
+                            )
 
                 # Fall back to traditional fact-checking if RAG is not available
                 elif self.fact_checker_service:
-                    is_plausible = self.fact_checker_service.is_finding_plausible(finding, associated_rule)
+                    is_plausible = self.fact_checker_service.is_finding_plausible(
+                        finding, associated_rule
+                    )
 
                 if not is_plausible:
                     finding["is_disputed"] = True
@@ -636,15 +732,22 @@ class ComplianceAnalyzer:
             if (
                 isinstance(confidence, float | int)
                 and confidence < CONFIDENCE_THRESHOLD
-                and not finding.get("confidence_calibrated", False)  # Skip if already calibrated
+                and not finding.get(
+                    "confidence_calibrated", False
+                )  # Skip if already calibrated
             ):
                 finding["is_low_confidence"] = True
 
             if self.nlg_service:
-                tip = await asyncio.to_thread(self.nlg_service.generate_personalized_tip, finding)
+                tip = await asyncio.to_thread(
+                    self.nlg_service.generate_personalized_tip, finding
+                )
                 finding["personalized_tip"] = tip
             else:
-                finding.setdefault("personalized_tip", finding.get("suggestion", "Tip generation unavailable."))
+                finding.setdefault(
+                    "personalized_tip",
+                    finding.get("suggestion", "Tip generation unavailable."),
+                )
 
         return explained_analysis
 

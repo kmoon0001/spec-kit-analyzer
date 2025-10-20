@@ -1,8 +1,8 @@
-import { Sun, Moon, LogOut, Activity } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { useAppStore } from '../../store/useAppStore';
+import { Sun, Moon, LogOut, Activity } from "lucide-react";
+import { Button } from "../ui/Button";
+import { useAppStore } from "../../store/useAppStore";
 
-import styles from './ShellHeader.module.css';
+import styles from "./ShellHeader.module.css";
 
 export const ShellHeader = () => {
   const theme = useAppStore((state) => state.theme.theme);
@@ -19,7 +19,9 @@ export const ShellHeader = () => {
         </div>
         <div>
           <h1 className={styles.title}>Therapy Compliance Analyzer</h1>
-          <p className={styles.subtitle}>Clinical documentation review • Medicare compliance intelligence</p>
+          <p className={styles.subtitle}>
+            Clinical documentation review • Medicare compliance intelligence
+          </p>
         </div>
       </div>
       <div className={styles.controls}>
@@ -29,9 +31,17 @@ export const ShellHeader = () => {
             {username}
           </span>
         )}
-        <Button variant="outline" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          <span className={styles.buttonText}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+        <Button
+          variant="outline"
+          onClick={toggleTheme}
+          title={
+            theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
+          }
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          <span className={styles.buttonText}>
+            {theme === "dark" ? "Light" : "Dark"}
+          </span>
         </Button>
         <Button variant="ghost" onClick={clearAuth} title="Log Out">
           <LogOut size={16} />

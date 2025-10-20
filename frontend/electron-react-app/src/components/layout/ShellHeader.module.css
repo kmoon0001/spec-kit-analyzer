@@ -3,7 +3,11 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-lg) var(--spacing-xl);
-  background: linear-gradient(120deg, rgba(30, 64, 175, 0.92), rgba(15, 23, 42, 0.9));
+  background: linear-gradient(
+    120deg,
+    rgba(30, 64, 175, 0.92),
+    rgba(15, 23, 42, 0.9)
+  );
   border-bottom: 1px solid rgba(30, 64, 175, 0.35);
   box-shadow: 0 24px 36px -32px rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
@@ -27,7 +31,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

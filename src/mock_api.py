@@ -120,7 +120,9 @@ def _store_completed_task(
     timestamp = dt.datetime.now(dt.UTC)
     analysis_payload = copy.deepcopy(result)
     analysis_details = (
-        analysis_payload.get("analysis", {}) if isinstance(analysis_payload, dict) else {}
+        analysis_payload.get("analysis", {})
+        if isinstance(analysis_payload, dict)
+        else {}
     )
 
     task_entry = {
@@ -180,7 +182,10 @@ if _FASTAPI_AVAILABLE:  # pragma: no cover - exercised only when FastAPI exists
         # Ensure result is properly awaited dict, not coroutine
         analysis_result: dict[str, Any] = result
         _store_completed_task(
-            task_id=task_id, filename=original_filename, result=analysis_result, user=current_user
+            task_id=task_id,
+            filename=original_filename,
+            result=analysis_result,
+            user=current_user,
         )
         return {"task_id": task_id, "status": "processing"}
 
@@ -201,7 +206,9 @@ if _FASTAPI_AVAILABLE:  # pragma: no cover - exercised only when FastAPI exists
         return copy.deepcopy(task)
 
     @contextmanager
-    def create_mock_test_client(user: schemas.User | None = None) -> Iterator[TestClient]:
+    def create_mock_test_client(
+        user: schemas.User | None = None,
+    ) -> Iterator[TestClient]:
         """Yield a :class:`TestClient` bound to the FastAPI app."""
 
         override_user = user or get_current_active_user()
@@ -261,7 +268,9 @@ else:
 
             current_user = self._user_provider()
             if not current_user.is_active:
-                return _MockResponse(403, {"detail": "Inactive users cannot request analysis"})
+                return _MockResponse(
+                    403, {"detail": "Inactive users cannot request analysis"}
+                )
 
             try:
                 result = await _mock_analysis_service.analyze_document(
@@ -288,7 +297,9 @@ else:
             )
             return _MockResponse(202, {"task_id": task_id, "status": "processing"})
 
-        def get(self, path: str, headers: Any | None = None) -> _MockResponse:  # noqa: ANN401
+        def get(
+            self, path: str, headers: Any | None = None
+        ) -> _MockResponse:  # noqa: ANN401
             """Get request handler."""
             _ = headers  # Unused but part of interface
             if not path.startswith("/analysis/status/"):
@@ -297,7 +308,9 @@ else:
             task_id = path.rsplit("/", 1)[-1]
             current_user = self._user_provider()
             if not current_user.is_active:
-                return _MockResponse(403, {"detail": "Inactive users cannot view task status"})
+                return _MockResponse(
+                    403, {"detail": "Inactive users cannot view task status"}
+                )
 
             task = _tasks.get(task_id)
             if task is None:
@@ -306,7 +319,9 @@ else:
             return _MockResponse(200, copy.deepcopy(task))
 
     @contextmanager
-    def create_offline_test_client(user: schemas.User | None = None) -> Iterator[_OfflineClient]:
+    def create_offline_test_client(
+        user: schemas.User | None = None,
+    ) -> Iterator[_OfflineClient]:
         """Yield the offline client that mimics FastAPI's TestClient."""
 
         override_user = user or get_current_active_user()

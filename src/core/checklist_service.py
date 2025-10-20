@@ -65,7 +65,9 @@ class DeterministicChecklistService:
                     "2x/week",
                     "3x/week",
                 ],
-                recommendation=("Document the planned visit frequency (e.g., '3 sessions per week for 4 weeks')."),
+                recommendation=(
+                    "Document the planned visit frequency (e.g., '3 sessions per week for 4 weeks')."
+                ),
                 doc_types=["progress_note", "evaluation", "treatment_plan"],
             ),
             ChecklistItem(
@@ -84,7 +86,9 @@ class DeterministicChecklistService:
                     "STG",
                     "LTG",
                 ],
-                recommendation=("Document progress toward established goals or note if goals require modification."),
+                recommendation=(
+                    "Document progress toward established goals or note if goals require modification."
+                ),
                 doc_types=["progress_note", "evaluation"],
             ),
             ChecklistItem(
@@ -100,7 +104,9 @@ class DeterministicChecklistService:
                     "therapeutic intervention",
                     "skilled intervention",
                 ],
-                recommendation=("Include clear justification for why skilled therapy remains medically necessary."),
+                recommendation=(
+                    "Include clear justification for why skilled therapy remains medically necessary."
+                ),
             ),
             ChecklistItem(
                 identifier="functional_status",
@@ -137,7 +143,9 @@ class DeterministicChecklistService:
                     "discharge planning",
                     "POC",
                 ],
-                recommendation=("Document the current plan of care or note any changes to the treatment approach."),
+                recommendation=(
+                    "Document the current plan of care or note any changes to the treatment approach."
+                ),
                 optional=True,
             ),
             # Physical Therapy specific items
@@ -155,7 +163,9 @@ class DeterministicChecklistService:
                     "AROM",
                     "degrees",
                 ],
-                recommendation=("Document range of motion measurements or assessments when relevant to treatment."),
+                recommendation=(
+                    "Document range of motion measurements or assessments when relevant to treatment."
+                ),
                 discipline_specific="PT",
                 optional=True,
             ),
@@ -173,7 +183,9 @@ class DeterministicChecklistService:
                     "good",
                     "trace",
                 ],
-                recommendation=("Document muscle strength assessments using standardized grading when applicable."),
+                recommendation=(
+                    "Document muscle strength assessments using standardized grading when applicable."
+                ),
                 discipline_specific="PT",
                 optional=True,
             ),
@@ -192,7 +204,9 @@ class DeterministicChecklistService:
                     "toileting",
                     "transfers",
                 ],
-                recommendation=("Document performance in activities of daily living and any adaptive strategies used."),
+                recommendation=(
+                    "Document performance in activities of daily living and any adaptive strategies used."
+                ),
                 discipline_specific="OT",
                 optional=True,
             ),
@@ -209,7 +223,9 @@ class DeterministicChecklistService:
                     "clear speech",
                     "percent intelligible",
                 ],
-                recommendation=("Document speech intelligibility levels and any changes in clarity or articulation."),
+                recommendation=(
+                    "Document speech intelligibility levels and any changes in clarity or articulation."
+                ),
                 discipline_specific="SLP",
                 optional=True,
             ),
@@ -226,7 +242,9 @@ class DeterministicChecklistService:
                     "NPO",
                     "PO intake",
                 ],
-                recommendation=("Document swallowing safety and any dietary modifications or precautions."),
+                recommendation=(
+                    "Document swallowing safety and any dietary modifications or precautions."
+                ),
                 discipline_specific="SLP",
                 optional=True,
             ),
@@ -237,12 +255,16 @@ class DeterministicChecklistService:
         lines = []
         for item in self._checks:
             qualifier = "(optional) " if item.optional else ""
-            discipline_note = f" [{item.discipline_specific}]" if item.discipline_specific else ""
+            discipline_note = (
+                f" [{item.discipline_specific}]" if item.discipline_specific else ""
+            )
             keywords = ", ".join(item.keywords)
             lines.append(f"- {qualifier}{item.title}{discipline_note}: {keywords}")
         return "\n".join(lines)
 
-    def _filter_applicable_checks(self, doc_type: str | None, discipline: str | None) -> list[ChecklistItem]:
+    def _filter_applicable_checks(
+        self, doc_type: str | None, discipline: str | None
+    ) -> list[ChecklistItem]:
         """Filter checklist items based on document type and discipline.
 
         Args:
@@ -272,7 +294,11 @@ class DeterministicChecklistService:
         return applicable_checks
 
     def evaluate(
-        self, document_text: str, *, doc_type: str | None = None, discipline: str | None = None
+        self,
+        document_text: str,
+        *,
+        doc_type: str | None = None,
+        discipline: str | None = None,
     ) -> list[dict[str, str]]:
         """Return checklist results with evidence snippets when available.
 
@@ -310,7 +336,9 @@ class DeterministicChecklistService:
 
         results: list[dict[str, str]] = []
         for item in applicable_checks:
-            evidence_sentence = self._locate_sentence(sentences, sentences_lower, item.keywords)
+            evidence_sentence = self._locate_sentence(
+                sentences, sentences_lower, item.keywords
+            )
             status = "pass" if evidence_sentence else "review"
             results.append(
                 {
@@ -332,7 +360,9 @@ class DeterministicChecklistService:
         # Clean up and filter empty sentences
         return [sent.strip() for sent in sentences if sent.strip()]
 
-    def get_checklist_summary(self, discipline: str | None = None, doc_type: str | None = None) -> dict[str, int]:
+    def get_checklist_summary(
+        self, discipline: str | None = None, doc_type: str | None = None
+    ) -> dict[str, int]:
         """Get a summary of checklist items by category.
 
         Args:
@@ -352,11 +382,15 @@ class DeterministicChecklistService:
             "total": len(applicable_checks),
             "required": required_count,
             "optional": optional_count,
-            "discipline_specific": sum(1 for item in applicable_checks if item.discipline_specific),
+            "discipline_specific": sum(
+                1 for item in applicable_checks if item.discipline_specific
+            ),
         }
 
     @staticmethod
-    def _locate_sentence(sentences: list[str], sentences_lower: list[str], keywords: Iterable[str]) -> str | None:
+    def _locate_sentence(
+        sentences: list[str], sentences_lower: list[str], keywords: Iterable[str]
+    ) -> str | None:
         """Locate the first sentence containing any of the specified keywords."""
         keyword_set = [kw.lower() for kw in keywords]
         for original, lowered in zip(sentences, sentences_lower, strict=False):

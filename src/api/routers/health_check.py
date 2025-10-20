@@ -6,11 +6,11 @@ Provides detailed system health monitoring and diagnostics
 import asyncio
 import os
 import platform
-import psutil
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
+import psutil
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -77,14 +77,14 @@ async def check_database_health(db: AsyncSession) -> ComponentHealth:
                 name="database",
                 status="degraded",
                 message=f"Database responding slowly ({response_time:.0f}ms)",
-                response_time_ms=response_time
+                response_time_ms=response_time,
             )
 
         return ComponentHealth(
             name="database",
             status="healthy",
             message="Database connection successful",
-            response_time_ms=response_time
+            response_time_ms=response_time,
         )
 
     except Exception as e:
@@ -92,7 +92,7 @@ async def check_database_health(db: AsyncSession) -> ComponentHealth:
             name="database",
             status="unhealthy",
             message=f"Database connection failed: {str(e)}",
-            response_time_ms=(time.time() - start_time) * 1000
+            response_time_ms=(time.time() - start_time) * 1000,
         )
 
 
@@ -113,7 +113,11 @@ async def check_ai_services_health() -> ComponentHealth:
 
         details = {
             "use_mocks": analysis_service.use_mocks,
-            "retriever_initialized": retriever.is_initialized if hasattr(retriever, 'is_initialized') else False
+            "retriever_initialized": (
+                retriever.is_initialized
+                if hasattr(retriever, "is_initialized")
+                else False
+            ),
         }
 
         return ComponentHealth(
@@ -121,7 +125,7 @@ async def check_ai_services_health() -> ComponentHealth:
             status="healthy",
             message="AI services available",
             response_time_ms=response_time,
-            details=details
+            details=details,
         )
 
     except Exception as e:
@@ -129,7 +133,7 @@ async def check_ai_services_health() -> ComponentHealth:
             name="ai_services",
             status="degraded",
             message=f"AI services partially available: {str(e)}",
-            response_time_ms=(time.time() - start_time) * 1000
+            response_time_ms=(time.time() - start_time) * 1000,
         )
 
 
@@ -142,9 +146,9 @@ async def check_worker_manager_health() -> ComponentHealth:
         stats = worker_manager.get_stats()
 
         # Check if worker manager is healthy
-        active_workers = stats.get('active_workers', 0)
-        max_workers = stats.get('max_workers', 0)
-        queue_size = stats.get('queue_size', 0)
+        active_workers = stats.get("active_workers", 0)
+        max_workers = stats.get("max_workers", 0)
+        queue_size = stats.get("queue_size", 0)
 
         if queue_size > max_workers * 2:  # Queue is getting large
             status = "degraded"
@@ -154,17 +158,14 @@ async def check_worker_manager_health() -> ComponentHealth:
             message = f"Worker manager operational ({active_workers}/{max_workers} workers active)"
 
         return ComponentHealth(
-            name="worker_manager",
-            status=status,
-            message=message,
-            details=stats
+            name="worker_manager", status=status, message=message, details=stats
         )
 
     except Exception as e:
         return ComponentHealth(
             name="worker_manager",
             status="unhealthy",
-            message=f"Worker manager unavailable: {str(e)}"
+            message=f"Worker manager unavailable: {str(e)}",
         )
 
 
@@ -180,13 +181,13 @@ def get_system_metrics() -> SystemMetrics:
         memory_available_gb = memory.available / (1024**3)
 
         # Disk usage
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage("/")
         disk_usage_percent = (disk.used / disk.total) * 100
         disk_free_gb = disk.free / (1024**3)
 
         # Load average (Unix only)
         load_average = None
-        if hasattr(os, 'getloadavg'):
+        if hasattr(os, "getloadavg"):
             load_average = list(os.getloadavg())
 
         return SystemMetrics(
@@ -195,7 +196,7 @@ def get_system_metrics() -> SystemMetrics:
             memory_available_gb=memory_available_gb,
             disk_usage_percent=disk_usage_percent,
             disk_free_gb=disk_free_gb,
-            load_average=load_average
+            load_average=load_average,
         )
 
     except Exception as e:
@@ -206,7 +207,7 @@ def get_system_metrics() -> SystemMetrics:
             memory_percent=0.0,
             memory_available_gb=0.0,
             disk_usage_percent=0.0,
-            disk_free_gb=0.0
+            disk_free_gb=0.0,
         )
 
 
@@ -214,6 +215,7 @@ def get_dependencies_info() -> dict[str, Any]:
     """Get information about system dependencies"""
     try:
         import sys
+
         import pkg_resources
 
         # Python version
@@ -221,9 +223,15 @@ def get_dependencies_info() -> dict[str, Any]:
 
         # Key package versions
         key_packages = [
-            'fastapi', 'uvicorn', 'sqlalchemy', 'pydantic',
-            'torch', 'transformers', 'sentence-transformers',
-            'presidio-analyzer', 'presidio-anonymizer'
+            "fastapi",
+            "uvicorn",
+            "sqlalchemy",
+            "pydantic",
+            "torch",
+            "transformers",
+            "sentence-transformers",
+            "presidio-analyzer",
+            "presidio-anonymizer",
         ]
 
         package_versions = {}
@@ -238,7 +246,7 @@ def get_dependencies_info() -> dict[str, Any]:
             "python_version": python_version,
             "platform": platform.platform(),
             "architecture": platform.architecture()[0],
-            "packages": package_versions
+            "packages": package_versions,
         }
 
     except Exception as e:
@@ -255,14 +263,14 @@ async def basic_health_check():
         status="healthy",
         timestamp=datetime.now(UTC),
         version="1.0.0",  # This should come from your app version
-        uptime_seconds=uptime
+        uptime_seconds=uptime,
     )
 
 
 @router.get("/health/detailed", response_model=DetailedHealthResponse)
 async def detailed_health_check(
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Detailed health check with component status"""
 
@@ -271,7 +279,7 @@ async def detailed_health_check(
         check_database_health(db),
         check_ai_services_health(),
         check_worker_manager_health(),
-        return_exceptions=True
+        return_exceptions=True,
     )
 
     # Handle any exceptions in component checks
@@ -279,20 +287,28 @@ async def detailed_health_check(
     for i, component in enumerate(components):
         if isinstance(component, Exception):
             component_names = ["database", "ai_services", "worker_manager"]
-            valid_components.append(ComponentHealth(
-                name=component_names[i] if i < len(component_names) else f"component_{i}",
-                status="unhealthy",
-                message=f"Health check failed: {str(component)}"
-            ))
+            valid_components.append(
+                ComponentHealth(
+                    name=(
+                        component_names[i]
+                        if i < len(component_names)
+                        else f"component_{i}"
+                    ),
+                    status="unhealthy",
+                    message=f"Health check failed: {str(component)}",
+                )
+            )
         elif isinstance(component, ComponentHealth):
             valid_components.append(component)
         else:
             # Handle unexpected types
-            valid_components.append(ComponentHealth(
-                name=f"component_{i}",
-                status="unknown",
-                message=f"Unexpected component type: {type(component)}"
-            ))
+            valid_components.append(
+                ComponentHealth(
+                    name=f"component_{i}",
+                    status="unknown",
+                    message=f"Unexpected component type: {type(component)}",
+                )
+            )
 
     # Determine overall status
     unhealthy_count = sum(1 for c in valid_components if c.status == "unhealthy")
@@ -318,11 +334,11 @@ async def detailed_health_check(
             status=overall_status,
             timestamp=datetime.now(UTC),
             version="1.0.0",
-            uptime_seconds=uptime
+            uptime_seconds=uptime,
         ),
         components=valid_components,
         system_metrics=system_metrics,
-        dependencies=dependencies
+        dependencies=dependencies,
     )
 
 
@@ -341,7 +357,7 @@ async def readiness_check(db: AsyncSession = Depends(get_async_db)):
         logger.exception("Readiness check failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service not ready: {str(e)}"
+            detail=f"Service not ready: {str(e)}",
         ) from e
 
 
@@ -352,7 +368,7 @@ async def liveness_check():
     return {
         "status": "alive",
         "timestamp": datetime.now(UTC),
-        "uptime_seconds": time.time() - _startup_time
+        "uptime_seconds": time.time() - _startup_time,
     }
 
 
@@ -366,6 +382,7 @@ async def metrics_endpoint(current_user: User = Depends(get_current_user)):
     # Get worker manager stats
     try:
         from src.core.worker_manager import get_worker_manager
+
         worker_stats = get_worker_manager().get_stats()
     except Exception:
         worker_stats = {}

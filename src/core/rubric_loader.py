@@ -12,7 +12,9 @@ from ..database import engine as async_engine
 from ..database.models import Rubric
 
 # --- Configuration ---
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 # Define the namespace from the TTL files
 NS = Namespace("http://example.com/speckit/ontology#")
@@ -64,7 +66,9 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
 
         # If it's a new, unique rule, prepare it for addition
         new_rubric = Rubric(
-            name=name, content=str(content_node), category=str(category_node) if category_node else None
+            name=name,
+            content=str(content_node),
+            category=str(category_node) if category_node else None,
         )
         rules_to_add.append(new_rubric)
         names_to_add.add(name)
@@ -73,7 +77,9 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
     if rules_to_add:
         db_session.add_all(rules_to_add)
         await db_session.commit()
-        logger.info("Successfully added %s new rubrics to the database.", len(rules_to_add))
+        logger.info(
+            "Successfully added %s new rubrics to the database.", len(rules_to_add)
+        )
     else:
         logger.info("No new rubrics to add. Database is up-to-date.")
 

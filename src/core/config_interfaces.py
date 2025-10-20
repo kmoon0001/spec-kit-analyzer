@@ -5,19 +5,20 @@ for different components of the application.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, Optional
 
 from src.core.interfaces import (
+    AIConfigInterface,
     DatabaseConfigInterface,
     SecurityConfigInterface,
-    AIConfigInterface,
 )
 
 
 class Environment(str, Enum):
     """Environment enumeration."""
+
     DEVELOPMENT = "development"
     TESTING = "testing"
     STAGING = "staging"
@@ -27,6 +28,7 @@ class Environment(str, Enum):
 @dataclass
 class DatabaseConfig:
     """Database configuration implementation."""
+
     url: str
     echo: bool = False
     pool_size: int = 5
@@ -47,6 +49,7 @@ class DatabaseConfig:
 @dataclass
 class SecurityConfig:
     """Security configuration implementation."""
+
     secret_key: str
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -76,6 +79,7 @@ class SecurityConfig:
 @dataclass
 class AIConfig:
     """AI service configuration implementation."""
+
     model_name: str = "gpt-3.5-turbo"
     max_tokens: int = 4000
     temperature: float = 0.7
@@ -103,6 +107,7 @@ class AIConfig:
 @dataclass
 class FileStorageConfig:
     """File storage configuration implementation."""
+
     storage_dir: str = "secure_storage"
     max_file_size_mb: int = 50
     allowed_extensions: list[str] = None
@@ -125,6 +130,7 @@ class FileStorageConfig:
 @dataclass
 class LoggingConfig:
     """Logging configuration implementation."""
+
     level: str = "INFO"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     file_path: Optional[str] = None
@@ -149,6 +155,7 @@ class LoggingConfig:
 @dataclass
 class APIConfig:
     """API configuration implementation."""
+
     host: str = "127.0.0.1"
     port: int = 8001
     debug: bool = False
@@ -180,6 +187,7 @@ class APIConfig:
 @dataclass
 class ApplicationConfig:
     """Main application configuration."""
+
     environment: Environment = Environment.DEVELOPMENT
     app_name: str = "Therapy Compliance Analyzer"
     app_version: str = "1.0.0"
@@ -199,7 +207,9 @@ class ApplicationConfig:
         if self.database is None:
             self.database = DatabaseConfig(url="sqlite:///./compliance.db")
         if self.security is None:
-            self.security = SecurityConfig(secret_key="default-secret-key-change-in-production")
+            self.security = SecurityConfig(
+                secret_key="default-secret-key-change-in-production"
+            )
         if self.ai is None:
             self.ai = AIConfig(use_mocks=True)
         if self.file_storage is None:
@@ -267,7 +277,9 @@ class ConfigValidator:
                 recommendations.append("Change default security secret key")
 
             if config.database.url.startswith("sqlite"):
-                recommendations.append("Consider using PostgreSQL or MySQL for production")
+                recommendations.append(
+                    "Consider using PostgreSQL or MySQL for production"
+                )
 
             if config.api.debug:
                 recommendations.append("Disable debug mode in production")
@@ -279,6 +291,8 @@ class ConfigValidator:
                 recommendations.append("Use INFO or WARNING log level in production")
 
             if not config.security.password_require_special:
-                recommendations.append("Enable special character requirement for passwords")
+                recommendations.append(
+                    "Enable special character requirement for passwords"
+                )
 
         return recommendations

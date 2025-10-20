@@ -8,11 +8,22 @@ Sensitive fields are encrypted at rest for security.
 import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
-from .encryption import EncryptedString, EncryptedText, EncryptedJSON
+from .encryption import EncryptedJSON, EncryptedString, EncryptedText
 
 
 class User(Base):
@@ -22,15 +33,23 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String)  # Already hashed, no need to encrypt
+    hashed_password: Mapped[str] = mapped_column(
+        String
+    )  # Already hashed, no need to encrypt
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    license_key: Mapped[str | None] = mapped_column(EncryptedString(255), unique=True, index=True, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    license_key: Mapped[str | None] = mapped_column(
+        EncryptedString(255), unique=True, index=True, nullable=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
-    preferences: Mapped[dict[str, Any] | None] = mapped_column(EncryptedJSON, nullable=True, default=dict)
+    preferences: Mapped[dict[str, Any] | None] = mapped_column(
+        EncryptedJSON, nullable=True, default=dict
+    )
 
     # Habit tracking relationships
     habit_goals: Mapped[list["HabitGoal"]] = relationship(
@@ -56,7 +75,9 @@ class ComplianceRubric(Base):
     common_pitfalls: Mapped[str] = mapped_column(Text)
     best_practice: Mapped[str] = mapped_column(Text)
     category: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
@@ -69,14 +90,20 @@ class AnalysisReport(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     document_name: Mapped[str] = mapped_column(EncryptedString(255), index=True)
-    analysis_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow, index=True)
+    analysis_date: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow, index=True
+    )
     compliance_score: Mapped[float] = mapped_column(Float, index=True)
     document_type: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     discipline: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
-    analysis_result: Mapped[dict] = mapped_column(EncryptedJSON)  # Encrypt sensitive analysis data
+    analysis_result: Mapped[dict] = mapped_column(
+        EncryptedJSON
+    )  # Encrypt sensitive analysis data
     document_embedding: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
-    findings: Mapped[list["Finding"]] = relationship("Finding", back_populates="report", cascade="all, delete-orphan")
+    findings: Mapped[list["Finding"]] = relationship(
+        "Finding", back_populates="report", cascade="all, delete-orphan"
+    )
 
 
 class Finding(Base):
@@ -85,14 +112,22 @@ class Finding(Base):
     __tablename__ = "findings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    report_id: Mapped[int] = mapped_column(Integer, ForeignKey("reports.id"), index=True)
+    report_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("reports.id"), index=True
+    )
     rule_id: Mapped[str] = mapped_column(String, index=True)
     risk: Mapped[str] = mapped_column(String, index=True)  # High, Medium, Low
-    personalized_tip: Mapped[str] = mapped_column(EncryptedText)  # Encrypt personalized tips
-    problematic_text: Mapped[str] = mapped_column(EncryptedText)  # Encrypt problematic text excerpts
+    personalized_tip: Mapped[str] = mapped_column(
+        EncryptedText
+    )  # Encrypt personalized tips
+    problematic_text: Mapped[str] = mapped_column(
+        EncryptedText
+    )  # Encrypt problematic text excerpts
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
 
-    report: Mapped["AnalysisReport"] = relationship("AnalysisReport", back_populates="findings")
+    report: Mapped["AnalysisReport"] = relationship(
+        "AnalysisReport", back_populates="findings"
+    )
 
 
 class FeedbackAnnotation(Base):
@@ -101,13 +136,21 @@ class FeedbackAnnotation(Base):
     __tablename__ = "feedback_annotations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    finding_id: Mapped[int] = mapped_column(Integer, ForeignKey("findings.id"), index=True)
+    finding_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("findings.id"), index=True
+    )
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     is_correct: Mapped[bool] = mapped_column(Boolean)
-    user_comment: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)  # Encrypt user comments
-    correction: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)  # Encrypt corrections
+    user_comment: Mapped[str | None] = mapped_column(
+        EncryptedText, nullable=True
+    )  # Encrypt user comments
+    correction: Mapped[str | None] = mapped_column(
+        EncryptedText, nullable=True
+    )  # Encrypt corrections
     feedback_type: Mapped[str] = mapped_column(String, default="finding_accuracy")
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
 
     finding: Mapped["Finding"] = relationship("Finding")
     user: Mapped["User"] = relationship("User")
@@ -126,13 +169,17 @@ class HabitGoal(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(EncryptedString(200))  # Encrypt goal titles
-    description: Mapped[str | None] = mapped_column(EncryptedText)  # Encrypt descriptions
+    description: Mapped[str | None] = mapped_column(
+        EncryptedText
+    )  # Encrypt descriptions
     habit_number: Mapped[int | None] = mapped_column(Integer)  # 1-7 for habits
     target_value: Mapped[float | None] = mapped_column(Float)
     current_value: Mapped[float | None] = mapped_column(Float, default=0.0)
     progress: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 percentage
     status: Mapped[str] = mapped_column(String(20), default="active")
-    target_date: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
+    target_date: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.UTC)
     )
@@ -141,7 +188,9 @@ class HabitGoal(Base):
         default=lambda: datetime.datetime.now(datetime.UTC),
         onupdate=lambda: datetime.datetime.now(datetime.UTC),
     )
-    completed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="habit_goals")
@@ -155,7 +204,9 @@ class HabitAchievement(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     achievement_id: Mapped[str] = mapped_column(String(100), index=True)
-    title: Mapped[str] = mapped_column(EncryptedString(200))  # Encrypt achievement titles
+    title: Mapped[str] = mapped_column(
+        EncryptedString(200)
+    )  # Encrypt achievement titles
     description: Mapped[str] = mapped_column(EncryptedText)  # Encrypt descriptions
     icon: Mapped[str] = mapped_column(String(10), default="🏆")
     category: Mapped[str] = mapped_column(String(50))
@@ -196,4 +247,6 @@ class HabitProgressSnapshot(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="habit_progress_snapshots")
+    user: Mapped["User"] = relationship(
+        "User", back_populates="habit_progress_snapshots"
+    )

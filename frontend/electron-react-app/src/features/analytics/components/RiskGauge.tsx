@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './RiskGauge.module.css';
+import React from "react";
+import styles from "./RiskGauge.module.css";
 
 interface RiskGaugeProps {
   riskScore: number;
@@ -8,11 +8,11 @@ interface RiskGaugeProps {
 export const RiskGauge: React.FC<RiskGaugeProps> = ({ riskScore }) => {
   const getRiskLevel = (score: number) => {
     if (score < 10) {
-      return { level: 'LOW RISK', color: '#28a745' };
+      return { level: "LOW RISK", color: "#28a745" };
     } else if (score < 25) {
-      return { level: 'MODERATE RISK', color: '#ffc107' };
+      return { level: "MODERATE RISK", color: "#ffc107" };
     } else {
-      return { level: 'HIGH RISK', color: '#dc3545' };
+      return { level: "HIGH RISK", color: "#dc3545" };
     }
   };
 

@@ -29,7 +29,9 @@ class ConfidenceCalibrator:
         # Validate method
         valid_methods = ["auto", "platt", "isotonic", "temperature"]
         if self.method not in valid_methods:
-            raise ValueError(f"Invalid method '{self.method}'. Must be one of {valid_methods}")
+            raise ValueError(
+                f"Invalid method '{self.method}'. Must be one of {valid_methods}"
+            )
 
         if self.method == "auto":
             # Simple auto selection - use Platt scaling as default
@@ -167,17 +169,23 @@ class TemperatureScaling:
         scaled = logits / max(temperature, 1e-6)
         probs = TemperatureScaling._sigmoid(scaled)
         eps = 1e-12
-        loss = -np.mean(labels * np.log(probs + eps) + (1 - labels) * np.log(1 - probs + eps))
+        loss = -np.mean(
+            labels * np.log(probs + eps) + (1 - labels) * np.log(1 - probs + eps)
+        )
         return float(loss)
 
-    def fit(self, logits: np.ndarray | list, labels: np.ndarray | list) -> "TemperatureScaling":
+    def fit(
+        self, logits: np.ndarray | list, labels: np.ndarray | list
+    ) -> "TemperatureScaling":
         """Fit the temperature parameter using negative log-likelihood minimisation."""
 
         logits_array = np.asarray(logits, dtype=float).reshape(-1)
         labels_array = np.asarray(labels, dtype=float).reshape(-1)
 
         if logits_array.size == 0 or labels_array.size != logits_array.size:
-            raise ValueError("Logits and labels must be non-empty arrays of the same length")
+            raise ValueError(
+                "Logits and labels must be non-empty arrays of the same length"
+            )
 
         labels_array = np.clip(labels_array, 0.0, 1.0)
 
@@ -197,7 +205,9 @@ class TemperatureScaling:
             if not np.isfinite(gradient):
                 break
 
-            candidate = float(np.clip(temperature - learning_rate * gradient, 1e-3, 100.0))
+            candidate = float(
+                np.clip(temperature - learning_rate * gradient, 1e-3, 100.0)
+            )
             candidate_loss = self._nll_loss(logits_array, labels_array, candidate)
 
             if candidate_loss <= best_loss:

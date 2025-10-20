@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { useDiagnosticsStore } from './useDiagnosticsStore';
+import { create } from "zustand";
+import { useDiagnosticsStore } from "./useDiagnosticsStore";
 
-export type NetworkStatus = 'idle' | 'online' | 'degraded' | 'offline';
+export type NetworkStatus = "idle" | "online" | "degraded" | "offline";
 
 interface NetworkState {
   status: NetworkStatus;
@@ -15,7 +15,7 @@ interface NetworkState {
 }
 
 export const useNetworkStore = create<NetworkState>((set) => ({
-  status: 'idle',
+  status: "idle",
   pendingRequests: 0,
   lastError: null,
   lastUpdated: Date.now(),
@@ -24,19 +24,19 @@ export const useNetworkStore = create<NetworkState>((set) => ({
       const statusChanged = state.status !== status;
       if (statusChanged) {
         const pushEvent = useDiagnosticsStore.getState().pushEvent;
-        if (status === 'online') {
-          if (state.status !== 'online') {
+        if (status === "online") {
+          if (state.status !== "online") {
             pushEvent({
-              source: 'network',
-              severity: 'info',
-              message: 'Network connection restored',
+              source: "network",
+              severity: "info",
+              message: "Network connection restored",
               context: { previousStatus: state.status },
             });
           }
         } else {
           pushEvent({
-            source: 'network',
-            severity: status === 'offline' ? 'error' : 'warning',
+            source: "network",
+            severity: status === "offline" ? "error" : "warning",
             message: error ?? `Network status changed to ${status}`,
             context: { previousStatus: state.status, status, error },
           });
@@ -55,7 +55,8 @@ export const useNetworkStore = create<NetworkState>((set) => ({
     })),
   trackRequestEnd: () =>
     set((state) => ({
-      pendingRequests: state.pendingRequests > 0 ? state.pendingRequests - 1 : 0,
+      pendingRequests:
+        state.pendingRequests > 0 ? state.pendingRequests - 1 : 0,
       lastUpdated: Date.now(),
     })),
   clearError: () =>

@@ -2,9 +2,16 @@
 declare global {
   interface Window {
     electronAPI: {
-      setSecureValue: (key: string, value: string) => Promise<{ success: boolean; error?: string }>;
-      getSecureValue: (key: string) => Promise<{ success: boolean; value?: string; error?: string }>;
-      removeSecureValue: (key: string) => Promise<{ success: boolean; error?: string }>;
+      setSecureValue: (
+        key: string,
+        value: string,
+      ) => Promise<{ success: boolean; error?: string }>;
+      getSecureValue: (
+        key: string,
+      ) => Promise<{ success: boolean; value?: string; error?: string }>;
+      removeSecureValue: (
+        key: string,
+      ) => Promise<{ success: boolean; error?: string }>;
       clearSecureStorage: () => Promise<{ success: boolean; error?: string }>;
     };
     desktopApi: {
@@ -20,9 +27,16 @@ declare global {
         on: (eventName: string, listener: (payload: any) => void) => () => void;
       };
       secureStorage: {
-        setSecureValue: (key: string, value: string) => Promise<{ success: boolean; error?: string }>;
-        getSecureValue: (key: string) => Promise<{ success: boolean; value?: string; error?: string }>;
-        removeSecureValue: (key: string) => Promise<{ success: boolean; error?: string }>;
+        setSecureValue: (
+          key: string,
+          value: string,
+        ) => Promise<{ success: boolean; error?: string }>;
+        getSecureValue: (
+          key: string,
+        ) => Promise<{ success: boolean; value?: string; error?: string }>;
+        removeSecureValue: (
+          key: string,
+        ) => Promise<{ success: boolean; error?: string }>;
         clearSecureStorage: () => Promise<{ success: boolean; error?: string }>;
       };
       onDiagnostic: (listener: (payload: any) => void) => () => void;

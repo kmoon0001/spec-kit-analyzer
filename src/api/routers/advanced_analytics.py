@@ -12,9 +12,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...auth import get_current_active_user
 from ...database import models
 from ...database.database import get_async_db
-from ...auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["Advanced Analytics"])
@@ -26,7 +26,10 @@ class AnalyticsDataGenerator:
     @staticmethod
     def generate_compliance_trends(days: int = 30) -> dict[str, list]:
         """Generate compliance trend data."""
-        dates = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days, 0, -1)]
+        dates = [
+            (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            for i in range(days, 0, -1)
+        ]
 
         # Generate realistic compliance scores with trend
         base_score = 75
@@ -41,9 +44,7 @@ class AnalyticsDataGenerator:
         return {
             "dates": dates,
             "overall_scores": scores,
-            "frequency_scores": [
-                s + random.uniform(-10, 10) for s in scores
-            ],
+            "frequency_scores": [s + random.uniform(-10, 10) for s in scores],
             "goal_scores": [s + random.uniform(-8, 8) for s in scores],
             "progress_scores": [s + random.uniform(-12, 12) for s in scores],
         }

@@ -55,7 +55,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
                 "path": request.url.path,
                 "client_ip": request.client.host if request.client else None,
                 "user_agent": request.headers.get("user-agent"),
-            }
+            },
         )
 
         # Process request
@@ -73,7 +73,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "path": request.url.path,
                     "status_code": response.status_code,
-                }
+                },
             )
 
             return response
@@ -88,7 +88,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                     "error": str(e),
                 },
-                exc_info=True
+                exc_info=True,
             )
             raise
 
@@ -190,7 +190,13 @@ class RequestTracker:
             return
 
         self._metrics[request_id] = {
-            "start_time": logger.handlers[0].formatter.formatTime(logger.makeRecord("", 0, "", 0, "", (), None)) if logger.handlers else None,
+            "start_time": (
+                logger.handlers[0].formatter.formatTime(
+                    logger.makeRecord("", 0, "", 0, "", (), None)
+                )
+                if logger.handlers
+                else None
+            ),
             "method": request.method,
             "path": request.url.path,
             "client_ip": request.client.host if request.client else None,
@@ -205,11 +211,19 @@ class RequestTracker:
             return
 
         metrics = self._metrics[request_id]
-        metrics.update({
-            "status_code": response.status_code,
-            "response_size": len(response.body) if hasattr(response, 'body') else 0,
-            "end_time": logger.handlers[0].formatter.formatTime(logger.makeRecord("", 0, "", 0, "", (), None)) if logger.handlers else None,
-        })
+        metrics.update(
+            {
+                "status_code": response.status_code,
+                "response_size": len(response.body) if hasattr(response, "body") else 0,
+                "end_time": (
+                    logger.handlers[0].formatter.formatTime(
+                        logger.makeRecord("", 0, "", 0, "", (), None)
+                    )
+                    if logger.handlers
+                    else None
+                ),
+            }
+        )
 
         # Log security events
         self._check_security_events(request, response, metrics)
@@ -225,40 +239,57 @@ class RequestTracker:
             f"Security event: {event_type}",
             level="warning",
             event_type=event_type,
-            **details
+            **details,
         )
 
-    def _check_security_events(self, request: Request, response: Response, metrics: Dict[str, Any]) -> None:
+    def _check_security_events(
+        self, request: Request, response: Response, metrics: Dict[str, Any]
+    ) -> None:
         """Check for potential security events."""
         # Check for suspicious patterns
         if response.status_code == 401:
-            self.track_security_event("unauthorized_access", {
-                "path": request.url.path,
-                "method": request.method,
-                "client_ip": metrics.get("client_ip"),
-            })
+            self.track_security_event(
+                "unauthorized_access",
+                {
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": metrics.get("client_ip"),
+                },
+            )
 
         elif response.status_code == 403:
-            self.track_security_event("forbidden_access", {
-                "path": request.url.path,
-                "method": request.method,
-                "client_ip": metrics.get("client_ip"),
-            })
+            self.track_security_event(
+                "forbidden_access",
+                {
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": metrics.get("client_ip"),
+                },
+            )
 
         elif response.status_code >= 500:
-            self.track_security_event("server_error", {
-                "path": request.url.path,
-                "method": request.method,
-                "status_code": response.status_code,
-            })
+            self.track_security_event(
+                "server_error",
+                {
+                    "path": request.url.path,
+                    "method": request.method,
+                    "status_code": response.status_code,
+                },
+            )
 
         # Check for suspicious user agents
         user_agent = metrics.get("user_agent", "")
-        if any(suspicious in user_agent.lower() for suspicious in ["bot", "crawler", "scanner", "sqlmap"]):
-            self.track_security_event("suspicious_user_agent", {
-                "user_agent": user_agent,
-                "path": request.url.path,
-            })
+        if any(
+            suspicious in user_agent.lower()
+            for suspicious in ["bot", "crawler", "scanner", "sqlmap"]
+        ):
+            self.track_security_event(
+                "suspicious_user_agent",
+                {
+                    "user_agent": user_agent,
+                    "path": request.url.path,
+                },
+            )
 
 
 # Global request tracker

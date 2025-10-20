@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Brain, CheckCircle, AlertCircle, Clock } from '../../../components/ui/Icons';
-import styles from './ReasoningSteps.module.css';
+import React, { useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Brain,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+} from "../../../components/ui/Icons";
+import styles from "./ReasoningSteps.module.css";
 
 interface ReasoningStep {
   id: string;
@@ -8,7 +15,7 @@ interface ReasoningStep {
   description: string;
   reasoning: string;
   confidence: number;
-  status: 'completed' | 'in_progress' | 'pending' | 'error';
+  status: "completed" | "in_progress" | "pending" | "error";
   evidence?: string[];
   duration_ms?: number;
   sub_steps?: ReasoningStep[];
@@ -27,7 +34,7 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
   title = "AI Reasoning Process",
   showConfidence = true,
   expandable = true,
-  className = ''
+  className = "",
 }) => {
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
   const [isMainExpanded, setIsMainExpanded] = useState(true);
@@ -44,11 +51,11 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle size={16} className={styles.statusCompleted} />;
-      case 'in_progress':
+      case "in_progress":
         return <Clock size={16} className={styles.statusInProgress} />;
-      case 'error':
+      case "error":
         return <AlertCircle size={16} className={styles.statusError} />;
       default:
         return <div className={styles.statusPending} />;
@@ -62,7 +69,7 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
   };
 
   const formatDuration = (ms?: number) => {
-    if (!ms) return '';
+    if (!ms) return "";
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(1)}s`;
   };
@@ -73,16 +80,23 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
     const hasEvidence = step.evidence && step.evidence.length > 0;
 
     return (
-      <div key={step.id} className={`${styles.step} ${styles[`level${level}`]}`}>
+      <div
+        key={step.id}
+        className={`${styles.step} ${styles[`level${level}`]}`}
+      >
         <div className={styles.stepHeader}>
           <div className={styles.stepLeft}>
             {expandable && (hasSubSteps || hasEvidence || step.reasoning) && (
               <button
                 onClick={() => toggleStep(step.id)}
                 className={styles.expandButton}
-                aria-label={isExpanded ? 'Collapse step' : 'Expand step'}
+                aria-label={isExpanded ? "Collapse step" : "Expand step"}
               >
-                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {isExpanded ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                )}
               </button>
             )}
             <div className={styles.stepNumber}>{step.step_number}</div>
@@ -93,7 +107,9 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
             <div className={styles.stepDescription}>{step.description}</div>
             <div className={styles.stepMeta}>
               {showConfidence && (
-                <span className={`${styles.confidence} ${getConfidenceColor(step.confidence)}`}>
+                <span
+                  className={`${styles.confidence} ${getConfidenceColor(step.confidence)}`}
+                >
                   {Math.round(step.confidence * 100)}% confident
                 </span>
               )}
@@ -129,7 +145,9 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
             {hasSubSteps && (
               <div className={styles.subSteps}>
                 <h4>Sub-steps:</h4>
-                {step.sub_steps!.map(subStep => renderStep(subStep, level + 1))}
+                {step.sub_steps!.map((subStep) =>
+                  renderStep(subStep, level + 1),
+                )}
               </div>
             )}
           </div>
@@ -156,9 +174,15 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
           <button
             onClick={() => setIsMainExpanded(!isMainExpanded)}
             className={styles.mainExpandButton}
-            aria-label={isMainExpanded ? 'Collapse reasoning' : 'Expand reasoning'}
+            aria-label={
+              isMainExpanded ? "Collapse reasoning" : "Expand reasoning"
+            }
           >
-            {isMainExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+            {isMainExpanded ? (
+              <ChevronDown size={20} />
+            ) : (
+              <ChevronRight size={20} />
+            )}
           </button>
         )}
         <Brain size={20} className={styles.headerIcon} />
@@ -170,7 +194,7 @@ export const ReasoningSteps: React.FC<ReasoningStepsProps> = ({
 
       {isMainExpanded && (
         <div className={styles.stepsContainer}>
-          {steps.map(step => renderStep(step))}
+          {steps.map((step) => renderStep(step))}
         </div>
       )}
     </div>
@@ -193,13 +217,13 @@ export const useReasoningSteps = (analysisId?: string) => {
       try {
         const response = await fetch(`/api/analysis/${analysisId}/reasoning`);
         if (!response.ok) {
-          throw new Error('Failed to fetch reasoning steps');
+          throw new Error("Failed to fetch reasoning steps");
         }
 
         const data = await response.json();
         setSteps(data.reasoning_steps || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : "Unknown error");
         setSteps([]);
       } finally {
         setIsLoading(false);

@@ -26,9 +26,15 @@ class MetaAnalyticsService:
 
         # Note: The discipline_filter is not yet used in these queries, but is here for future enhancements.
 
-        organizational_metrics = await crud.get_organizational_metrics(db, days_back=days_back)
-        discipline_breakdown = await crud.get_discipline_breakdown(db, days_back=days_back)
-        team_habit_breakdown = await crud.get_team_habit_breakdown(db, days_back=days_back)
+        organizational_metrics = await crud.get_organizational_metrics(
+            db, days_back=days_back
+        )
+        discipline_breakdown = await crud.get_discipline_breakdown(
+            db, days_back=days_back
+        )
+        team_habit_breakdown = await crud.get_team_habit_breakdown(
+            db, days_back=days_back
+        )
         training_needs = await crud.get_training_needs(db, days_back=days_back)
         team_trends = await crud.get_team_performance_trends(db, days_back=days_back)
         benchmarks = await crud.get_benchmark_data(db)
@@ -44,7 +50,9 @@ class MetaAnalyticsService:
             "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
         }
 
-    async def get_peer_comparison_data(self, db: AsyncSession, user_id: int, days_back: int) -> dict[str, Any]:
+    async def get_peer_comparison_data(
+        self, db: AsyncSession, user_id: int, days_back: int
+    ) -> dict[str, Any]:
         """Gathers data to compare a user's performance against their peers."""
         # This is a placeholder for a more complex implementation that would calculate
         # a user's performance and compare it to the team average and percentiles.

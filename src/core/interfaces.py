@@ -12,13 +12,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 # ============================================================================
 # Core Domain Types
 # ============================================================================
 
+
 class AnalysisStatus(str, Enum):
     """Analysis task status enumeration."""
+
     PENDING = "pending"
     PROCESSING = "processing"
     RUNNING = "running"
@@ -29,6 +30,7 @@ class AnalysisStatus(str, Enum):
 
 class AnalysisMode(str, Enum):
     """Analysis mode enumeration."""
+
     COMPREHENSIVE = "comprehensive"
     RUBRIC = "rubric"
     QUICK = "quick"
@@ -36,6 +38,7 @@ class AnalysisMode(str, Enum):
 
 class StrictnessLevel(str, Enum):
     """Analysis strictness level enumeration."""
+
     RELAXED = "relaxed"
     STANDARD = "standard"
     STRICT = "strict"
@@ -44,6 +47,7 @@ class StrictnessLevel(str, Enum):
 
 class DisciplineType(str, Enum):
     """Therapy discipline enumeration."""
+
     PT = "pt"
     OT = "ot"
     SLP = "slp"
@@ -52,6 +56,7 @@ class DisciplineType(str, Enum):
 
 class RiskLevel(str, Enum):
     """Risk level enumeration."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -61,6 +66,7 @@ class RiskLevel(str, Enum):
 # ============================================================================
 # Core Interfaces
 # ============================================================================
+
 
 class AnalysisServiceInterface(Protocol):
     """Interface for analysis services."""
@@ -131,28 +137,44 @@ class StorageServiceInterface(Protocol):
 # Request/Response Models
 # ============================================================================
 
+
 class AnalysisRequest(BaseModel):
     """Request model for document analysis."""
+
     filename: str = Field(..., description="Document filename")
-    discipline: DisciplineType = Field(default=DisciplineType.PT, description="Therapy discipline")
-    analysis_mode: AnalysisMode = Field(default=AnalysisMode.COMPREHENSIVE, description="Analysis mode")
-    strictness: StrictnessLevel = Field(default=StrictnessLevel.STANDARD, description="Analysis strictness")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
+    discipline: DisciplineType = Field(
+        default=DisciplineType.PT, description="Therapy discipline"
+    )
+    analysis_mode: AnalysisMode = Field(
+        default=AnalysisMode.COMPREHENSIVE, description="Analysis mode"
+    )
+    strictness: StrictnessLevel = Field(
+        default=StrictnessLevel.STANDARD, description="Analysis strictness"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Additional metadata"
+    )
 
 
 class AnalysisResponse(BaseModel):
     """Response model for analysis results."""
+
     task_id: str = Field(..., description="Analysis task ID")
     status: AnalysisStatus = Field(..., description="Analysis status")
     progress: int = Field(ge=0, le=100, description="Analysis progress percentage")
     message: Optional[str] = Field(default=None, description="Status message")
-    result: Optional[Dict[str, Any]] = Field(default=None, description="Analysis results")
+    result: Optional[Dict[str, Any]] = Field(
+        default=None, description="Analysis results"
+    )
     created_at: datetime = Field(..., description="Task creation timestamp")
-    completed_at: Optional[datetime] = Field(default=None, description="Task completion timestamp")
+    completed_at: Optional[datetime] = Field(
+        default=None, description="Task completion timestamp"
+    )
 
 
 class FindingModel(BaseModel):
     """Model for compliance findings."""
+
     id: str = Field(..., description="Finding ID")
     rule_id: str = Field(..., description="Compliance rule ID")
     risk_level: RiskLevel = Field(..., description="Risk level")
@@ -161,26 +183,40 @@ class FindingModel(BaseModel):
     personalized_tip: str = Field(..., description="Personalized improvement tip")
     problematic_text: str = Field(..., description="Problematic text excerpt")
     confidence_score: float = Field(ge=0.0, le=1.0, description="AI confidence score")
-    line_number: Optional[int] = Field(default=None, description="Line number in document")
-    character_range: Optional[tuple[int, int]] = Field(default=None, description="Character range")
+    line_number: Optional[int] = Field(
+        default=None, description="Line number in document"
+    )
+    character_range: Optional[tuple[int, int]] = Field(
+        default=None, description="Character range"
+    )
 
 
 class ComplianceReport(BaseModel):
     """Model for compliance analysis report."""
+
     document_id: str = Field(..., description="Document ID")
     filename: str = Field(..., description="Document filename")
     analysis_date: datetime = Field(..., description="Analysis timestamp")
-    compliance_score: float = Field(ge=0.0, le=100.0, description="Overall compliance score")
+    compliance_score: float = Field(
+        ge=0.0, le=100.0, description="Overall compliance score"
+    )
     discipline: DisciplineType = Field(..., description="Therapy discipline")
     analysis_mode: AnalysisMode = Field(..., description="Analysis mode used")
     strictness: StrictnessLevel = Field(..., description="Strictness level used")
-    findings: List[FindingModel] = Field(default_factory=list, description="Compliance findings")
-    summary: Dict[str, Any] = Field(default_factory=dict, description="Analysis summary")
-    recommendations: List[str] = Field(default_factory=list, description="Improvement recommendations")
+    findings: List[FindingModel] = Field(
+        default_factory=list, description="Compliance findings"
+    )
+    summary: Dict[str, Any] = Field(
+        default_factory=dict, description="Analysis summary"
+    )
+    recommendations: List[str] = Field(
+        default_factory=list, description="Improvement recommendations"
+    )
 
 
 class SessionInfo(BaseModel):
     """Model for session information."""
+
     session_id: str = Field(..., description="Session ID")
     user_id: int = Field(..., description="User ID")
     username: str = Field(..., description="Username")
@@ -193,6 +229,7 @@ class SessionInfo(BaseModel):
 
 class UserProfile(BaseModel):
     """Model for user profile information."""
+
     id: int = Field(..., description="User ID")
     username: str = Field(..., description="Username")
     email: Optional[str] = Field(default=None, description="Email address")
@@ -200,12 +237,15 @@ class UserProfile(BaseModel):
     is_admin: bool = Field(..., description="Admin privileges")
     created_at: datetime = Field(..., description="Account creation time")
     last_login: Optional[datetime] = Field(default=None, description="Last login time")
-    preferences: Dict[str, Any] = Field(default_factory=dict, description="User preferences")
+    preferences: Dict[str, Any] = Field(
+        default_factory=dict, description="User preferences"
+    )
 
 
 # ============================================================================
 # Configuration Interfaces
 # ============================================================================
+
 
 class DatabaseConfigInterface(Protocol):
     """Interface for database configuration."""
@@ -263,6 +303,7 @@ class AIConfigInterface(Protocol):
 # Service Interfaces
 # ============================================================================
 
+
 class TaskManagerInterface(Protocol):
     """Interface for task management."""
 
@@ -317,6 +358,7 @@ class AuditLoggerInterface(Protocol):
 # Error Interfaces
 # ============================================================================
 
+
 class ErrorHandlerInterface(Protocol):
     """Interface for error handling."""
 
@@ -333,14 +375,19 @@ class ErrorHandlerInterface(Protocol):
 # Validation Interfaces
 # ============================================================================
 
+
 class ValidatorInterface(Protocol):
     """Interface for validation services."""
 
-    def validate_input(self, data: Any, rules: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+    def validate_input(
+        self, data: Any, rules: Dict[str, Any]
+    ) -> tuple[bool, Optional[str]]:
         """Validate input data."""
         ...
 
-    def validate_file(self, file_data: bytes, filename: str) -> tuple[bool, Optional[str]]:
+    def validate_file(
+        self, file_data: bytes, filename: str
+    ) -> tuple[bool, Optional[str]]:
         """Validate uploaded file."""
         ...
 
@@ -349,16 +396,21 @@ class ValidatorInterface(Protocol):
 # Utility Types
 # ============================================================================
 
+
 class PaginationParams(BaseModel):
     """Pagination parameters."""
+
     page: int = Field(ge=1, default=1, description="Page number")
     size: int = Field(ge=1, le=100, default=20, description="Page size")
     sort_by: Optional[str] = Field(default=None, description="Sort field")
-    sort_order: str = Field(default="asc", pattern="^(asc|desc)$", description="Sort order")
+    sort_order: str = Field(
+        default="asc", pattern="^(asc|desc)$", description="Sort order"
+    )
 
 
 class PaginatedResponse(BaseModel):
     """Paginated response wrapper."""
+
     items: List[Any] = Field(..., description="Response items")
     total: int = Field(..., description="Total number of items")
     page: int = Field(..., description="Current page")
@@ -368,11 +420,14 @@ class PaginatedResponse(BaseModel):
 
 class HealthStatus(BaseModel):
     """Health status model."""
+
     status: str = Field(..., description="Health status")
     timestamp: datetime = Field(..., description="Check timestamp")
     version: str = Field(..., description="Application version")
     uptime_seconds: float = Field(..., description="Application uptime")
-    services: Dict[str, Any] = Field(default_factory=dict, description="Service statuses")
+    services: Dict[str, Any] = Field(
+        default_factory=dict, description="Service statuses"
+    )
 
 
 # ============================================================================

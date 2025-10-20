@@ -115,14 +115,18 @@ class WorkflowAutomationService:
             # Store automation
             self.automations[automation_id] = automation
 
-            logger.info("Created workflow automation: %s ({workflow_type})", automation_id)
+            logger.info(
+                "Created workflow automation: %s ({workflow_type})", automation_id
+            )
 
             return {
                 "success": True,
                 "automation_id": automation_id,
                 "workflow_type": workflow_type,
                 "enabled": enabled,
-                "next_execution": next_execution.isoformat() if next_execution else None,
+                "next_execution": (
+                    next_execution.isoformat() if next_execution else None
+                ),
             }
 
         except Exception as e:
@@ -178,16 +182,24 @@ class WorkflowAutomationService:
 
             # Calculate next execution if scheduled
             if automation.schedule:
-                automation.next_execution = self._calculate_next_execution(automation.schedule)
+                automation.next_execution = self._calculate_next_execution(
+                    automation.schedule
+                )
 
-            logger.info("Workflow automation %s completed in {execution_time}s", automation_id)
+            logger.info(
+                "Workflow automation %s completed in {execution_time}s", automation_id
+            )
 
             return {
                 "success": True,
                 "automation_id": automation_id,
                 "execution_time_seconds": execution_time,
                 "result": result,
-                "next_execution": automation.next_execution.isoformat() if automation.next_execution else None,
+                "next_execution": (
+                    automation.next_execution.isoformat()
+                    if automation.next_execution
+                    else None
+                ),
             }
 
         except Exception as e:
@@ -221,25 +233,43 @@ class WorkflowAutomationService:
                         "enabled": automation.enabled,
                         "schedule": automation.schedule,
                         "created_at": automation.created_at.isoformat(),
-                        "last_executed": automation.last_executed.isoformat() if automation.last_executed else None,
-                        "next_execution": automation.next_execution.isoformat() if automation.next_execution else None,
+                        "last_executed": (
+                            automation.last_executed.isoformat()
+                            if automation.last_executed
+                            else None
+                        ),
+                        "next_execution": (
+                            automation.next_execution.isoformat()
+                            if automation.next_execution
+                            else None
+                        ),
                         "execution_count": automation.execution_count,
                         "success_count": automation.success_count,
                         "error_count": automation.error_count,
-                        "success_rate": (automation.success_count / automation.execution_count * 100)
-                        if automation.execution_count > 0
-                        else 0,
+                        "success_rate": (
+                            (
+                                automation.success_count
+                                / automation.execution_count
+                                * 100
+                            )
+                            if automation.execution_count > 0
+                            else 0
+                        ),
                     }
                 )
 
         return user_automations
 
-    async def _execute_compliance_checking(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
+    async def _execute_compliance_checking(
+        self, parameters: dict[str, Any], user_id: int
+    ) -> dict[str, Any]:
         """Execute compliance checking workflow."""
         try:
             # Simulate compliance checking workflow
             document_types = parameters.get("document_types", ["all"])
-            check_count = len(document_types) * 10  # Simulate checking multiple documents
+            check_count = (
+                len(document_types) * 10
+            )  # Simulate checking multiple documents
 
             # Simulate processing time
             await asyncio.sleep(2)
@@ -252,13 +282,20 @@ class WorkflowAutomationService:
                 "summary": f"Checked {check_count} documents, found {check_count // 4} compliance issues",
             }
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             return {
                 "success": False,
                 "error": str(e),
             }
 
-    async def _execute_report_generation(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
+    async def _execute_report_generation(
+        self, parameters: dict[str, Any], user_id: int
+    ) -> dict[str, Any]:
         """Execute report generation workflow."""
         try:
             report_type = parameters.get("report_type", "compliance_summary")
@@ -276,13 +313,20 @@ class WorkflowAutomationService:
                 "summary": f"Generated {report_type} report for {time_period}",
             }
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             return {
                 "success": False,
                 "error": str(e),
             }
 
-    async def _execute_data_synchronization(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
+    async def _execute_data_synchronization(
+        self, parameters: dict[str, Any], user_id: int
+    ) -> dict[str, Any]:
         """Execute data synchronization workflow."""
         try:
             source_system = parameters.get("source_system", "ehr")
@@ -302,13 +346,20 @@ class WorkflowAutomationService:
                 "summary": f"Synchronized {records_synced} records from {source_system}",
             }
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             return {
                 "success": False,
                 "error": str(e),
             }
 
-    async def _execute_reminder_notifications(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
+    async def _execute_reminder_notifications(
+        self, parameters: dict[str, Any], user_id: int
+    ) -> dict[str, Any]:
         """Execute reminder notifications workflow."""
         try:
             reminder_type = parameters.get("reminder_type", "compliance_review")
@@ -325,7 +376,12 @@ class WorkflowAutomationService:
                 "summary": f"Sent {reminder_type} reminders to {len(recipients)} recipients",
             }
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             return {
                 "success": False,
                 "error": str(e),

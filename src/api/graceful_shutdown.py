@@ -12,10 +12,11 @@ import asyncio
 import logging
 import signal
 import sys
-from typing import Any, Dict, List
 from contextlib import asynccontextmanager
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
+
 
 class GracefulShutdownManager:
     """Manages graceful shutdown of the application."""
@@ -77,7 +78,7 @@ class GracefulShutdownManager:
         try:
             await asyncio.wait_for(
                 asyncio.gather(*self.background_tasks, return_exceptions=True),
-                timeout=self.shutdown_timeout
+                timeout=self.shutdown_timeout,
             )
         except asyncio.TimeoutError:
             logger.warning("Some background tasks did not complete within timeout")
@@ -85,7 +86,9 @@ class GracefulShutdownManager:
         # Log any exceptions from cancelled tasks
         for task in self.background_tasks:
             if task.done() and task.exception():
-                logger.error(f"Background task {task.get_name()} failed: {task.exception()}")
+                logger.error(
+                    f"Background task {task.get_name()} failed: {task.exception()}"
+                )
 
     async def _run_shutdown_handlers(self):
         """Run all registered shutdown handlers."""
@@ -100,7 +103,9 @@ class GracefulShutdownManager:
                     await handler()
                 else:
                     handler()
-                logger.debug(f"Shutdown handler {handler.__name__} completed successfully")
+                logger.debug(
+                    f"Shutdown handler {handler.__name__} completed successfully"
+                )
             except Exception as e:
                 logger.error(f"Shutdown handler {handler.__name__} failed: {e}")
 
@@ -111,6 +116,7 @@ class GracefulShutdownManager:
         # Close any remaining file handles
         try:
             import gc
+
             gc.collect()
             logger.debug("Garbage collection completed")
         except Exception as e:
@@ -119,11 +125,14 @@ class GracefulShutdownManager:
         # Final logging
         logger.info("Application shutdown complete")
 
+
 # Global shutdown manager
 shutdown_manager = GracefulShutdownManager()
 
+
 def setup_signal_handlers():
     """Setup signal handlers for graceful shutdown."""
+
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, initiating graceful shutdown...")
         asyncio.create_task(shutdown_manager.shutdown())
@@ -135,6 +144,7 @@ def setup_signal_handlers():
     # On Windows, also handle SIGBREAK
     if sys.platform == "win32":
         signal.signal(signal.SIGBREAK, signal_handler)
+
 
 @asynccontextmanager
 async def lifespan_with_graceful_shutdown(app):
@@ -153,6 +163,7 @@ async def lifespan_with_graceful_shutdown(app):
         # Perform graceful shutdown
         await shutdown_manager.shutdown()
 
+
 async def register_app_shutdown_handlers():
     """Register application-specific shutdown handlers."""
 
@@ -160,6 +171,7 @@ async def register_app_shutdown_handlers():
     async def cleanup_database():
         try:
             from src.database.database import AsyncSessionLocal
+
             # Close all database connections
             await AsyncSessionLocal.close_all()
             logger.info("Database connections closed")
@@ -170,7 +182,8 @@ async def register_app_shutdown_handlers():
     async def cleanup_cache():
         try:
             from src.core.cache_service import cache_service
-            if hasattr(cache_service, 'clear'):
+
+            if hasattr(cache_service, "clear"):
                 cache_service.clear()
             logger.info("Cache cleared")
         except Exception as e:
@@ -180,6 +193,7 @@ async def register_app_shutdown_handlers():
     async def cleanup_files():
         try:
             from src.core.file_cleanup_service import stop_cleanup_service
+
             stop_cleanup_service()
             logger.info("File cleanup service stopped")
         except Exception as e:
@@ -190,10 +204,12 @@ async def register_app_shutdown_handlers():
     shutdown_manager.register_shutdown_handler(cleanup_cache)
     shutdown_manager.register_shutdown_handler(cleanup_files)
 
+
 # Utility functions for other modules
 def register_shutdown_handler(handler: callable):
     """Register a shutdown handler from any module."""
     shutdown_manager.register_shutdown_handler(handler)
+
 
 def register_background_task(task: asyncio.Task):
     """Register a background task for cleanup."""

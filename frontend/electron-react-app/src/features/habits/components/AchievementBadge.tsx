@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './AchievementBadge.module.css';
+import React from "react";
+import styles from "./AchievementBadge.module.css";
 
 interface Achievement {
   id: string;
@@ -13,26 +13,28 @@ interface AchievementBadgeProps {
   achievement: Achievement;
 }
 
-export const AchievementBadge: React.FC<AchievementBadgeProps> = ({ achievement }) => {
+export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
+  achievement,
+}) => {
   const getBadgeIcon = (badgeType: string) => {
     switch (badgeType) {
-      case 'streak':
-        return '🔥';
-      case 'improvement':
-        return '📈';
-      case 'mastery':
-        return '🏆';
-      case 'consistency':
-        return '⭐';
+      case "streak":
+        return "🔥";
+      case "improvement":
+        return "📈";
+      case "mastery":
+        return "🏆";
+      case "consistency":
+        return "⭐";
       default:
-        return '🎯';
+        return "🎯";
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -42,7 +44,9 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({ achievement 
       <div className={styles.content}>
         <div className={styles.title}>{achievement.title}</div>
         <div className={styles.description}>{achievement.description}</div>
-        <div className={styles.date}>Earned {formatDate(achievement.earned_date)}</div>
+        <div className={styles.date}>
+          Earned {formatDate(achievement.earned_date)}
+        </div>
       </div>
     </div>
   );

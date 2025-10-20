@@ -109,7 +109,9 @@ class TemplateEngine:
             return rendered
         except Exception as e:
             logger.exception("Error rendering template %s: {e}", template_id)
-            return f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
+            return (
+                f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
+            )
 
     def get_available_templates(self) -> list[str]:
         """Get list of available template IDs"""
@@ -126,7 +128,9 @@ class TemplateEngine:
         self._load_templates()
         logger.info("Reloaded all templates")
 
-    def add_template(self, template_id: str, content: str, metadata: dict[str, Any] | None = None) -> None:
+    def add_template(
+        self, template_id: str, content: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         """Add a new template programmatically"""
         self.templates[template_id] = content
         if metadata:

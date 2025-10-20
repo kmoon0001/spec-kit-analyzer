@@ -7,18 +7,31 @@ logger = logging.getLogger(__name__)
 
 
 def trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
-    return document_text[:max_chars] + "..." if len(document_text) > max_chars else document_text
+    return (
+        document_text[:max_chars] + "..."
+        if len(document_text) > max_chars
+        else document_text
+    )
 
 
 def enrich_analysis_result(
-    analysis_result: dict, *, document_text: str, discipline: str, doc_type: str, checklist_service: ChecklistService
+    analysis_result: dict,
+    *,
+    document_text: str,
+    discipline: str,
+    doc_type: str,
+    checklist_service: ChecklistService,
 ) -> dict:
     result = dict(analysis_result)
     result.setdefault("discipline", discipline)
     result.setdefault("document_type", doc_type)
-    checklist = checklist_service.evaluate(document_text, doc_type=doc_type, discipline=discipline)
+    checklist = checklist_service.evaluate(
+        document_text, doc_type=doc_type, discipline=discipline
+    )
     result["deterministic_checks"] = checklist
-    summary = sanitize_human_text(result.get("summary", "")) or build_summary_fallback(result, checklist)
+    summary = sanitize_human_text(result.get("summary", "")) or build_summary_fallback(
+        result, checklist
+    )
     result["summary"] = summary
     result["narrative_summary"] = build_narrative_summary(summary, checklist)
     result["bullet_highlights"] = build_bullet_highlights(result, checklist, summary)
@@ -29,9 +42,11 @@ def enrich_analysis_result(
         # Calculate compliance score from findings if not present
         findings = result.get("findings", [])
         if findings:
-            high_severity = len([f for f in findings if f.get('severity') == 'high'])
-            medium_severity = len([f for f in findings if f.get('severity') == 'medium'])
-            low_severity = len([f for f in findings if f.get('severity') == 'low'])
+            high_severity = len([f for f in findings if f.get("severity") == "high"])
+            medium_severity = len(
+                [f for f in findings if f.get("severity") == "medium"]
+            )
+            low_severity = len([f for f in findings if f.get("severity") == "low"])
 
             base_score = 100
             base_score -= high_severity * 20
@@ -46,7 +61,9 @@ def enrich_analysis_result(
 
 def build_summary_fallback(analysis_result: dict, checklist: list) -> str:
     findings = analysis_result.get("findings") or []
-    highlights = ", ".join(sanitize_human_text(f.get("issue_title", "finding")) for f in findings[:3])
+    highlights = ", ".join(
+        sanitize_human_text(f.get("issue_title", "finding")) for f in findings[:3]
+    )
     base = (
         f"Reviewed documentation uncovered {len(findings)} findings: {highlights}."
         if findings
@@ -54,7 +71,9 @@ def build_summary_fallback(analysis_result: dict, checklist: list) -> str:
     )
     flagged = [item for item in checklist if item.get("status") != "pass"]
     if flagged:
-        titles = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
+        titles = ", ".join(
+            sanitize_human_text(item.get("title", "")) for item in flagged[:3]
+        )
         base += f" Deterministic checks flagged: {titles}."
     return base
 
@@ -62,14 +81,24 @@ def build_summary_fallback(analysis_result: dict, checklist: list) -> str:
 def build_narrative_summary(base_summary: str, checklist: list) -> str:
     flagged = [item for item in checklist if item.get("status") != "pass"]
     if not flagged:
-        return sanitize_human_text(base_summary + " Core documentation elements were present.")
-    focus = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
-    return sanitize_human_text(f"{base_summary} Immediate follow-up recommended for: {focus}.")
+        return sanitize_human_text(
+            base_summary + " Core documentation elements were present."
+        )
+    focus = ", ".join(
+        sanitize_human_text(item.get("title", "")) for item in flagged[:3]
+    )
+    return sanitize_human_text(
+        f"{base_summary} Immediate follow-up recommended for: {focus}."
+    )
 
 
-def build_bullet_highlights(analysis_result: dict, checklist: list, summary: str) -> list[str]:
+def build_bullet_highlights(
+    analysis_result: dict, checklist: list, summary: str
+) -> list[str]:
     bullets = [
-        f"{item.get('title')}: {item.get('recommendation')}" for item in checklist if item.get("status") != "pass"
+        f"{item.get('title')}: {item.get('recommendation')}"
+        for item in checklist
+        if item.get("status") != "pass"
     ]
     findings = analysis_result.get("findings") or []
     for finding in findings[:4]:
@@ -94,7 +123,11 @@ def build_bullet_highlights(analysis_result: dict, checklist: list, summary: str
 
 def calculate_overall_confidence(analysis_result: dict, checklist: list) -> float:
     findings = analysis_result.get("findings") or []
-    conf_values = [float(f.get("confidence")) for f in findings if isinstance(f.get("confidence"), int | float)]
+    conf_values = [
+        float(f.get("confidence"))
+        for f in findings
+        if isinstance(f.get("confidence"), int | float)
+    ]
     base_conf = sum(conf_values) / len(conf_values) if conf_values else 0.85
     penalty = 0.05 * sum(1 for item in checklist if item.get("status") != "pass")
     return max(0.0, min(1.0, base_conf - penalty))

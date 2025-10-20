@@ -32,14 +32,18 @@ class PreprocessingService:
             # Get dictionary path from the centralized configuration.
             dict_path = self.settings.paths.medical_dictionary
             self.spell.word_frequency.load_text_file(dict_path)
-            logger.info("Successfully loaded custom medical dictionary from: %s", dict_path)
+            logger.info(
+                "Successfully loaded custom medical dictionary from: %s", dict_path
+            )
         except FileNotFoundError:
             logger.exception(
                 "Medical dictionary not found at path: %s. Spell-checking accuracy will be reduced.",
                 self.settings.paths.medical_dictionary,
             )
         except (PermissionError, OSError) as e:
-            logger.error("Failed to load custom medical dictionary: %s", e, exc_info=True)
+            logger.error(
+                "Failed to load custom medical dictionary: %s", e, exc_info=True
+            )
 
     def correct_text(self, text: str) -> str:
         """Corrects spelling errors in the text using a cached, dictionary-aware approach.
@@ -90,5 +94,8 @@ class PreprocessingService:
 
         # Rejoin the tokens into a single string.
         return "".join(
-            (" " + token if i > 0 and token.isalpha() else token for i, token in enumerate(corrected_tokens))
+            (
+                " " + token if i > 0 and token.isalpha() else token
+                for i, token in enumerate(corrected_tokens)
+            )
         ).lstrip()

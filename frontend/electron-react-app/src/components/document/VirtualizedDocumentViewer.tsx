@@ -1,12 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 // import { List } from 'react-window'; // Temporarily disabled for build
 
-import { useDocumentProcessor, DocumentPage } from '../../lib/document/DocumentProcessor';
+import {
+  useDocumentProcessor,
+  DocumentPage,
+} from "../../lib/document/DocumentProcessor";
 
 interface DocumentViewerProps {
   documentId: string;
   totalPages: number;
-  onPageLoad: (pageNumber: number, signal: AbortSignal) => Promise<DocumentPage>;
+  onPageLoad: (
+    pageNumber: number,
+    signal: AbortSignal,
+  ) => Promise<DocumentPage>;
   onPageClick?: (pageNumber: number) => void;
   highlightedText?: string;
   className?: string;
@@ -37,11 +49,14 @@ const PageItem: React.FC<PageItemProps> = ({ index, style, data }) => {
           setIsVisible(true);
           // Load this page and nearby pages
           const start = Math.max(1, pageNumber - 2);
-          const end = Math.min(pageNumber + 2, data.pages.size || pageNumber + 2);
+          const end = Math.min(
+            pageNumber + 2,
+            data.pages.size || pageNumber + 2,
+          );
           data.loadPageRange(start, end);
         }
       },
-      { threshold: 0.1, rootMargin: '100px' }
+      { threshold: 0.1, rootMargin: "100px" },
     );
 
     if (pageRef.current) {
@@ -62,7 +77,10 @@ const PageItem: React.FC<PageItemProps> = ({ index, style, data }) => {
   const highlightText = useCallback((text: string, highlight?: string) => {
     if (!highlight || !text) return text;
 
-    const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const regex = new RegExp(
+      `(${highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi",
+    );
     const parts = text.split(regex);
 
     return parts.map((part, index) =>
@@ -72,7 +90,7 @@ const PageItem: React.FC<PageItemProps> = ({ index, style, data }) => {
         </mark>
       ) : (
         part
-      )
+      ),
     );
   }, []);
 
@@ -137,14 +155,12 @@ const PageItem: React.FC<PageItemProps> = ({ index, style, data }) => {
     <div
       ref={pageRef}
       style={style}
-      className={`document-page ${page?.isLoaded ? 'loaded' : 'loading'}`}
+      className={`document-page ${page?.isLoaded ? "loaded" : "loading"}`}
       onClick={handleClick}
     >
       <div className="page-header">
         <span className="page-number">Page {pageNumber}</span>
-        {page?.isLoaded && (
-          <span className="page-status">✓</span>
-        )}
+        {page?.isLoaded && <span className="page-status">✓</span>}
       </div>
       {renderPageContent()}
     </div>
@@ -157,20 +173,15 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
   onPageLoad,
   onPageClick,
   highlightedText,
-  className = '',
+  className = "",
 }) => {
-  const {
-    processor,
-    progress,
-    pages,
-    loadDocument,
-    loadPageRange,
-  } = useDocumentProcessor({
-    chunkSize: 3,
-    maxConcurrentPages: 2,
-    cacheSize: 20,
-    timeoutMs: 30000,
-  });
+  const { processor, progress, pages, loadDocument, loadPageRange } =
+    useDocumentProcessor({
+      chunkSize: 3,
+      maxConcurrentPages: 2,
+      cacheSize: 20,
+      timeoutMs: 30000,
+    });
 
   const [listHeight, setListHeight] = useState(600);
   const [itemHeight] = useState(400);
@@ -194,38 +205,44 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
     };
 
     updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
   // Scroll to specific page
   const scrollToPage = useCallback((pageNumber: number) => {
     if (listRef.current) {
-      listRef.current.scrollToItem(pageNumber - 1, 'center');
+      listRef.current.scrollToItem(pageNumber - 1, "center");
     }
   }, []);
 
   // Memoized data for virtual list
-  const listData = useMemo(() => ({
-    pages,
-    onPageClick,
-    highlightedText,
-    loadPageRange: async (start: number, end: number) => {
-      // Create a simple pageLoader that returns a basic DocumentPage
-      const pageLoader = async (pageNumber: number, signal: AbortSignal): Promise<DocumentPage> => {
-        return {
-          pageNumber,
-          content: `Loading page ${pageNumber}...`,
-          isLoaded: false,
-          isLoading: true,
+  const listData = useMemo(
+    () => ({
+      pages,
+      onPageClick,
+      highlightedText,
+      loadPageRange: async (start: number, end: number) => {
+        // Create a simple pageLoader that returns a basic DocumentPage
+        const pageLoader = async (
+          pageNumber: number,
+          signal: AbortSignal,
+        ): Promise<DocumentPage> => {
+          return {
+            pageNumber,
+            content: `Loading page ${pageNumber}...`,
+            isLoaded: false,
+            isLoading: true,
+          };
         };
-      };
-      return loadPageRange(start, end, pageLoader);
-    },
-  }), [pages, onPageClick, highlightedText, loadPageRange]);
+        return loadPageRange(start, end, pageLoader);
+      },
+    }),
+    [pages, onPageClick, highlightedText, loadPageRange],
+  );
 
   const renderProgressBar = () => {
-    if (progress.status === 'idle' || progress.status === 'completed') {
+    if (progress.status === "idle" || progress.status === "completed") {
       return null;
     }
 
@@ -238,10 +255,12 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
           />
         </div>
         <div className="progress-text">
-          {progress.status === 'loading' && (
-            <span>Loading pages... {progress.loadedPages}/{progress.totalPages}</span>
+          {progress.status === "loading" && (
+            <span>
+              Loading pages... {progress.loadedPages}/{progress.totalPages}
+            </span>
           )}
-          {progress.status === 'error' && (
+          {progress.status === "error" && (
             <span className="error">Error: {progress.error?.message}</span>
           )}
         </div>
@@ -254,7 +273,7 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
       <div className="document-info">
         <span>Total Pages: {totalPages}</span>
         <span>Loaded: {progress.loadedPages}</span>
-        {progress.status === 'loading' && (
+        {progress.status === "loading" && (
           <span>Loading: {progress.currentPage}</span>
         )}
       </div>
@@ -285,13 +304,19 @@ export const VirtualizedDocumentViewer: React.FC<DocumentViewerProps> = ({
   );
 
   return (
-    <div ref={containerRef} className={`virtualized-document-viewer ${className}`}>
+    <div
+      ref={containerRef}
+      className={`virtualized-document-viewer ${className}`}
+    >
       {renderControls()}
       {renderProgressBar()}
 
       <div className="document-list-container">
         {totalPages > 0 ? (
-          <div className="document-list" style={{ height: listHeight, overflow: 'auto' }}>
+          <div
+            className="document-list"
+            style={{ height: listHeight, overflow: "auto" }}
+          >
             {Array.from({ length: totalPages }, (_, index) => (
               <PageItem
                 key={index}
@@ -318,13 +343,13 @@ export const useDocumentViewer = () => {
     totalPages: number;
   } | null>(null);
 
-  const [highlightedText, setHighlightedText] = useState<string>('');
+  const [highlightedText, setHighlightedText] = useState<string>("");
   const [selectedPage, setSelectedPage] = useState<number | null>(null);
 
   const loadDocument = useCallback((documentId: string, totalPages: number) => {
     setCurrentDocument({ id: documentId, totalPages });
     setSelectedPage(null);
-    setHighlightedText('');
+    setHighlightedText("");
   }, []);
 
   const highlightText = useCallback((text: string) => {
@@ -338,7 +363,7 @@ export const useDocumentViewer = () => {
   const clearDocument = useCallback(() => {
     setCurrentDocument(null);
     setSelectedPage(null);
-    setHighlightedText('');
+    setHighlightedText("");
   }, []);
 
   return {

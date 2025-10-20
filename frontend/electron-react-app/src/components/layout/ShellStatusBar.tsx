@@ -1,30 +1,34 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-import { useHealthStatus } from '../../hooks/useHealthStatus';
-import { useSystemMetrics } from '../../hooks/useSystemMetrics';
-import { useAppStore } from '../../store/useAppStore';
-import { useDiagnosticsStore } from '../../store/useDiagnosticsStore';
-import { NetworkStatus, useNetworkStore } from '../../store/useNetworkStore';
-import { useTaskMonitor } from '../../features/analysis/hooks/useTaskMonitor';
-import { StatusChip } from '../ui/StatusChip';
+import { useHealthStatus } from "../../hooks/useHealthStatus";
+import { useSystemMetrics } from "../../hooks/useSystemMetrics";
+import { useAppStore } from "../../store/useAppStore";
+import { useDiagnosticsStore } from "../../store/useDiagnosticsStore";
+import { NetworkStatus, useNetworkStore } from "../../store/useNetworkStore";
+import { useTaskMonitor } from "../../features/analysis/hooks/useTaskMonitor";
+import { StatusChip } from "../ui/StatusChip";
 
-import styles from './ShellStatusBar.module.css';
+import styles from "./ShellStatusBar.module.css";
 
 const NETWORK_LABELS: Record<NetworkStatus, string> = {
-  idle: 'Initializing...',
-  online: 'Stable',
-  degraded: 'Network recovery...',
-  offline: 'Offline',
+  idle: "Initializing...",
+  online: "Stable",
+  degraded: "Network recovery...",
+  offline: "Offline",
 };
 
-const NETWORK_VARIANTS: Record<NetworkStatus, 'ready' | 'warming' | 'warning' | 'offline'> = {
-  idle: 'warming',
-  online: 'ready',
-  degraded: 'warning',
-  offline: 'offline',
+const NETWORK_VARIANTS: Record<
+  NetworkStatus,
+  "ready" | "warming" | "warning" | "offline"
+> = {
+  idle: "warming",
+  online: "ready",
+  degraded: "warning",
+  offline: "offline",
 };
 
-const truncate = (value: string, max = 48) => (value.length > max ? `${value.slice(0, max - 3)}...` : value);
+const truncate = (value: string, max = 48) =>
+  value.length > max ? `${value.slice(0, max - 3)}...` : value;
 
 export const ShellStatusBar = () => {
   const token = useAppStore((state) => state.auth.token);
@@ -42,33 +46,40 @@ export const ShellStatusBar = () => {
 
   const taskSummary = useMemo(() => {
     const tasks = tasksQuery.data ? Object.values(tasksQuery.data) : [];
-    const active = tasks.filter((task) => task.status !== 'completed' && task.status !== 'failed');
+    const active = tasks.filter(
+      (task) => task.status !== "completed" && task.status !== "failed",
+    );
     return {
       active: active.length,
       total: tasks.length,
     };
   }, [tasksQuery.data]);
 
-  const healthStatus = healthQuery.data?.status === 'ok' ? 'ready' : 'warning';
+  const healthStatus = healthQuery.data?.status === "ok" ? "ready" : "warning";
   const healthLabel = healthQuery.isLoading
-    ? 'Checking...'
-    : healthQuery.data?.status === 'ok'
-      ? 'Connected'
-      : 'Unavailable';
+    ? "Checking..."
+    : healthQuery.data?.status === "ok"
+      ? "Connected"
+      : "Unavailable";
 
   const metricsLabel = metricsQuery.isLoading
-    ? 'Collecting...'
+    ? "Collecting..."
     : metricsQuery.data
       ? `CPU ${Math.round(metricsQuery.data.cpuPercent)}% | RAM ${Math.round(metricsQuery.data.memoryPercent)}%`
-      : 'Unavailable';
-  const metricsVariant: 'ready' | 'warning' = metricsQuery.data ? 'ready' : 'warning';
+      : "Unavailable";
+  const metricsVariant: "ready" | "warning" = metricsQuery.data
+    ? "ready"
+    : "warning";
 
-  const networkLabel = networkState.lastError && networkState.status !== 'online'
-    ? networkState.lastError
-    : NETWORK_LABELS[networkState.status];
+  const networkLabel =
+    networkState.lastError && networkState.status !== "online"
+      ? networkState.lastError
+      : NETWORK_LABELS[networkState.status];
   const networkVariant = NETWORK_VARIANTS[networkState.status];
 
-  const alertsVariant: 'ready' | 'warning' = diagnosticsState.count ? 'warning' : 'ready';
+  const alertsVariant: "ready" | "warning" = diagnosticsState.count
+    ? "warning"
+    : "ready";
   const alertsLabel = diagnosticsState.count
     ? diagnosticsState.lastEvent
       ? truncate(
@@ -77,10 +88,12 @@ export const ShellStatusBar = () => {
             : diagnosticsState.lastEvent.message,
         )
       : `${diagnosticsState.count} alerts`
-    : 'All clear';
+    : "All clear";
   const alertsTitle = diagnosticsState.lastEvent
     ? `${diagnosticsState.lastEvent.message}${
-        diagnosticsState.lastEvent.stack ? `\n${diagnosticsState.lastEvent.stack}` : ''
+        diagnosticsState.lastEvent.stack
+          ? `\n${diagnosticsState.lastEvent.stack}`
+          : ""
       }`
     : undefined;
 
@@ -90,7 +103,10 @@ export const ShellStatusBar = () => {
         <span className={styles.label}>Alerts</span>
         <StatusChip label={alertsLabel} status={alertsVariant} />
       </div>
-      <div className={styles.section} title={networkState.lastError ?? undefined}>
+      <div
+        className={styles.section}
+        title={networkState.lastError ?? undefined}
+      >
         <span className={styles.label}>Network</span>
         <StatusChip label={truncate(networkLabel)} status={networkVariant} />
       </div>

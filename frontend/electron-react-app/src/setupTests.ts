@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 const mockAxiosInstance = {
   defaults: {},
@@ -22,7 +22,7 @@ const mockAxios = {
   CancelToken: { source: jest.fn(() => ({ token: {}, cancel: jest.fn() })) },
 };
 
-jest.mock('axios', () => ({
+jest.mock("axios", () => ({
   __esModule: true,
   default: mockAxios,
   ...mockAxios,
@@ -31,31 +31,38 @@ jest.mock('axios', () => ({
 const ensureCrypto = () => {
   const existing = global.crypto ?? ({} as Crypto);
   if (!existing.getRandomValues) {
-    existing.getRandomValues = (array: Uint8Array) => {
-      for (let i = 0; i < array.length; i += 1) {
-        array[i] = Math.floor(Math.random() * 256);
+    existing.getRandomValues = <T extends ArrayBufferView>(array: T): T => {
+      const uint8Array = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+      for (let i = 0; i < uint8Array.length; i += 1) {
+        uint8Array[i] = Math.floor(Math.random() * 256);
       }
       return array;
     };
   }
-  if (!('randomUUID' in existing)) {
-    existing.randomUUID = jest.fn(() => 'test-uuid') as unknown as () => string;
+  if (!("randomUUID" in existing)) {
+    (existing as any).randomUUID = jest.fn(() => "test-uuid");
   }
   const subtle = existing.subtle ?? ({} as SubtleCrypto);
   if (!subtle.importKey) {
-    subtle.importKey = jest.fn(async () => ({})) as typeof subtle.importKey;
+    subtle.importKey = jest.fn(async () => ({} as CryptoKey)) as typeof subtle.importKey;
   }
   if (!subtle.encrypt) {
-    subtle.encrypt = jest.fn(async () => new ArrayBuffer(16)) as typeof subtle.encrypt;
+    subtle.encrypt = jest.fn(
+      async () => new ArrayBuffer(16),
+    ) as typeof subtle.encrypt;
   }
   if (!subtle.decrypt) {
-    subtle.decrypt = jest.fn(async () => new ArrayBuffer(16)) as typeof subtle.decrypt;
+    subtle.decrypt = jest.fn(
+      async () => new ArrayBuffer(16),
+    ) as typeof subtle.decrypt;
   }
   if (!subtle.digest) {
-    subtle.digest = jest.fn(async () => new ArrayBuffer(16)) as typeof subtle.digest;
+    subtle.digest = jest.fn(
+      async () => new ArrayBuffer(16),
+    ) as typeof subtle.digest;
   }
-  existing.subtle = subtle;
-  Object.defineProperty(global, 'crypto', {
+  Object.assign(existing, { subtle });
+  Object.defineProperty(global, "crypto", {
     configurable: true,
     value: existing,
   });
@@ -63,8 +70,8 @@ const ensureCrypto = () => {
 
 ensureCrypto();
 
-jest.mock('lib/security/secureTokenStorage', () => {
-  const actual = jest.requireActual('lib/security/secureTokenStorage');
+jest.mock("lib/security/secureTokenStorage", () => {
+  const actual = jest.requireActual("lib/security/secureTokenStorage");
   return {
     ...actual,
     tokenManager: {

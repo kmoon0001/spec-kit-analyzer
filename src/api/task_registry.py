@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 from collections.abc import Coroutine
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +16,14 @@ class AnalysisTaskRegistry:
         self._handles: dict[str, asyncio.Task[Any]] = {}
         self._lock = asyncio.Lock()
 
-    async def start(self, task_id: str, coroutine: Coroutine[Any, Any, Any]) -> asyncio.Task[Any]:
+    async def start(
+        self, task_id: str, coroutine: Coroutine[Any, Any, Any]
+    ) -> asyncio.Task[Any]:
         """Schedule a coroutine for execution and register it under the given task id."""
         async with self._lock:
-            task: asyncio.Task[Any] = asyncio.create_task(coroutine, name=f"analysis-{task_id}")
+            task: asyncio.Task[Any] = asyncio.create_task(
+                coroutine, name=f"analysis-{task_id}"
+            )
             self._handles[task_id] = task
 
             def _cleanup(_: asyncio.Future[Any]) -> None:
@@ -57,7 +61,9 @@ class AnalysisTaskRegistry:
     def active_count(self) -> int:
         """Return the number of tasks that are not terminally completed."""
         return sum(
-            1 for state in self.metadata.values() if state.get("status") not in {"completed", "failed", "cancelled"}
+            1
+            for state in self.metadata.values()
+            if state.get("status") not in {"completed", "failed", "cancelled"}
         )
 
 

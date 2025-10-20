@@ -12,25 +12,35 @@ All endpoints require proper JWT authentication for security.
 """
 
 import asyncio
-import logging
 import json
-from typing import Any
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException, status
+import logging
 from datetime import datetime
+from typing import Any
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from jose import JWTError, jwt
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_async_db
 from src.auth import get_auth_service
 from src.database import models
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 
-async def authenticate_websocket_user(websocket: WebSocket, token: str, db: AsyncSession) -> models.User:
+async def authenticate_websocket_user(
+    websocket: WebSocket, token: str, db: AsyncSession
+) -> models.User:
     """
     Authenticate WebSocket user using JWT token.
 
@@ -51,7 +61,9 @@ async def authenticate_websocket_user(websocket: WebSocket, token: str, db: Asyn
 
     auth_service = get_auth_service()
     try:
-        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
+        payload = jwt.decode(
+            token, auth_service.secret_key, algorithms=[auth_service.algorithm]
+        )
         username = payload.get("sub")
         if not username:
             await websocket.close(code=1008, reason="Invalid token payload")
@@ -62,7 +74,9 @@ async def authenticate_websocket_user(websocket: WebSocket, token: str, db: Asyn
         raise WebSocketDisconnect(1008, "Invalid token")
 
     # Verify user exists and is active
-    result = await db.execute(select(models.User).where(models.User.username == username))
+    result = await db.execute(
+        select(models.User).where(models.User.username == username)
+    )
     user = result.scalars().first()
 
     if not user or not user.is_active:
@@ -107,11 +121,13 @@ class ConnectionManager:
             "user": user,
             "connected_at": datetime.utcnow(),
             "user_id": user.id,
-            "username": user.username
+            "username": user.username,
         }
 
         self.active_connections[channel].append(connection_info)
-        logger.info(f"WebSocket connected to channel: {channel} by user: {user.username}")
+        logger.info(
+            f"WebSocket connected to channel: {channel} by user: {user.username}"
+        )
 
     def disconnect(self, websocket: WebSocket, channel: str):
         """
@@ -127,14 +143,18 @@ class ConnectionManager:
                 if conn_info["websocket"] == websocket:
                     username = conn_info["username"]
                     self.active_connections[channel].pop(i)
-                    logger.info(f"WebSocket disconnected from channel: {channel} by user: {username}")
+                    logger.info(
+                        f"WebSocket disconnected from channel: {channel} by user: {username}"
+                    )
                     break
 
             # Clean up empty channels
             if not self.active_connections[channel]:
                 del self.active_connections[channel]
 
-    async def send_message(self, channel: str, message: dict[str, Any], target_user_id: int | None = None):
+    async def send_message(
+        self, channel: str, message: dict[str, Any], target_user_id: int | None = None
+    ):
         """
         Send message to authenticated connections in a channel.
 
@@ -158,14 +178,18 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message)
             except Exception as e:
-                logger.error(f"Failed to send message to user {conn_info['username']}: {e}")
+                logger.error(
+                    f"Failed to send message to user {conn_info['username']}: {e}"
+                )
                 dead_connections.append(websocket)
 
         # Remove dead connections
         for websocket in dead_connections:
             self.disconnect(websocket, channel)
 
-    async def broadcast(self, message: dict[str, Any], target_user_id: int | None = None):
+    async def broadcast(
+        self, message: dict[str, Any], target_user_id: int | None = None
+    ):
         """
         Broadcast message to all authenticated connections in all channels.
 
@@ -186,7 +210,7 @@ async def websocket_analysis_progress(
     websocket: WebSocket,
     task_id: str,
     token: str = Query(..., description="JWT authentication token"),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     WebSocket endpoint for real-time analysis progress with authentication.
@@ -249,18 +273,23 @@ async def websocket_analysis_progress(
                 action = message.get("action")
 
                 if action == "ping":
-                    await websocket.send_json({"type": "pong", "timestamp": datetime.utcnow().isoformat()})
+                    await websocket.send_json(
+                        {"type": "pong", "timestamp": datetime.utcnow().isoformat()}
+                    )
 
                 elif action == "cancel":
                     # Cancel analysis task (only if user owns it)
                     try:
                         from src.api.routers.analysis import tasks
+
                         if task_id in tasks:
                             # Verify user has permission to cancel this task
                             task = tasks[task_id]
                             if task.get("user_id") == user.id or user.is_admin:
                                 tasks[task_id]["status"] = "cancelled"
-                                tasks[task_id]["cancelled_at"] = datetime.utcnow().isoformat()
+                                tasks[task_id][
+                                    "cancelled_at"
+                                ] = datetime.utcnow().isoformat()
                                 await websocket.send_json(
                                     {
                                         "type": "status",
@@ -285,7 +314,9 @@ async def websocket_analysis_progress(
                                 }
                             )
                     except Exception as e:
-                        logger.error(f"Failed to cancel task {task_id} for user {user.username}: {e}")
+                        logger.error(
+                            f"Failed to cancel task {task_id} for user {user.username}: {e}"
+                        )
                         await websocket.send_json(
                             {
                                 "type": "error",
@@ -296,7 +327,9 @@ async def websocket_analysis_progress(
 
             except TimeoutError:
                 # Send heartbeat
-                await websocket.send_json({"type": "heartbeat", "timestamp": datetime.utcnow().isoformat()})
+                await websocket.send_json(
+                    {"type": "heartbeat", "timestamp": datetime.utcnow().isoformat()}
+                )
 
     except WebSocketDisconnect:
         logger.info(f"Client disconnected from analysis_{task_id}")
@@ -310,7 +343,7 @@ async def websocket_analysis_progress(
 async def websocket_health_monitoring(
     websocket: WebSocket,
     token: str = Query(..., description="JWT authentication token"),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     WebSocket endpoint for real-time health monitoring with authentication.
@@ -349,7 +382,14 @@ async def websocket_health_monitoring(
             # Get active tasks count
             try:
                 from src.api.routers.analysis import tasks
-                active_tasks = len([t for t in tasks.values() if t.get("status") in ["running", "queued"]])
+
+                active_tasks = len(
+                    [
+                        t
+                        for t in tasks.values()
+                        if t.get("status") in ["running", "queued"]
+                    ]
+                )
             except ImportError:
                 active_tasks = 0
 
@@ -388,7 +428,7 @@ async def send_analysis_progress(
     total: int,
     message: str,
     status: str = "progress",
-    target_user_id: int | None = None
+    target_user_id: int | None = None,
 ):
     """
     Send progress update to authenticated WebSocket clients.
@@ -426,5 +466,5 @@ async def send_analysis_progress(
             "message": message,
             "timestamp": datetime.utcnow().isoformat(),
         },
-        target_user_id=target_user_id
+        target_user_id=target_user_id,
     )

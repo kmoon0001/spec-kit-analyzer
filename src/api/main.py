@@ -9,24 +9,23 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 import numpy as np
 import structlog
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from jose import JWTError, jwt
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from jose import JWTError, jwt
 from sqlalchemy import select
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api.dependencies import shutdown_event as api_shutdown
 from src.api.dependencies import startup_event as api_startup
-from src.auth import get_auth_service
 from src.api.routers import (
     admin,
     advanced_analytics,
@@ -39,16 +38,17 @@ from src.api.routers import (
     feedback,
     habits,
     health,
+    individual_habits,
     meta_analytics,
     performance,
     preferences,
-    sessions,
-    users,
     rubric_router,
-    individual_habits,
-    websocket as websocket_routes,
+    sessions,
     strictness,
+    users,
 )
+from src.api.routers import websocket as websocket_routes
+from src.auth import get_auth_service
 
 try:
     from src.api.routers import ehr_integration
@@ -57,36 +57,49 @@ try:
 except ImportError:
     EHR_AVAILABLE = False
 
-from src.api.global_exception_handler import global_exception_handler, http_exception_handler
-from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
+from src.api.error_handling import get_error_handler
+from src.api.global_exception_handler import (
+    global_exception_handler,
+    http_exception_handler,
+)
 from src.api.middleware.csrf_protection import CSRFProtectionMiddleware
 from src.api.middleware.enhanced_rate_limiting import EnhancedRateLimitMiddleware
 from src.api.middleware.performance_monitoring import PerformanceMonitoringMiddleware
-from src.core.enhanced_logging import initialize_logging
-from src.api.error_handling import get_error_handler
+from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
 from src.config import get_settings
-from src.core.vector_store import get_vector_store
-from src.core.file_cleanup_service import start_cleanup_service, stop_cleanup_service
-from src.core.document_cleanup_service import start_cleanup_service as start_doc_cleanup, stop_cleanup_service as stop_doc_cleanup
 from src.core.cleanup_services import start_cleanup_services, stop_cleanup_services
-from src.database import crud, get_async_db, models
-from src.database import init_db
+from src.core.document_cleanup_service import start_cleanup_service as start_doc_cleanup
+from src.core.document_cleanup_service import stop_cleanup_service as stop_doc_cleanup
+from src.core.enhanced_logging import initialize_logging
+from src.core.enhanced_worker_manager import enhanced_worker_manager
+from src.core.file_cleanup_service import start_cleanup_service, stop_cleanup_service
+from src.core.persistent_task_registry import persistent_task_registry
+from src.core.service_manager import create_default_services, service_manager
+from src.core.vector_store import get_vector_store
+from src.database import crud, get_async_db, init_db, models
 from src.database.database import AsyncSessionLocal
 from src.logging_config import CorrelationIdMiddleware, configure_logging
-from src.core.service_manager import service_manager, create_default_services
-from src.core.persistent_task_registry import persistent_task_registry
-from src.core.enhanced_worker_manager import enhanced_worker_manager
 
 settings = get_settings()
 
 # Import enhanced features (with error handling for tests)
 try:
+    from src.api.documentation import (
+        add_api_documentation_routes,
+        create_custom_openapi,
+    )
+    from src.api.enhanced_error_context import enhanced_exception_handler
+    from src.api.graceful_shutdown import (
+        lifespan_with_graceful_shutdown,
+        register_background_task,
+    )
     from src.api.middleware.input_validation import InputValidationMiddleware
     from src.api.middleware.request_logging import RequestLoggingMiddleware
-    from src.api.graceful_shutdown import lifespan_with_graceful_shutdown, register_background_task
-    from src.api.enhanced_error_context import enhanced_exception_handler
-    from src.api.documentation import create_custom_openapi, add_api_documentation_routes
-    from src.core.performance_metrics_collector import metrics_collector, update_system_metrics_task
+    from src.core.performance_metrics_collector import (
+        metrics_collector,
+        update_system_metrics_task,
+    )
+
     ENHANCED_FEATURES_AVAILABLE = True
 except ImportError as e:
     logger = structlog.get_logger(__name__)
@@ -136,7 +149,9 @@ class WebSocketLogHandler(logging.Handler):
 class InMemoryTaskPurgeService:
     """A service to purge expired tasks from the in-memory task dictionary."""
 
-    def __init__(self, tasks=None, retention_period_minutes=60, purge_interval_seconds=300):
+    def __init__(
+        self, tasks=None, retention_period_minutes=60, purge_interval_seconds=300
+    ):
         self.tasks = tasks or {}
         self.retention_period_minutes = retention_period_minutes
         self.purge_interval_seconds = purge_interval_seconds
@@ -158,7 +173,8 @@ class InMemoryTaskPurgeService:
                 expired_keys = [
                     key
                     for key, task in self.tasks.items()
-                    if current_time - task.get("created_at", 0) > (self.retention_period_minutes * 60)
+                    if current_time - task.get("created_at", 0)
+                    > (self.retention_period_minutes * 60)
                 ]
                 for key in expired_keys:
                     self.tasks.pop(key, None)
@@ -201,19 +217,33 @@ async def initialize_vector_store():
     try:
         reports = await crud.get_all_reports_with_embeddings(db)
         if reports:
-            embeddings = [np.frombuffer(report.document_embedding, dtype=np.float32) for report in reports]
+            embeddings = [
+                np.frombuffer(report.document_embedding, dtype=np.float32)
+                for report in reports
+            ]
             report_ids = [report.id for report in reports]
 
             # Ensure all embeddings have the same dimension
             embedding_dim = embeddings[0].shape[0]
-            valid_embeddings = [emb for emb in embeddings if emb.shape[0] == embedding_dim]
-            valid_ids = [id for emb, id in zip(embeddings, report_ids, strict=True) if emb.shape[0] == embedding_dim]
+            valid_embeddings = [
+                emb for emb in embeddings if emb.shape[0] == embedding_dim
+            ]
+            valid_ids = [
+                id
+                for emb, id in zip(embeddings, report_ids, strict=True)
+                if emb.shape[0] == embedding_dim
+            ]
 
             if valid_embeddings:
                 vector_store.add_vectors(np.array(valid_embeddings), valid_ids)
-            logger.info("Successfully populated vector store with %s embeddings.", len(valid_embeddings))
+            logger.info(
+                "Successfully populated vector store with %s embeddings.",
+                len(valid_embeddings),
+            )
         else:
-            logger.info("No existing reports with embeddings found to populate vector store.")
+            logger.info(
+                "No existing reports with embeddings found to populate vector store."
+            )
     finally:
         await db.close()
 
@@ -236,6 +266,7 @@ async def auto_warm_ai_models():
 
         # Store in app state for dependency injection
         from src.api.dependencies import app_state
+
         app_state["analysis_service"] = analysis_service
 
         # Skip auto-warming if using mocks
@@ -249,7 +280,9 @@ async def auto_warm_ai_models():
         # Staggered warming with delays
         for i, prompt in enumerate(warm_prompts):
             try:
-                logger.info(f"Auto-warming AI models with prompt {i + 1}/{len(warm_prompts)}: '{prompt}'")
+                logger.info(
+                    f"Auto-warming AI models with prompt {i + 1}/{len(warm_prompts)}: '{prompt}'"
+                )
 
                 # Warm up document classifier (if available)
                 if analysis_service.document_classifier is not None:
@@ -281,7 +314,9 @@ async def lifespan(app: FastAPI):
     if "pytest" not in sys.modules:
         ws_handler = WebSocketLogHandler()
         ws_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         ws_handler.setFormatter(formatter)
         logging.getLogger().addHandler(ws_handler)
 
@@ -411,13 +446,15 @@ app.add_middleware(PerformanceMonitoringMiddleware)
 app.add_middleware(EnhancedRateLimitMiddleware)
 
 # Add CSRF protection middleware
-app.add_middleware(lambda app: CSRFProtectionMiddleware(
-    app,
-    settings.auth.secret_key.get_secret_value()
-))
+app.add_middleware(
+    lambda app: CSRFProtectionMiddleware(
+        app, settings.auth.secret_key.get_secret_value()
+    )
+)
 
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(RequestIdMiddleware)
+
 
 # Security headers middleware
 @app.middleware("http")
@@ -429,7 +466,9 @@ async def add_security_headers(request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    )
 
     # Content Security Policy
     csp_policy = (
@@ -447,7 +486,9 @@ async def add_security_headers(request, call_next):
 
     # Strict Transport Security (HTTPS only)
     if request.url.scheme == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
 
     # Additional security headers
     response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
@@ -455,6 +496,8 @@ async def add_security_headers(request, call_next):
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
 
     return response
+
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
@@ -470,6 +513,7 @@ app.include_router(performance.router, tags=["Performance"])
 if ENHANCED_FEATURES_AVAILABLE:
     try:
         from src.api.routers import health_advanced
+
         app.include_router(health_advanced.router, tags=["Health"])
     except ImportError:
         logger.warning("Enhanced health check router not available")
@@ -502,10 +546,12 @@ if ENHANCED_FEATURES_AVAILABLE:
 
 # Add metrics endpoint (if available)
 if ENHANCED_FEATURES_AVAILABLE:
+
     @app.get("/metrics", tags=["Monitoring"])
     async def get_metrics():
         """Get application performance metrics."""
         return metrics_collector.get_metrics_summary()
+
 
 # Include plugin management
 try:
@@ -520,6 +566,7 @@ except ImportError:
     logging.warning("Plugin Management API not available")
 
 # --- WebSocket Endpoint --- #
+
 
 async def _load_all_plugins_background():
     """Background task to load all plugins."""
@@ -539,7 +586,13 @@ async def _load_all_plugins_background():
 
     successful_loads = sum(1 for success in results.values() if success)
     total_plugins = len(results)
-    logger.info("Background plugin loading complete: %s/%s successful", successful_loads, total_plugins)
+    logger.info(
+        "Background plugin loading complete: %s/%s successful",
+        successful_loads,
+        total_plugins,
+    )
+
+
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.query_params.get("token")
@@ -549,7 +602,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
     auth_service = get_auth_service()
     try:
-        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
+        payload = jwt.decode(
+            token, auth_service.secret_key, algorithms=[auth_service.algorithm]
+        )
     except JWTError:
         await websocket.close(code=1008, reason="Invalid token")
         return
@@ -560,7 +615,9 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(models.User).where(models.User.username == username))
+        result = await session.execute(
+            select(models.User).where(models.User.username == username)
+        )
         user = result.scalars().first()
         if not user or not user.is_active:
             await websocket.close(code=1008, reason="Unauthorized")

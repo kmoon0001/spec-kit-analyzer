@@ -1,10 +1,19 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import React from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 interface TrainingNeed {
   habit_name: string;
   percentage_of_findings: number;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   affected_users: number;
   training_focus: string;
 }
@@ -13,9 +22,14 @@ interface TrainingNeedsChartProps {
   trainingNeeds: TrainingNeed[];
 }
 
-export const TrainingNeedsChart: React.FC<TrainingNeedsChartProps> = ({ trainingNeeds }) => {
+export const TrainingNeedsChart: React.FC<TrainingNeedsChartProps> = ({
+  trainingNeeds,
+}) => {
   const chartData = trainingNeeds.slice(0, 10).map((need) => ({
-    habit: need.habit_name.length > 30 ? `${need.habit_name.substring(0, 30)}...` : need.habit_name,
+    habit:
+      need.habit_name.length > 30
+        ? `${need.habit_name.substring(0, 30)}...`
+        : need.habit_name,
     percentage: need.percentage_of_findings,
     priority: need.priority,
     affected_users: need.affected_users,
@@ -23,34 +37,36 @@ export const TrainingNeedsChart: React.FC<TrainingNeedsChartProps> = ({ training
 
   const getBarColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return '#dc3545';
-      case 'medium':
-        return '#ffc107';
-      case 'low':
-        return '#28a745';
+      case "high":
+        return "#dc3545";
+      case "medium":
+        return "#ffc107";
+      case "low":
+        return "#28a745";
       default:
-        return '#6c757d';
+        return "#6c757d";
     }
   };
 
   if (chartData.length === 0) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '400px',
-        color: '#666',
-        fontSize: '14px'
-      }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "400px",
+          color: "#666",
+          fontSize: "14px",
+        }}
+      >
         No training needs identified
       </div>
     );
   }
 
   return (
-    <div style={{ width: '100%', height: '400px' }}>
+    <div style={{ width: "100%", height: "400px" }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           layout="horizontal"
@@ -58,11 +74,7 @@ export const TrainingNeedsChart: React.FC<TrainingNeedsChartProps> = ({ training
           margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            type="number"
-            stroke="#666"
-            fontSize={12}
-          />
+          <XAxis type="number" stroke="#666" fontSize={12} />
           <YAxis
             type="category"
             dataKey="habit"
@@ -73,13 +85,13 @@ export const TrainingNeedsChart: React.FC<TrainingNeedsChartProps> = ({ training
           <Tooltip
             formatter={(value: number, name: string, props: any) => [
               `${value.toFixed(1)}%`,
-              `Affected users: ${props.payload.affected_users}`
+              `Affected users: ${props.payload.affected_users}`,
             ]}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '12px'
+              backgroundColor: "white",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              fontSize: "12px",
             }}
           />
           <Bar dataKey="percentage" fill="#007acc">

@@ -53,7 +53,9 @@ class LicenseManager:
         try:
             trial_data = {
                 "trial_start": datetime.now().isoformat(),
-                "trial_end": (datetime.now() + timedelta(days=self.trial_days)).isoformat(),
+                "trial_end": (
+                    datetime.now() + timedelta(days=self.trial_days)
+                ).isoformat(),
                 "hardware_id": self.get_hardware_fingerprint(),
                 "version": "1.0.0",
                 "status": "trial",
@@ -92,7 +94,9 @@ class LicenseManager:
             try:
                 license_data = self._decrypt_license_data(encrypted_data)
             except ValueError as exc:
-                logger.warning("License data invalid (%s); regenerating trial file.", exc)
+                logger.warning(
+                    "License data invalid (%s); regenerating trial file.", exc
+                )
                 if self.initialize_trial(force=True):
                     return True, "Trial data reset due to corruption", self.trial_days
                 return False, "Failed to reset license data", None
@@ -122,7 +126,9 @@ class LicenseManager:
             logger.exception("License check failed: %s", e)
             return False, "License verification failed", None
         except json.JSONDecodeError as exc:
-            logger.warning("License file unreadable (%s); regenerating trial file.", exc)
+            logger.warning(
+                "License file unreadable (%s); regenerating trial file.", exc
+            )
             if self.initialize_trial(force=True):
                 return True, "Trial data reset due to invalid format", self.trial_days
             return False, "Failed to reset license data", None
@@ -154,7 +160,9 @@ class LicenseManager:
                 {
                     "status": "full",
                     "activation_date": datetime.now().isoformat(),
-                    "activation_code": hashlib.sha256(activation_code.encode()).hexdigest(),
+                    "activation_code": hashlib.sha256(
+                        activation_code.encode()
+                    ).hexdigest(),
                     "hardware_id": self.get_hardware_fingerprint(),
                 }
             )
@@ -205,7 +213,10 @@ class LicenseManager:
                 decrypted += chr(ord(char) ^ ord(key[i % len(key)]))
 
             # Verify checksum
-            if hashlib.sha256(decrypted.encode()).hexdigest() != encrypted_data["checksum"]:
+            if (
+                hashlib.sha256(decrypted.encode()).hexdigest()
+                != encrypted_data["checksum"]
+            ):
                 raise ValueError("License data corrupted")
 
             return json.loads(decrypted)

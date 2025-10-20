@@ -8,10 +8,11 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from src.core.cache_service import LLMResponseCache
+
 # NOTE: Avoid importing torch at module import time; import lazily inside methods
 # to prevent ImportError in lightweight environments/tests where torch is absent.
 
-from src.core.cache_service import LLMResponseCache
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,9 @@ class LLMService:
         self.model_filename = model_filename
         self.settings = llm_settings or {}
         self.revision = revision
-        self.local_model_path = Path(local_model_path).expanduser().resolve() if local_model_path else None
+        self.local_model_path = (
+            Path(local_model_path).expanduser().resolve() if local_model_path else None
+        )
 
         self.backend = (self.settings.get("model_type") or "transformers").lower()
         self.llm = None
@@ -65,9 +68,16 @@ class LLMService:
                 self._load_ctransformers_model()
             else:
                 self._load_transformers_model()
-            logger.info("LLM loaded successfully", extra={"backend": self.backend, "model": self.model_repo_id})
+            logger.info(
+                "LLM loaded successfully",
+                extra={"backend": self.backend, "model": self.model_repo_id},
+            )
         except Exception as exc:
-            logger.critical("Fatal error: Failed to load LLM", exc_info=True, extra={"error": str(exc)})
+            logger.critical(
+                "Fatal error: Failed to load LLM",
+                exc_info=True,
+                extra={"error": str(exc)},
+            )
             self.llm = None
             self.tokenizer = None
         finally:
@@ -75,12 +85,18 @@ class LLMService:
 
     def _load_ctransformers_model(self) -> None:
         try:
-            from ctransformers import AutoModelForCausalLM  # type: ignore[import-untyped]
+            from ctransformers import (
+                AutoModelForCausalLM,  # type: ignore[import-untyped]
+            )
         except ImportError as exc:  # pragma: no cover - optional dependency
-            raise RuntimeError("ctransformers backend requested but not installed") from exc
+            raise RuntimeError(
+                "ctransformers backend requested but not installed"
+            ) from exc
 
         if not self.model_repo_id:
-            raise ValueError("Model repository ID is required for ctransformers backend.")
+            raise ValueError(
+                "Model repository ID is required for ctransformers backend."
+            )
 
         source, model_file = self._resolve_model_source()
 
@@ -88,11 +104,15 @@ class LLMService:
         if self.local_model_path and self.local_model_path.exists():
             if self.local_model_path.is_file():
                 source = str(self.local_model_path)
-                model_file = None  # Don't specify model_file when using direct file path
+                model_file = (
+                    None  # Don't specify model_file when using direct file path
+                )
             else:
                 # Directory with model file
                 source = str(self.local_model_path)
-                model_file = model_file or "*.gguf"  # Let ctransformers find the GGUF file
+                model_file = (
+                    model_file or "*.gguf"
+                )  # Let ctransformers find the GGUF file
 
         model_kwargs: dict[str, Any] = {
             "model_type": self.settings.get("hf_model_type", "llama"),
@@ -115,7 +135,10 @@ class LLMService:
             self.tokenizer = None
             self.seq2seq = False
         except Exception as e:
-            logger.warning("ctransformers failed to load model, falling back to transformers: %s", e)
+            logger.warning(
+                "ctransformers failed to load model, falling back to transformers: %s",
+                e,
+            )
             # Fall back to transformers backend
             self._load_transformers_model()
 
@@ -126,7 +149,11 @@ class LLMService:
 
         try:
             import torch  # lazy import
-            from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer  # type: ignore[import-untyped]
+            from transformers import (  # type: ignore[import-untyped]
+                AutoModelForCausalLM,
+                AutoModelForSeq2SeqLM,
+                AutoTokenizer,
+            )
         except Exception as exc:  # pragma: no cover - allow import-time fallback
             logger.warning("Transformers/torch unavailable: %s", exc)
             self.llm = None
@@ -142,7 +169,9 @@ class LLMService:
         model_kwargs: dict[str, Any] = {"low_cpu_mem_usage": True}
         if self.revision:
             model_kwargs["revision"] = self.revision
-        model_kwargs["torch_dtype"] = torch.float16 if torch.cuda.is_available() else torch.float32
+        model_kwargs["torch_dtype"] = (
+            torch.float16 if torch.cuda.is_available() else torch.float32
+        )
 
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
@@ -165,11 +194,15 @@ class LLMService:
 
     def is_ready(self) -> bool:
         self._ensure_model_loaded()
-        return self.llm is not None and (self.backend == "ctransformers" or self.tokenizer is not None)
+        return self.llm is not None and (
+            self.backend == "ctransformers" or self.tokenizer is not None
+        )
 
     def generate(self, prompt: str, **kwargs) -> str:
         if not self.is_ready():
-            logger.error("LLM is not available or failed to load. Cannot generate text.")
+            logger.error(
+                "LLM is not available or failed to load. Cannot generate text."
+            )
             return "Error: LLM service is not available."
 
         # Check cache first for performance optimization
@@ -183,7 +216,9 @@ class LLMService:
         gen_params = dict(self.settings.get("generation_params", {}))
         gen_params.update(kwargs)
 
-        max_new_tokens = int(gen_params.pop("max_new_tokens", 256))  # Reduced for faster generation
+        max_new_tokens = int(
+            gen_params.pop("max_new_tokens", 256)
+        )  # Reduced for faster generation
         temperature = float(gen_params.pop("temperature", 0.1))
         top_p = float(gen_params.pop("top_p", 0.8))  # Slightly more focused
         top_k = int(gen_params.pop("top_k", 20))  # Reduced for faster sampling
@@ -191,7 +226,9 @@ class LLMService:
         stop_sequences = gen_params.pop("stop_sequences", None)
 
         # Safety limits to prevent infinite generation
-        max_new_tokens = min(max_new_tokens, 1024)  # Hard limit to prevent runaway generation
+        max_new_tokens = min(
+            max_new_tokens, 1024
+        )  # Hard limit to prevent runaway generation
         if not stop_sequences:
             stop_sequences = ["</analysis>", "\n\n---", "\n\n\n", "###", "##", "#"]
 
@@ -217,22 +254,35 @@ class LLMService:
 
                 # Cache the result for future use
                 generation_time = time.time() - start_time
-                ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
-                LLMResponseCache.set_llm_response(model_identifier, prompt, result, ttl_hours)
+                ttl_hours = (
+                    6.0 if generation_time > 5.0 else 12.0
+                )  # Longer TTL for quick responses
+                LLMResponseCache.set_llm_response(
+                    model_identifier, prompt, result, ttl_hours
+                )
 
-                logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
+                logger.debug(
+                    "LLM generation completed in %ss, cached with TTL {ttl_hours}h",
+                    generation_time,
+                )
                 return result
 
             # Transformers backend
-            from transformers import StoppingCriteria, StoppingCriteriaList  # type: ignore[import-untyped]
             import torch  # lazy import
+            from transformers import (  # type: ignore[import-untyped]
+                StoppingCriteria,
+                StoppingCriteriaList,
+            )
 
             if self.tokenizer is None or self.llm is None:
                 logger.error("Tokenizer/LLM not initialised for transformers backend")
                 return "Error: tokenizer unavailable."
 
             inputs = self.tokenizer(
-                prompt, return_tensors="pt", truncation=True, max_length=int(self.settings.get("context_length", 512))
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=int(self.settings.get("context_length", 512)),
             )
             device = next(self.llm.parameters()).device  # type: ignore[attr-defined]
             inputs = {key: value.to(device) for key, value in inputs.items()}
@@ -255,7 +305,10 @@ class LLMService:
                     def __call__(self, input_ids, scores, **kwargs):  # type: ignore[override]
                         tokens = input_ids[0].tolist()
                         for sequence in self.sequence_token_ids:
-                            if len(tokens) >= len(sequence) and tokens[-len(sequence) :] == sequence:
+                            if (
+                                len(tokens) >= len(sequence)
+                                and tokens[-len(sequence) :] == sequence
+                            ):
                                 return True
                         return False
 
@@ -264,7 +317,10 @@ class LLMService:
                     if not sequence:
                         continue
                     encoded = self.tokenizer(
-                        sequence, add_special_tokens=False, return_attention_mask=False, return_token_type_ids=False
+                        sequence,
+                        add_special_tokens=False,
+                        return_attention_mask=False,
+                        return_token_type_ids=False,
                     )
                     ids = encoded.get("input_ids")
                     if not ids:
@@ -274,7 +330,9 @@ class LLMService:
                     else:
                         stop_token_ids.append(ids)
                 if stop_token_ids:
-                    stopping_criteria = StoppingCriteriaList([_StopOnSequences(stop_token_ids)])
+                    stopping_criteria = StoppingCriteriaList(
+                        [_StopOnSequences(stop_token_ids)]
+                    )
 
             if self.seq2seq:
                 generate_kwargs["max_length"] = max_new_tokens
@@ -295,14 +353,25 @@ class LLMService:
 
             # Cache the result for future use
             generation_time = time.time() - start_time
-            ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
-            LLMResponseCache.set_llm_response(model_identifier, prompt, result, ttl_hours)
+            ttl_hours = (
+                6.0 if generation_time > 5.0 else 12.0
+            )  # Longer TTL for quick responses
+            LLMResponseCache.set_llm_response(
+                model_identifier, prompt, result, ttl_hours
+            )
 
-            logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
+            logger.debug(
+                "LLM generation completed in %ss, cached with TTL {ttl_hours}h",
+                generation_time,
+            )
             return result
 
         except Exception as exc:
-            logger.error("An error occurred during text generation", exc_info=True, extra={"error": str(exc)})
+            logger.error(
+                "An error occurred during text generation",
+                exc_info=True,
+                extra={"error": str(exc)},
+            )
             return "An error occurred during text generation."
 
     def generate_analysis(self, prompt: str, **kwargs) -> str:

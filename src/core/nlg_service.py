@@ -45,9 +45,14 @@ class NLGService:
         try:
             # Prepare variables with safe defaults
             issue_title = finding.get("issue_title") or finding.get("title") or "N/A"
-            issue_detail = finding.get("issue_detail") or finding.get("description") or "N/A"
+            issue_detail = (
+                finding.get("issue_detail") or finding.get("description") or "N/A"
+            )
             text_snippet = (
-                finding.get("text") or finding.get("text_snippet") or finding.get("problematic_text") or "N/A"
+                finding.get("text")
+                or finding.get("text_snippet")
+                or finding.get("problematic_text")
+                or "N/A"
             )
 
             # First attempt: common variables
@@ -69,13 +74,20 @@ class NLGService:
 
             # Generate the tip using the LLM
             generated_tip = self.llm_service.generate_analysis(prompt)
-            return (generated_tip or finding.get("suggestion", "")).strip() or finding.get(
-                "suggestion", "No tip available."
-            )
+            return (
+                generated_tip or finding.get("suggestion", "")
+            ).strip() or finding.get("suggestion", "No tip available.")
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             logger.exception("Error generating personalized tip: %s", e)
             return finding.get("suggestion", "Error generating tip.")
-        except Exception as e:  # Defensive catch to prevent GUI/API failures on unexpected template fields
+        except (
+            Exception
+        ) as e:  # Defensive catch to prevent GUI/API failures on unexpected template fields
             logger.exception("NLG generation failed; falling back to suggestion: %s", e)
             return finding.get("suggestion", "No tip available.")

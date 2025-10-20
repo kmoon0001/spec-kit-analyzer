@@ -1,7 +1,7 @@
-import { Suspense } from 'react';
-import { useRoutes } from 'react-router-dom';
+import { Suspense } from "react";
+import { useRoutes } from "react-router-dom";
 
-import { appRoutes } from './routes';
+import { appRoutes } from "./routes";
 
 export const AppRouter = () => {
   const element = useRoutes(appRoutes);

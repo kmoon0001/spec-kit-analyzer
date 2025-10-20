@@ -3,7 +3,7 @@
 import string
 from collections.abc import Iterable
 
-_ALLOWED_CHARS = set(string.printable) - {"", ""}
+_ALLOWED_CHARS = set(string.printable) - {"\n", "\t"}
 
 
 def sanitize_human_text(value: str, *, collapse_whitespace: bool = True) -> str:

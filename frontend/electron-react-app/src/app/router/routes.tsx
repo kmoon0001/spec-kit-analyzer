@@ -1,41 +1,55 @@
-import { lazy } from 'react';
-import { RouteObject } from 'react-router-dom';
+import { lazy } from "react";
+import { RouteObject } from "react-router-dom";
 
-const AnalysisPage = lazy(() => import('../../features/analysis/pages/AnalysisPage'));
-const DashboardPage = lazy(() => import('../../features/dashboard/pages/DashboardPage'));
-const MissionControlPage = lazy(() => import('../../features/mission-control/pages/MissionControlPage'));
-const SettingsPage = lazy(() => import('../../features/settings/pages/SettingsPage'));
-const AdvancedAnalyticsPage = lazy(() => import('../../features/analytics/pages/AdvancedAnalyticsPage'));
-const MetaAnalyticsPage = lazy(() => import('../../features/analytics/pages/MetaAnalyticsPage'));
-const GrowthJourneyPage = lazy(() => import('../../features/habits/pages/GrowthJourneyPage'));
+const AnalysisPage = lazy(
+  () => import("../../features/analysis/pages/AnalysisPage"),
+);
+const DashboardPage = lazy(
+  () => import("../../features/dashboard/pages/DashboardPage"),
+);
+const MissionControlPage = lazy(
+  () => import("../../features/mission-control/pages/MissionControlPage"),
+);
+const SettingsPage = lazy(
+  () => import("../../features/settings/pages/SettingsPage"),
+);
+const AdvancedAnalyticsPage = lazy(
+  () => import("../../features/analytics/pages/AdvancedAnalyticsPage"),
+);
+const MetaAnalyticsPage = lazy(
+  () => import("../../features/analytics/pages/MetaAnalyticsPage"),
+);
+const GrowthJourneyPage = lazy(
+  () => import("../../features/habits/pages/GrowthJourneyPage"),
+);
 
 export const appRoutes: RouteObject[] = [
   {
-    path: '/',
+    path: "/",
     element: <AnalysisPage />,
   },
   {
-    path: '/dashboard',
+    path: "/dashboard",
     element: <DashboardPage />,
   },
   {
-    path: '/mission-control',
+    path: "/mission-control",
     element: <MissionControlPage />,
   },
   {
-    path: '/settings',
+    path: "/settings",
     element: <SettingsPage />,
   },
   {
-    path: '/analytics/advanced',
+    path: "/analytics/advanced",
     element: <AdvancedAnalyticsPage />,
   },
   {
-    path: '/analytics/meta',
+    path: "/analytics/meta",
     element: <MetaAnalyticsPage />,
   },
   {
-    path: '/habits/growth-journey',
+    path: "/habits/growth-journey",
     element: <GrowthJourneyPage />,
   },
 ];

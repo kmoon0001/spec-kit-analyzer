@@ -1,10 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
-import { ShellHeader } from './ShellHeader';
-import { ShellNavigation } from './ShellNavigation';
-import { ShellStatusBar } from './ShellStatusBar';
+import { ShellHeader } from "./ShellHeader";
+import { ShellNavigation } from "./ShellNavigation";
+import { ShellStatusBar } from "./ShellStatusBar";
 
-import styles from './MainLayout.module.css';
+import styles from "./MainLayout.module.css";
 
 type Props = {
   children: ReactNode;

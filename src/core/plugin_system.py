@@ -133,7 +133,9 @@ class ComplianceAnalysisPlugin(PluginInterface):
     """
 
     @abstractmethod
-    def analyze_document(self, document_content: str, context: dict[str, Any]) -> dict[str, Any]:
+    def analyze_document(
+        self, document_content: str, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Analyze a document for compliance issues.
 
         Args:
@@ -248,7 +250,9 @@ class PluginManager:
                     if metadata:
                         discovered_plugins.append(metadata)
                         self.plugin_metadata[metadata.name] = metadata
-                        logger.info("Discovered plugin: %s v{metadata.version}", metadata.name)
+                        logger.info(
+                            "Discovered plugin: %s v{metadata.version}", metadata.name
+                        )
 
                 except (FileNotFoundError, PermissionError, OSError):
                     logger.warning("Failed to discover plugin %s: {e}", plugin_file)
@@ -263,12 +267,20 @@ class PluginManager:
                             if metadata:
                                 discovered_plugins.append(metadata)
                                 self.plugin_metadata[metadata.name] = metadata
-                                logger.info("Discovered plugin package: %s v{metadata.version}", metadata.name)
+                                logger.info(
+                                    "Discovered plugin package: %s v{metadata.version}",
+                                    metadata.name,
+                                )
 
                         except (FileNotFoundError, PermissionError, OSError):
-                            logger.warning("Failed to discover plugin package %s: {e}", plugin_package)
+                            logger.warning(
+                                "Failed to discover plugin package %s: {e}",
+                                plugin_package,
+                            )
 
-        logger.info("Plugin discovery complete. Found %s plugins.", len(discovered_plugins))
+        logger.info(
+            "Plugin discovery complete. Found %s plugins.", len(discovered_plugins)
+        )
         return discovered_plugins
 
     def load_plugin(self, plugin_name: str, config: PluginConfig | None = None) -> bool:
@@ -426,7 +438,11 @@ class PluginManager:
             Dict mapping plugin names to their metadata
 
         """
-        return {name: self.plugin_metadata[name] for name in self.loaded_plugins.keys() if name in self.plugin_metadata}
+        return {
+            name: self.plugin_metadata[name]
+            for name in self.loaded_plugins.keys()
+            if name in self.plugin_metadata
+        }
 
     def get_plugin_status(self, plugin_name: str) -> dict[str, Any]:
         """Get detailed status information for a plugin.
@@ -457,7 +473,9 @@ class PluginManager:
 
         if plugin_name in self.loaded_plugins:
             plugin_instance = self.loaded_plugins[plugin_name]
-            status["extension_points"] = list(plugin_instance.get_extension_points().keys())
+            status["extension_points"] = list(
+                plugin_instance.get_extension_points().keys()
+            )
 
         return status
 
@@ -465,7 +483,9 @@ class PluginManager:
         """Extract metadata from a plugin file."""
         try:
             # Read the plugin file to look for metadata
-            _ = plugin_file.read_text(encoding="utf-8")  # Reserved for future metadata parsing
+            _ = plugin_file.read_text(
+                encoding="utf-8"
+            )  # Reserved for future metadata parsing
 
             # Look for metadata in docstring or special variables
             # This is a simplified implementation - in production, you might use
@@ -503,7 +523,9 @@ class PluginManager:
             pass
 
         # For now, allow all plugins in development
-        logger.warning("Plugin %s not in approved list - allowing for development", metadata.name)
+        logger.warning(
+            "Plugin %s not in approved list - allowing for development", metadata.name
+        )
         return True
 
     def _load_plugin_instance(self, metadata: PluginMetadata) -> PluginInterface | None:
@@ -518,7 +540,9 @@ class PluginManager:
             return None
 
         except (ImportError, ModuleNotFoundError, AttributeError):
-            logger.exception("Failed to load plugin instance for %s: %s", metadata.name, e)
+            logger.exception(
+                "Failed to load plugin instance for %s: %s", metadata.name, e
+            )
             return None
 
 

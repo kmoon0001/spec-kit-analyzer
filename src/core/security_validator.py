@@ -25,7 +25,12 @@ class SecurityValidator:
     ALLOWED_ANALYSIS_MODES: Final[set[str]] = {"rubric", "checklist", "hybrid"}
 
     # Strictness validation
-    ALLOWED_STRICTNESS_LEVELS: Final[set[str]] = {"ultra_fast", "balanced", "thorough", "clinical_grade"}
+    ALLOWED_STRICTNESS_LEVELS: Final[set[str]] = {
+        "ultra_fast",
+        "balanced",
+        "thorough",
+        "clinical_grade",
+    }
 
     # String length limits
     MAX_USERNAME_LENGTH: Final[int] = 50
@@ -87,7 +92,10 @@ class SecurityValidator:
             return False, "Filename is required"
 
         if len(filename) > SecurityValidator.MAX_FILENAME_LENGTH:
-            return False, f"Filename exceeds maximum length of {SecurityValidator.MAX_FILENAME_LENGTH}"
+            return (
+                False,
+                f"Filename exceeds maximum length of {SecurityValidator.MAX_FILENAME_LENGTH}",
+            )
 
         if ".." in filename or "/" in filename or "\\" in filename:
             logger.warning("Path traversal attempt detected in filename: %s", filename)
@@ -116,7 +124,10 @@ class SecurityValidator:
     def validate_file_size(file_size: int) -> tuple[bool, str | None]:
         """Confirm that a file size is non-zero and within configured bounds."""
         if file_size > SecurityValidator.MAX_FILE_SIZE_BYTES:
-            return False, f"File size exceeds maximum allowed size of {SecurityValidator.MAX_FILE_SIZE_MB}MB"
+            return (
+                False,
+                f"File size exceeds maximum allowed size of {SecurityValidator.MAX_FILE_SIZE_MB}MB",
+            )
 
         if file_size == 0:
             return False, "File is empty"
@@ -185,10 +196,16 @@ class SecurityValidator:
             return False, "Username is required"
 
         if len(username) > SecurityValidator.MAX_USERNAME_LENGTH:
-            return False, f"Username exceeds maximum length of {SecurityValidator.MAX_USERNAME_LENGTH}"
+            return (
+                False,
+                f"Username exceeds maximum length of {SecurityValidator.MAX_USERNAME_LENGTH}",
+            )
 
         if not re.match(r"^[a-zA-Z0-9_-]+$", username):
-            return False, "Username can only contain letters, numbers, underscores, and hyphens"
+            return (
+                False,
+                "Username can only contain letters, numbers, underscores, and hyphens",
+            )
 
         return True, None
 
@@ -202,7 +219,10 @@ class SecurityValidator:
             return False, "Password must be at least 12 characters long"
 
         if len(password) > SecurityValidator.MAX_PASSWORD_LENGTH:
-            return False, f"Password exceeds maximum length of {SecurityValidator.MAX_PASSWORD_LENGTH}"
+            return (
+                False,
+                f"Password exceeds maximum length of {SecurityValidator.MAX_PASSWORD_LENGTH}",
+            )
 
         # Check for uppercase letter
         if not re.search(r"[A-Z]", password):
@@ -234,8 +254,19 @@ class SecurityValidator:
 
         # Check for dictionary words (basic check)
         common_words = [
-            "password", "admin", "user", "login", "welcome", "hello", "test",
-            "demo", "sample", "example", "default", "guest", "public"
+            "password",
+            "admin",
+            "user",
+            "login",
+            "welcome",
+            "hello",
+            "test",
+            "demo",
+            "sample",
+            "example",
+            "default",
+            "guest",
+            "public",
         ]
 
         password_lower = password.lower()

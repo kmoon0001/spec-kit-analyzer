@@ -15,11 +15,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.core.metrics_collector import MetricsCollector
     from src.core.data_aggregator import DataAggregator
+    from src.core.metrics_collector import MetricsCollector
 
 try:
     import psutil
@@ -178,7 +178,9 @@ class PerformanceMonitor:
 
         logger.info("Performance monitoring system initialized")
 
-    def track_operation(self, component: str, operation: str, metadata: dict[str, Any] | None = None):
+    def track_operation(
+        self, component: str, operation: str, metadata: dict[str, Any] | None = None
+    ):
         """Context manager for tracking operation performance.
 
         Args:
@@ -193,7 +195,9 @@ class PerformanceMonitor:
         """
         return OperationTracker(self, component, operation, metadata or {})
 
-    async def track_async_operation(self, component: str, operation: str, func: Callable, *args, **kwargs) -> Any:
+    async def track_async_operation(
+        self, component: str, operation: str, func: Callable, *args, **kwargs
+    ) -> Any:
         """Track an async operation and return its result.
 
         Args:
@@ -289,11 +293,19 @@ class PerformanceMonitor:
     def get_system_health(self) -> SystemHealth:
         """Get current system health snapshot."""
         # Calculate recent metrics
-        recent_metrics = [m for m in self.metrics_history if m.timestamp > datetime.now() - timedelta(minutes=5)]
+        recent_metrics = [
+            m
+            for m in self.metrics_history
+            if m.timestamp > datetime.now() - timedelta(minutes=5)
+        ]
 
         if recent_metrics:
-            avg_response_time = sum(m.duration_ms for m in recent_metrics) / len(recent_metrics)
-            error_rate = sum(1 for m in recent_metrics if not m.success) / len(recent_metrics)
+            avg_response_time = sum(m.duration_ms for m in recent_metrics) / len(
+                recent_metrics
+            )
+            error_rate = sum(1 for m in recent_metrics if not m.success) / len(
+                recent_metrics
+            )
             throughput = len(recent_metrics) / 5.0  # Operations per minute
         else:
             avg_response_time = 0.0
@@ -311,7 +323,9 @@ class PerformanceMonitor:
             throughput=throughput,
         )
 
-    def get_component_performance(self, component: str, hours: int = 24) -> dict[str, Any]:
+    def get_component_performance(
+        self, component: str, hours: int = 24
+    ) -> dict[str, Any]:
         """Get performance statistics for a specific component.
 
         Args:
@@ -323,7 +337,11 @@ class PerformanceMonitor:
 
         """
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        component_metrics = [m for m in self.metrics_history if m.component == component and m.timestamp > cutoff_time]
+        component_metrics = [
+            m
+            for m in self.metrics_history
+            if m.component == component and m.timestamp > cutoff_time
+        ]
 
         if not component_metrics:
             return {
@@ -407,7 +425,11 @@ class PerformanceMonitor:
             List of bottleneck information
 
         """
-        recent_metrics = [m for m in self.metrics_history if m.timestamp > datetime.now() - timedelta(hours=1)]
+        recent_metrics = [
+            m
+            for m in self.metrics_history
+            if m.timestamp > datetime.now() - timedelta(hours=1)
+        ]
         slow_operations = [m for m in recent_metrics if m.duration_ms > threshold_ms]
 
         # Group by component and operation
@@ -425,8 +447,11 @@ class PerformanceMonitor:
                     "occurrence_count": len(metrics),
                     "avg_duration_ms": avg_duration,
                     "max_duration_ms": max(m.duration_ms for m in metrics),
-                    "impact_score": len(metrics) * avg_duration,  # Simple impact calculation
-                    "recommendations": self._get_optimization_recommendations(operation, avg_duration),
+                    "impact_score": len(metrics)
+                    * avg_duration,  # Simple impact calculation
+                    "recommendations": self._get_optimization_recommendations(
+                        operation, avg_duration
+                    ),
                 }
             )
 
@@ -452,18 +477,29 @@ class PerformanceMonitor:
 
         # Duration alert
         if metric.duration_ms > thresholds.get("max_duration_ms", 5000):
-            logger.warning("Performance alert: %s.{metric.operation} took {metric.duration_ms}ms", metric.component)
+            logger.warning(
+                "Performance alert: %s.{metric.operation} took {metric.duration_ms}ms",
+                metric.component,
+            )
 
         # Memory alert
         if metric.memory_usage_mb > thresholds.get("max_memory_mb", 100):
-            logger.warning("Memory alert: %s.{metric.operation} used {metric.memory_usage_mb}MB", metric.component)
+            logger.warning(
+                "Memory alert: %s.{metric.operation} used {metric.memory_usage_mb}MB",
+                metric.component,
+            )
 
         # Error rate alert
         component_recent = [m for m in self.component_metrics[metric.component][-10:]]
         if len(component_recent) >= 5:
-            error_rate = sum(1 for m in component_recent if not m.success) / len(component_recent)
+            error_rate = sum(1 for m in component_recent if not m.success) / len(
+                component_recent
+            )
             if error_rate > thresholds.get("max_error_rate", 0.1):
-                logger.error("Error rate alert: %s has {error_rate * 100} error rate", metric.component)
+                logger.error(
+                    "Error rate alert: %s has {error_rate * 100} error rate",
+                    metric.component,
+                )
 
     def _background_monitoring(self):
         """Background thread for continuous system monitoring."""
@@ -532,7 +568,9 @@ class PerformanceMonitor:
         index = int((percentile / 100.0) * len(sorted_values))
         return sorted_values[min(index, len(sorted_values) - 1)]
 
-    def _get_optimization_recommendations(self, operation: str, avg_duration: float) -> list[str]:
+    def _get_optimization_recommendations(
+        self, operation: str, avg_duration: float
+    ) -> list[str]:
         """Get optimization recommendations for slow operations."""
         recommendations = []
 
@@ -636,7 +674,9 @@ class PerformanceMonitor:
             self._initialize_components()
 
             # Start monitoring thread
-            self._monitor_thread = threading.Thread(target=self._background_monitoring, daemon=True)
+            self._monitor_thread = threading.Thread(
+                target=self._background_monitoring, daemon=True
+            )
             self._monitor_thread.start()
 
             self.state = MonitoringState.RUNNING
@@ -776,7 +816,9 @@ class PerformanceMonitor:
             if not self.metrics_collector:
                 from src.core.metrics_collector import MetricsCollector
 
-                self.metrics_collector = MetricsCollector(30.0)  # 30 second collection interval
+                self.metrics_collector = MetricsCollector(
+                    30.0
+                )  # 30 second collection interval
 
             # Initialize data aggregator
             if not self.data_aggregator:

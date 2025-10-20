@@ -1,23 +1,23 @@
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from "../../lib/api/client";
 
 export type ApiPreferences = {
-  theme_mode: 'system' | 'light' | 'dark';
-  startup_screen: 'analysis' | 'dashboard' | 'mission_control';
+  theme_mode: "system" | "light" | "dark";
+  startup_screen: "analysis" | "dashboard" | "mission_control";
   enable_beta_widgets: boolean;
   auto_start_backend: boolean;
   stream_analysis_logs: boolean;
-  default_strictness: 'ultra_fast' | 'balanced' | 'thorough' | 'clinical_grade';
-  auto_export_format: 'pdf' | 'pdf_html';
+  default_strictness: "ultra_fast" | "balanced" | "thorough" | "clinical_grade";
+  auto_export_format: "pdf" | "pdf_html";
 };
 
 export type PreferencesForm = {
-  themeMode: ApiPreferences['theme_mode'];
-  startupScreen: ApiPreferences['startup_screen'];
+  themeMode: ApiPreferences["theme_mode"];
+  startupScreen: ApiPreferences["startup_screen"];
   enableBetaWidgets: boolean;
   autoStartBackend: boolean;
   streamAnalysisLogs: boolean;
-  defaultStrictness: ApiPreferences['default_strictness'];
-  autoExportFormat: ApiPreferences['auto_export_format'];
+  defaultStrictness: ApiPreferences["default_strictness"];
+  autoExportFormat: ApiPreferences["auto_export_format"];
 };
 
 const mapFromApi = (preferences: ApiPreferences): PreferencesForm => ({
@@ -41,12 +41,17 @@ const mapToApi = (preferences: PreferencesForm): ApiPreferences => ({
 });
 
 export const fetchPreferences = async (): Promise<PreferencesForm> => {
-  const { data } = await apiClient.get<ApiPreferences>('/preferences/me');
+  const { data } = await apiClient.get<ApiPreferences>("/preferences/me");
   return mapFromApi(data);
 };
 
-export const updatePreferences = async (preferences: PreferencesForm): Promise<PreferencesForm> => {
+export const updatePreferences = async (
+  preferences: PreferencesForm,
+): Promise<PreferencesForm> => {
   const payload = mapToApi(preferences);
-  const { data } = await apiClient.put<ApiPreferences>('/preferences/me', payload);
+  const { data } = await apiClient.put<ApiPreferences>(
+    "/preferences/me",
+    payload,
+  );
   return mapFromApi(data);
 };

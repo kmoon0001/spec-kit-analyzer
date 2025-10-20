@@ -117,7 +117,9 @@ class MetricSource(ABC):
         with self._lock:
             self._collection_errors = 0
             self._is_healthy = True
-            logger.info("Reset health status for metric source: %s", self.get_source_name())
+            logger.info(
+                "Reset health status for metric source: %s", self.get_source_name()
+            )
 
     def get_last_collection_time(self) -> datetime | None:
         """Get the last collection time."""
@@ -403,7 +405,9 @@ class ApplicationMetricsSource(MetricSource):
             response_times = list(self._response_times)
             return {
                 "response_times_count": len(response_times),
-                "avg_response_time": sum(response_times) / len(response_times) if response_times else 0,
+                "avg_response_time": (
+                    sum(response_times) / len(response_times) if response_times else 0
+                ),
                 "total_requests": sum(self._request_counts.values()),
                 "total_errors": sum(self._error_counts.values()),
                 "unique_endpoints": len(self._request_counts),
@@ -491,7 +495,9 @@ class AIModelMetricsSource(MetricSource):
                     )
                 )
             # Cache performance metrics
-            for model_name in set(self._model_cache_hits.keys()) | set(self._model_cache_misses.keys()):
+            for model_name in set(self._model_cache_hits.keys()) | set(
+                self._model_cache_misses.keys()
+            ):
                 hits = self._model_cache_hits[model_name]
                 misses = self._model_cache_misses[model_name]
                 total = hits + misses
@@ -505,7 +511,11 @@ class AIModelMetricsSource(MetricSource):
                         unit="%",
                         metric_type=MetricType.GAUGE,
                         source=self.get_source_name(),
-                        tags={"component": "ai", "model": model_name, "stat": "cache_performance"},
+                        tags={
+                            "component": "ai",
+                            "model": model_name,
+                            "stat": "cache_performance",
+                        },
                     )
                 )
 
@@ -606,7 +616,9 @@ class MetricsCollector:
             raise ValueError("Source must be an instance of MetricSource")
 
         if not source.is_available():
-            logger.warning("Registering unavailable source: %s", source.get_source_name())
+            logger.warning(
+                "Registering unavailable source: %s", source.get_source_name()
+            )
 
         source_name = source.get_source_name()
         if not source_name or not source_name.strip():
@@ -649,7 +661,9 @@ class MetricsCollector:
         tasks = []
         for source_name, source in self._sources.items():
             if source.is_available() and source.is_healthy():
-                task = asyncio.create_task(self._collect_from_source_safely(source_name, source))
+                task = asyncio.create_task(
+                    self._collect_from_source_safely(source_name, source)
+                )
                 tasks.append(task)
 
         if tasks:
@@ -685,12 +699,17 @@ class MetricsCollector:
                 logger.error("Error in metrics callback: %s", e)
 
         logger.debug(
-            "Collected %d metrics from %d sources in %.2fms", len(all_metrics), len(tasks), collection_duration
+            "Collected %d metrics from %d sources in %.2fms",
+            len(all_metrics),
+            len(tasks),
+            collection_duration,
         )
 
         return all_metrics
 
-    async def _collect_from_source_safely(self, source_name: str, source: MetricSource) -> list[PerformanceMetric]:
+    async def _collect_from_source_safely(
+        self, source_name: str, source: MetricSource
+    ) -> list[PerformanceMetric]:
         """Safely collect metrics from a single source with error handling."""
         try:
             metrics = await source.collect_metrics()
@@ -711,7 +730,9 @@ class MetricsCollector:
 
         self._is_running = True
         self._collection_task = asyncio.create_task(self._collection_loop())
-        logger.info("Started metrics collection with interval %.1fs", self._collection_interval)
+        logger.info(
+            "Started metrics collection with interval %.1fs", self._collection_interval
+        )
 
     def stop_collection(self) -> None:
         """Stop automatic metric collection."""
@@ -739,7 +760,9 @@ class MetricsCollector:
                 break
             except Exception as e:
                 logger.error("Error in metrics collection loop: %s", e)
-                await asyncio.sleep(min(self._collection_interval, 10.0))  # Backoff on error
+                await asyncio.sleep(
+                    min(self._collection_interval, 10.0)
+                )  # Backoff on error
 
     def add_callback(self, callback: Callable[[list[PerformanceMetric]], None]) -> None:
         """Add a callback to be called when metrics are collected."""
@@ -749,7 +772,9 @@ class MetricsCollector:
         self._callbacks.append(callback)
         logger.debug("Added metrics callback")
 
-    def remove_callback(self, callback: Callable[[list[PerformanceMetric]], None]) -> bool:
+    def remove_callback(
+        self, callback: Callable[[list[PerformanceMetric]], None]
+    ) -> bool:
         """Remove a callback."""
         try:
             self._callbacks.remove(callback)
@@ -767,10 +792,14 @@ class MetricsCollector:
             # Return the most recent metrics
             return list(self._metrics_buffer)[-count:]
 
-    def get_metrics_by_source(self, source_name: str, count: int = 100) -> list[PerformanceMetric]:
+    def get_metrics_by_source(
+        self, source_name: str, count: int = 100
+    ) -> list[PerformanceMetric]:
         """Get recent metrics from a specific source."""
         with self._buffer_lock:
-            source_metrics = [m for m in self._metrics_buffer if m.source == source_name]
+            source_metrics = [
+                m for m in self._metrics_buffer if m.source == source_name
+            ]
             return source_metrics[-count:] if source_metrics else []
 
     def get_source_status(self) -> dict[str, dict[str, Any]]:

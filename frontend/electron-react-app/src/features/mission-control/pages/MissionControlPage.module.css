@@ -81,7 +81,7 @@ header p {
 
 .logPane pre {
   margin: 0;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.8rem;
   color: rgba(226, 232, 240, 0.9);
 }

@@ -92,7 +92,9 @@ class ExecutionEngine:
         self.test_runners = {}
         self.active_tests = {}
 
-    def register_test_runner(self, category: PerformanceCategory, runner: Callable) -> None:
+    def register_test_runner(
+        self, category: PerformanceCategory, runner: Callable
+    ) -> None:
         """Register a test runner for a specific category"""
         self.test_runners[category] = runner
         logger.info("Registered test runner for category: %s", category.value)
@@ -100,7 +102,10 @@ class ExecutionEngine:
     async def execute_test(self, config: PerformanceTestConfig) -> SingleTestResult:
         """Execute a single performance test"""
         result = SingleTestResult(
-            test_name=config.name, category=config.category, status=ExecutionStatus.RUNNING, start_time=datetime.now()
+            test_name=config.name,
+            category=config.category,
+            status=ExecutionStatus.RUNNING,
+            start_time=datetime.now(),
         )
 
         try:
@@ -108,7 +113,9 @@ class ExecutionEngine:
 
             # Check if test runner is available
             if config.category not in self.test_runners:
-                raise ValueError(f"No test runner registered for category: {config.category.value}")
+                raise ValueError(
+                    f"No test runner registered for category: {config.category.value}"
+                )
 
             # Execute test with timeout
             test_runner = self.test_runners[config.category]
@@ -117,14 +124,18 @@ class ExecutionEngine:
             test_task = asyncio.create_task(test_runner(config))
 
             try:
-                test_metrics = await asyncio.wait_for(test_task, timeout=config.timeout_seconds)
+                test_metrics = await asyncio.wait_for(
+                    test_task, timeout=config.timeout_seconds
+                )
                 result.metrics = test_metrics
                 result.status = ExecutionStatus.COMPLETED
 
             except TimeoutError:
                 test_task.cancel()
                 result.status = ExecutionStatus.FAILED
-                result.error_message = f"Test timed out after {config.timeout_seconds} seconds"
+                result.error_message = (
+                    f"Test timed out after {config.timeout_seconds} seconds"
+                )
 
             except Exception as e:
                 result.status = ExecutionStatus.FAILED
@@ -134,7 +145,9 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             result.duration_seconds = end_time - start_time
 
-            logger.info("Test %s completed with status: {result.status.value}", config.name)
+            logger.info(
+                "Test %s completed with status: {result.status.value}", config.name
+            )
 
         except Exception as e:
             result.status = ExecutionStatus.FAILED
@@ -144,7 +157,9 @@ class ExecutionEngine:
 
         return result
 
-    async def execute_tests_parallel(self, configs: list[PerformanceTestConfig]) -> list[SingleTestResult]:
+    async def execute_tests_parallel(
+        self, configs: list[PerformanceTestConfig]
+    ) -> list[SingleTestResult]:
         """Execute multiple tests in parallel"""
         tasks = []
         for config in configs:
@@ -256,7 +271,11 @@ class SuiteManager:
 
         # If suite contains test names (strings), convert to test objects
         if suite_data and isinstance(suite_data[0], str):
-            return [self.test_configurations[name] for name in suite_data if name in self.test_configurations]
+            return [
+                self.test_configurations[name]
+                for name in suite_data
+                if name in self.test_configurations
+            ]
 
         # Otherwise return as-is (already test objects)
         return suite_data
@@ -358,20 +377,32 @@ class PerformanceTestOrchestrator:
             }
 
         # Register runners
-        self.execution_engine.register_test_runner(PerformanceCategory.BASELINE, baseline_runner)
-        self.execution_engine.register_test_runner(PerformanceCategory.OPTIMIZATION, optimization_runner)
-        self.execution_engine.register_test_runner(PerformanceCategory.LOAD, load_runner)
-        self.execution_engine.register_test_runner(PerformanceCategory.STRESS, load_runner)  # Reuse for now
+        self.execution_engine.register_test_runner(
+            PerformanceCategory.BASELINE, baseline_runner
+        )
+        self.execution_engine.register_test_runner(
+            PerformanceCategory.OPTIMIZATION, optimization_runner
+        )
+        self.execution_engine.register_test_runner(
+            PerformanceCategory.LOAD, load_runner
+        )
+        self.execution_engine.register_test_runner(
+            PerformanceCategory.STRESS, load_runner
+        )  # Reuse for now
         self.execution_engine.register_test_runner(
             PerformanceCategory.INTEGRATION, optimization_runner
         )  # Reuse for now
-        self.execution_engine.register_test_runner(PerformanceCategory.BENCHMARK, baseline_runner)  # Reuse for now
+        self.execution_engine.register_test_runner(
+            PerformanceCategory.BENCHMARK, baseline_runner
+        )  # Reuse for now
 
     async def run_test_suite(self, suite_name: str) -> PerformanceTestResults:
         """Run a complete test suite"""
         logger.info("Starting test suite: %s", suite_name)
 
-        suite_result = PerformanceTestResults(suite_name=suite_name, start_time=datetime.now())
+        suite_result = PerformanceTestResults(
+            suite_name=suite_name, start_time=datetime.now()
+        )
 
         try:
             # Get test configurations for the suite
@@ -382,7 +413,9 @@ class PerformanceTestOrchestrator:
                 return suite_result
 
             # Execute tests
-            test_results = await self.execution_engine.execute_tests_parallel(test_configs)
+            test_results = await self.execution_engine.execute_tests_parallel(
+                test_configs
+            )
             suite_result.test_results = test_results
 
             # Calculate summary metrics
@@ -392,12 +425,17 @@ class PerformanceTestOrchestrator:
             suite_result.recommendations = self._generate_recommendations(test_results)
 
             suite_result.end_time = datetime.now()
-            suite_result.total_duration_seconds = (suite_result.end_time - suite_result.start_time).total_seconds()
+            suite_result.total_duration_seconds = (
+                suite_result.end_time - suite_result.start_time
+            ).total_seconds()
 
             # Store results
             self.results_history.append(suite_result)
 
-            logger.info("Test suite %s completed in {suite_result.total_duration_seconds} seconds", suite_name)
+            logger.info(
+                "Test suite %s completed in {suite_result.total_duration_seconds} seconds",
+                suite_name,
+            )
 
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
             logger.exception("Error running test suite %s: {e}", suite_name)
@@ -417,10 +455,14 @@ class PerformanceTestOrchestrator:
             if config.category == PerformanceCategory.BASELINE and config.enabled
         ]
 
-        suite_result = PerformanceTestResults(suite_name="baseline_tests", start_time=datetime.now())
+        suite_result = PerformanceTestResults(
+            suite_name="baseline_tests", start_time=datetime.now()
+        )
 
         if baseline_configs:
-            test_results = await self.execution_engine.execute_tests_parallel(baseline_configs)
+            test_results = await self.execution_engine.execute_tests_parallel(
+                baseline_configs
+            )
             suite_result.test_results = test_results
             suite_result.summary_metrics = self._calculate_summary_metrics(test_results)
 
@@ -435,35 +477,47 @@ class PerformanceTestOrchestrator:
             if config.category == PerformanceCategory.OPTIMIZATION and config.enabled
         ]
 
-        suite_result = PerformanceTestResults(suite_name="optimization_tests", start_time=datetime.now())
+        suite_result = PerformanceTestResults(
+            suite_name="optimization_tests", start_time=datetime.now()
+        )
 
         if optimization_configs:
-            test_results = await self.execution_engine.execute_tests_parallel(optimization_configs)
+            test_results = await self.execution_engine.execute_tests_parallel(
+                optimization_configs
+            )
             suite_result.test_results = test_results
             suite_result.summary_metrics = self._calculate_summary_metrics(test_results)
 
         suite_result.end_time = datetime.now()
         return suite_result
 
-    def _calculate_summary_metrics(self, test_results: list[SingleTestResult]) -> dict[str, Any]:
+    def _calculate_summary_metrics(
+        self, test_results: list[SingleTestResult]
+    ) -> dict[str, Any]:
         """Calculate summary metrics from test results"""
         if not test_results:
             return {}
 
-        completed_tests = [r for r in test_results if r.status == ExecutionStatus.COMPLETED]
+        completed_tests = [
+            r for r in test_results if r.status == ExecutionStatus.COMPLETED
+        ]
         failed_tests = [r for r in test_results if r.status == ExecutionStatus.FAILED]
 
         summary = {
             "total_tests": len(test_results),
             "completed_tests": len(completed_tests),
             "failed_tests": len(failed_tests),
-            "success_rate": len(completed_tests) / len(test_results) if test_results else 0,
+            "success_rate": (
+                len(completed_tests) / len(test_results) if test_results else 0
+            ),
             "average_duration_seconds": 0.0,
             "total_duration_seconds": 0.0,
         }
 
         if completed_tests:
-            durations = [r.duration_seconds for r in completed_tests if r.duration_seconds]
+            durations = [
+                r.duration_seconds for r in completed_tests if r.duration_seconds
+            ]
             if durations:
                 summary["average_duration_seconds"] = sum(durations) / len(durations)
                 summary["total_duration_seconds"] = sum(durations)
@@ -479,7 +533,9 @@ class PerformanceTestOrchestrator:
                 memory_usage.append(result.metrics["memory_usage_mb"])
 
         if response_times:
-            summary["average_response_time_ms"] = sum(response_times) / len(response_times)
+            summary["average_response_time_ms"] = sum(response_times) / len(
+                response_times
+            )
             summary["min_response_time_ms"] = min(response_times)
             summary["max_response_time_ms"] = max(response_times)
 
@@ -489,36 +545,54 @@ class PerformanceTestOrchestrator:
 
         return summary
 
-    def _generate_recommendations(self, test_results: list[SingleTestResult]) -> list[str]:
+    def _generate_recommendations(
+        self, test_results: list[SingleTestResult]
+    ) -> list[str]:
         """Generate recommendations based on test results"""
         recommendations = []
 
         failed_tests = [r for r in test_results if r.status == ExecutionStatus.FAILED]
         if failed_tests:
-            recommendations.append(f"Address {len(failed_tests)} failed tests to improve system reliability")
+            recommendations.append(
+                f"Address {len(failed_tests)} failed tests to improve system reliability"
+            )
 
-        completed_tests = [r for r in test_results if r.status == ExecutionStatus.COMPLETED]
+        completed_tests = [
+            r for r in test_results if r.status == ExecutionStatus.COMPLETED
+        ]
 
         # Analyze response times
         response_times = [
-            r.metrics.get("response_time_ms", 0) for r in completed_tests if "response_time_ms" in r.metrics
+            r.metrics.get("response_time_ms", 0)
+            for r in completed_tests
+            if "response_time_ms" in r.metrics
         ]
 
         if response_times:
             avg_response_time = sum(response_times) / len(response_times)
             if avg_response_time > 200:
-                recommendations.append("Consider enabling additional optimizations to improve response times")
+                recommendations.append(
+                    "Consider enabling additional optimizations to improve response times"
+                )
 
         # Analyze memory usage
-        memory_usage = [r.metrics.get("memory_usage_mb", 0) for r in completed_tests if "memory_usage_mb" in r.metrics]
+        memory_usage = [
+            r.metrics.get("memory_usage_mb", 0)
+            for r in completed_tests
+            if "memory_usage_mb" in r.metrics
+        ]
 
         if memory_usage:
             avg_memory = sum(memory_usage) / len(memory_usage)
             if avg_memory > 400:
-                recommendations.append("High memory usage detected - consider memory optimization strategies")
+                recommendations.append(
+                    "High memory usage detected - consider memory optimization strategies"
+                )
 
         if not recommendations:
-            recommendations.append("Performance tests completed successfully - system is performing well")
+            recommendations.append(
+                "Performance tests completed successfully - system is performing well"
+            )
 
         return recommendations
 

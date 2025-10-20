@@ -29,7 +29,9 @@ class AutoUpdater:
 
     def __init__(self):
         self.current_version = "1.0.0"
-        self.update_server = "https://updates.therapycomplianceanalyzer.com"  # Configure your server
+        self.update_server = (
+            "https://updates.therapycomplianceanalyzer.com"  # Configure your server
+        )
         self.update_check_interval = timedelta(days=1)  # Check daily
         self.last_check_file = Path("last_update_check.json")
         self.backup_dir = Path("backup")
@@ -54,7 +56,9 @@ class AutoUpdater:
 
             # Query update server
             response = requests.get(
-                f"{self.update_server}/api/version-check", params={"current_version": self.current_version}, timeout=10
+                f"{self.update_server}/api/version-check",
+                params={"current_version": self.current_version},
+                timeout=10,
             )
 
             if response.status_code != 200:
@@ -65,7 +69,9 @@ class AutoUpdater:
 
             # Compare versions
             latest_version = update_info.get("latest_version")
-            if latest_version and version.parse(latest_version) > version.parse(self.current_version):
+            if latest_version and version.parse(latest_version) > version.parse(
+                self.current_version
+            ):
                 logger.info("Update available: %s", latest_version)
                 return True, update_info
 
@@ -75,7 +81,9 @@ class AutoUpdater:
             logger.exception("Update check failed: %s", e)
             return False, None
 
-    def download_and_install_update(self, update_info: dict, user_consent: bool = True) -> bool:
+    def download_and_install_update(
+        self, update_info: dict, user_consent: bool = True
+    ) -> bool:
         """Download and install update with user consent.
 
         Args:
@@ -131,7 +139,13 @@ class AutoUpdater:
             last_check = datetime.fromisoformat(data["last_check"])
             return datetime.now() - last_check >= self.update_check_interval
 
-        except (json.JSONDecodeError, PermissionError, ValueError, FileNotFoundError, OSError):
+        except (
+            json.JSONDecodeError,
+            PermissionError,
+            ValueError,
+            FileNotFoundError,
+            OSError,
+        ):
             return True
 
     def _record_update_check(self):
@@ -182,7 +196,9 @@ class AutoUpdater:
                 return None
 
             # Create temporary file in a safe way
-            with tempfile.NamedTemporaryFile(suffix=".update", delete=False) as tmp_handle:
+            with tempfile.NamedTemporaryFile(
+                suffix=".update", delete=False
+            ) as tmp_handle:
                 temp_file = Path(tmp_handle.name)
 
             # Download with progress tracking
@@ -253,7 +269,9 @@ class AutoUpdater:
             # 4. Restart application if needed
 
             # For now, just log the action
-            logger.info("Update to version %s installed", update_info.get("latest_version"))
+            logger.info(
+                "Update to version %s installed", update_info.get("latest_version")
+            )
 
             # Clean up
             update_file.unlink()
@@ -310,7 +328,13 @@ class AutoUpdater:
                 with open(self.last_check_file) as f:
                     data = json.load(f)
                 return data.get("last_check")
-        except (json.JSONDecodeError, PermissionError, ValueError, FileNotFoundError, OSError):
+        except (
+            json.JSONDecodeError,
+            PermissionError,
+            ValueError,
+            FileNotFoundError,
+            OSError,
+        ):
             pass
         return None
 

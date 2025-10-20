@@ -16,20 +16,25 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-from fastapi import Request, HTTPException
+
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
+
 class ErrorSeverity(Enum):
     """Error severity levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
+
 class ErrorCategory(Enum):
     """Error categories for better organization."""
+
     VALIDATION = "validation"
     AUTHENTICATION = "authentication"
     AUTHORIZATION = "authorization"
@@ -40,9 +45,11 @@ class ErrorCategory(Enum):
     BUSINESS_LOGIC = "business_logic"
     UNKNOWN = "unknown"
 
+
 @dataclass
 class ErrorContext:
     """Comprehensive error context information."""
+
     error_id: str
     timestamp: datetime
     severity: ErrorSeverity
@@ -55,26 +62,37 @@ class ErrorContext:
     performance_impact: Optional[Dict[str, Any]] = None
     suggestions: List[str] = field(default_factory=list)
 
+
 class ErrorContextManager:
     """Manages error context collection and reporting."""
 
     def __init__(self):
         self.error_patterns = {
             "database": [
-                "sqlalchemy", "database", "connection", "query", "transaction"
+                "sqlalchemy",
+                "database",
+                "connection",
+                "query",
+                "transaction",
             ],
             "ai_model": [
-                "llm", "model", "inference", "transformers", "torch", "tensor"
+                "llm",
+                "model",
+                "inference",
+                "transformers",
+                "torch",
+                "tensor",
             ],
             "authentication": [
-                "jwt", "token", "auth", "login", "password", "credential"
+                "jwt",
+                "token",
+                "auth",
+                "login",
+                "password",
+                "credential",
             ],
-            "validation": [
-                "validation", "invalid", "required", "format", "constraint"
-            ],
-            "network": [
-                "connection", "timeout", "network", "http", "request"
-            ]
+            "validation": ["validation", "invalid", "required", "format", "constraint"],
+            "network": ["connection", "timeout", "network", "http", "request"],
         }
 
         self.error_suggestions = {
@@ -82,35 +100,37 @@ class ErrorContextManager:
                 "Check database connectivity",
                 "Verify database credentials",
                 "Review query syntax",
-                "Check database server status"
+                "Check database server status",
             ],
             ErrorCategory.AI_MODEL: [
                 "Verify AI model is loaded",
                 "Check model file integrity",
                 "Ensure sufficient memory",
-                "Try using mock AI mode"
+                "Try using mock AI mode",
             ],
             ErrorCategory.AUTHENTICATION: [
                 "Check JWT token validity",
                 "Verify user credentials",
                 "Ensure proper authentication headers",
-                "Check token expiration"
+                "Check token expiration",
             ],
             ErrorCategory.VALIDATION: [
                 "Review input data format",
                 "Check required fields",
                 "Validate data types",
-                "Ensure proper encoding"
+                "Ensure proper encoding",
             ],
             ErrorCategory.NETWORK: [
                 "Check network connectivity",
                 "Verify external service status",
                 "Review timeout settings",
-                "Check firewall configuration"
-            ]
+                "Check firewall configuration",
+            ],
         }
 
-    def analyze_error(self, error: Exception, request: Optional[Request] = None) -> ErrorContext:
+    def analyze_error(
+        self, error: Exception, request: Optional[Request] = None
+    ) -> ErrorContext:
         """Analyze an error and create comprehensive context."""
         import uuid
 
@@ -142,7 +162,7 @@ class ErrorContextManager:
             details=self._extract_error_details(error),
             stack_trace=stack_trace,
             request_context=request_context,
-            suggestions=suggestions
+            suggestions=suggestions,
         )
 
         return context
@@ -153,17 +173,24 @@ class ErrorContextManager:
         error_type = type(error).__name__.lower()
 
         for category, patterns in self.error_patterns.items():
-            if any(pattern in error_str or pattern in error_type for pattern in patterns):
+            if any(
+                pattern in error_str or pattern in error_type for pattern in patterns
+            ):
                 return ErrorCategory(category)
 
         return ErrorCategory.UNKNOWN
 
-    def _determine_severity(self, error: Exception, category: ErrorCategory) -> ErrorSeverity:
+    def _determine_severity(
+        self, error: Exception, category: ErrorCategory
+    ) -> ErrorSeverity:
         """Determine error severity based on type and context."""
         error_str = str(error).lower()
 
         # Critical errors
-        if any(keyword in error_str for keyword in ["critical", "fatal", "system", "memory"]):
+        if any(
+            keyword in error_str
+            for keyword in ["critical", "fatal", "system", "memory"]
+        ):
             return ErrorSeverity.CRITICAL
 
         # High severity errors
@@ -180,7 +207,9 @@ class ErrorContextManager:
     def _extract_stack_trace(self, error: Exception) -> str:
         """Extract and format stack trace."""
         try:
-            return ''.join(traceback.format_exception(type(error), error, error.__traceback__))
+            return "".join(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            )
         except Exception:
             return "Unable to extract stack trace"
 
@@ -193,11 +222,12 @@ class ErrorContextManager:
                 "path": request.url.path,
                 "query_params": dict(request.query_params),
                 "headers": {
-                    key: value for key, value in request.headers.items()
-                    if key.lower() not in ['authorization', 'cookie', 'x-api-key']
+                    key: value
+                    for key, value in request.headers.items()
+                    if key.lower() not in ["authorization", "cookie", "x-api-key"]
                 },
                 "client_ip": request.client.host if request.client else None,
-                "user_agent": request.headers.get("user-agent", "unknown")
+                "user_agent": request.headers.get("user-agent", "unknown"),
             }
         except Exception as e:
             logger.error(f"Failed to collect request context: {e}")
@@ -207,22 +237,24 @@ class ErrorContextManager:
         """Extract additional error details."""
         details = {
             "error_type": type(error).__name__,
-            "error_module": getattr(error, '__module__', 'unknown')
+            "error_module": getattr(error, "__module__", "unknown"),
         }
 
         # Add specific details for common error types
-        if hasattr(error, 'code'):
+        if hasattr(error, "code"):
             details["error_code"] = error.code
 
-        if hasattr(error, 'status_code'):
+        if hasattr(error, "status_code"):
             details["status_code"] = error.status_code
 
-        if hasattr(error, 'detail'):
+        if hasattr(error, "detail"):
             details["error_detail"] = error.detail
 
         return details
 
-    def _generate_suggestions(self, category: ErrorCategory, error: Exception) -> List[str]:
+    def _generate_suggestions(
+        self, category: ErrorCategory, error: Exception
+    ) -> List[str]:
         """Generate helpful suggestions based on error category."""
         suggestions = self.error_suggestions.get(category, [])
 
@@ -251,7 +283,7 @@ class ErrorContextManager:
             ErrorCategory.NETWORK: "Network connection issue",
             ErrorCategory.SYSTEM: "A system error occurred",
             ErrorCategory.BUSINESS_LOGIC: "Business logic error",
-            ErrorCategory.UNKNOWN: "An unexpected error occurred"
+            ErrorCategory.UNKNOWN: "An unexpected error occurred",
         }
 
         return base_messages.get(context.category, "An error occurred")
@@ -263,7 +295,7 @@ class ErrorContextManager:
             "severity": context.severity.value,
             "category": context.category.value,
             "message": context.message,
-            "timestamp": context.timestamp.isoformat()
+            "timestamp": context.timestamp.isoformat(),
         }
 
         if context.request_context:
@@ -278,8 +310,10 @@ class ErrorContextManager:
         else:
             logger.info(f"Low severity error: {context.message}", extra=log_data)
 
+
 # Global error context manager
 error_context_manager = ErrorContextManager()
+
 
 # Enhanced exception handler
 async def enhanced_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -310,7 +344,7 @@ async def enhanced_exception_handler(request: Request, exc: Exception) -> JSONRe
             "error": user_message,
             "error_id": context.error_id,
             "timestamp": context.timestamp.isoformat(),
-            "suggestions": context.suggestions
+            "suggestions": context.suggestions,
         }
 
         # Add debug information in development
@@ -319,13 +353,10 @@ async def enhanced_exception_handler(request: Request, exc: Exception) -> JSONRe
                 "message": context.message,
                 "category": context.category.value,
                 "severity": context.severity.value,
-                "details": context.details
+                "details": context.details,
             }
 
-        return JSONResponse(
-            status_code=status_code,
-            content=response_data
-        )
+        return JSONResponse(status_code=status_code, content=response_data)
 
     except Exception as handler_error:
         logger.critical(f"Error handler failed: {handler_error}")
@@ -334,13 +365,15 @@ async def enhanced_exception_handler(request: Request, exc: Exception) -> JSONRe
             content={
                 "error": "Internal server error",
                 "error_id": "handler_failed",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
         )
+
 
 # Utility decorator for error context
 def with_error_context(func):
     """Decorator to add error context to function calls."""
+
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)

@@ -48,7 +48,9 @@ class CacheIntegrationService:
     def get_cache_performance_stats(self) -> dict[str, Any]:
         """Get cache performance statistics."""
         total_requests = self.cache_hits + self.cache_misses
-        hit_rate_percent = (self.cache_hits / total_requests * 100) if total_requests > 0 else 0
+        hit_rate_percent = (
+            (self.cache_hits / total_requests * 100) if total_requests > 0 else 0
+        )
         return {
             "hit_rate_percent": hit_rate_percent,
             "cache_hits": self.cache_hits,

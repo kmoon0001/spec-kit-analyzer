@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
-
 
 _LOGGER_NAME: Final[str] = "analysis_workflow"
 _SENSITIVE_KEYS: Final[set[str]] = {"password", "token", "key", "secret", "auth"}
@@ -51,7 +50,9 @@ class AnalysisWorkflowLogger:
     # ------------------------------------------------------------------
     # Session lifecycle helpers
     # ------------------------------------------------------------------
-    def log_analysis_start(self, file_path: str, rubric: str, user_id: str = "unknown") -> str:
+    def log_analysis_start(
+        self, file_path: str, rubric: str, user_id: str = "unknown"
+    ) -> str:
         """Log the start of an analysis workflow and create a tracking session."""
         session_id = f"analysis_{int(time.time() * 1000)}"
         started_monotonic = time.perf_counter()
@@ -81,7 +82,9 @@ class AnalysisWorkflowLogger:
 
         return session_id
 
-    def log_api_request(self, endpoint: str, method: str = "POST", payload: dict | None = None) -> None:
+    def log_api_request(
+        self, endpoint: str, method: str = "POST", payload: dict | None = None
+    ) -> None:
         """Log outbound API request metadata."""
         session = self._require_session("API request")
         if not session:
@@ -107,9 +110,15 @@ class AnalysisWorkflowLogger:
             payload_size,
         )
         if safe_payload:
-            self.logger.debug("API request payload | session=%s | payload=%s", session.session_id, safe_payload)
+            self.logger.debug(
+                "API request payload | session=%s | payload=%s",
+                session.session_id,
+                safe_payload,
+            )
 
-    def log_api_response(self, status_code: int, response: dict | None = None, error: str | None = None) -> None:
+    def log_api_response(
+        self, status_code: int, response: dict | None = None, error: str | None = None
+    ) -> None:
         """Log API response metadata and outcome."""
         session = self._require_session("API response")
         if not session:
@@ -146,7 +155,9 @@ class AnalysisWorkflowLogger:
 
         if response and "task_id" in response:
             self.logger.info(
-                "Task identifier received | session=%s | task_id=%s", session.session_id, response["task_id"]
+                "Task identifier received | session=%s | task_id=%s",
+                session.session_id,
+                response["task_id"],
             )
 
     def log_polling_attempt(
@@ -183,7 +194,9 @@ class AnalysisWorkflowLogger:
             elapsed,
         )
 
-    def log_workflow_completion(self, success: bool, result: dict | None = None, error: str | None = None) -> None:
+    def log_workflow_completion(
+        self, success: bool, result: dict | None = None, error: str | None = None
+    ) -> None:
         """Log workflow completion, whether successful or not."""
         session = self._require_session("Workflow completion")
         if not session:
@@ -265,7 +278,9 @@ class AnalysisWorkflowLogger:
     def reset_session(self) -> None:
         """Clear the current session state."""
         if self._session:
-            self.logger.debug("Resetting session | session=%s", self._session.session_id)
+            self.logger.debug(
+                "Resetting session | session=%s", self._session.session_id
+            )
         self._session = None
         self._started_monotonic = None
 

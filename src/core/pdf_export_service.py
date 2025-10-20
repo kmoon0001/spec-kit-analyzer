@@ -12,13 +12,13 @@ from __future__ import annotations
 import importlib.util
 import logging
 from datetime import UTC, datetime, timedelta
-from io import BytesIO
 from html import escape
+from io import BytesIO
 from pathlib import Path
+from textwrap import dedent
 from typing import Any
 
 import PIL.Image as Image
-from textwrap import dedent
 
 from src.core.report_template_engine import TemplateEngine
 
@@ -45,7 +45,9 @@ if WEASYPRINT_AVAILABLE:
             from weasyprint.text.fonts import FontConfiguration
         except (ImportError, OSError):
             FontConfiguration = None  # type: ignore[assignment]
-            logger.warning("WeasyPrint font configuration is unavailable; default fonts will be used.")
+            logger.warning(
+                "WeasyPrint font configuration is unavailable; default fonts will be used."
+            )
     except (ImportError, OSError) as exc:  # pragma: no cover - guarded import
         WEASYPRINT_AVAILABLE = False
         CSS = HTML = None  # type: ignore[assignment]
@@ -78,7 +80,9 @@ class PDFExportService:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.template_engine = TemplateEngine()
-        self.font_config = FontConfiguration() if WEASYPRINT_AVAILABLE and FontConfiguration else None
+        self.font_config = (
+            FontConfiguration() if WEASYPRINT_AVAILABLE and FontConfiguration else None
+        )
         self._pdf_css_cache: str | None = None
         if WEASYPRINT_AVAILABLE:
             logger.info("PDF export service initialised using WeasyPrint backend")
@@ -171,9 +175,15 @@ class PDFExportService:
             result["metadata"] = metadata
 
         if self.enable_auto_purge and self.retention_hours > 0:
-            result["purge_at"] = (now_utc + timedelta(hours=self.retention_hours)).isoformat()
+            result["purge_at"] = (
+                now_utc + timedelta(hours=self.retention_hours)
+            ).isoformat()
 
-        logger.info("PDF export completed: path=%s size_mb=%.2f", result["pdf_path"], result["file_size_mb"])
+        logger.info(
+            "PDF export completed: path=%s size_mb=%.2f",
+            result["pdf_path"],
+            result["file_size_mb"],
+        )
 
         return result
 
@@ -191,7 +201,10 @@ class PDFExportService:
                 "PDF export requires WeasyPrint (recommended) or ReportLab. Install the dependencies and try again."
             )
 
-        logger.info("Starting async PDF export for report: %s", report_data.get("title", "Untitled"))
+        logger.info(
+            "Starting async PDF export for report: %s",
+            report_data.get("title", "Untitled"),
+        )
         self._validate_report_data(report_data)
 
         pdf_data = await self._prepare_pdf_data(report_data, include_charts, watermark)
@@ -216,7 +229,9 @@ class PDFExportService:
         try:
             if combined:
                 combined_data = self._combine_reports_data(reports)
-                pdf_bytes = await self.export_report_to_pdf(combined_data, template_name="batch_compliance_report_pdf")
+                pdf_bytes = await self.export_report_to_pdf(
+                    combined_data, template_name="batch_compliance_report_pdf"
+                )
                 return {
                     "success": True,
                     "type": "combined",
@@ -251,9 +266,16 @@ class PDFExportService:
                                 "file_size_bytes": len(pdf_bytes),
                             }
                         )
-                except (FileNotFoundError, PermissionError, OSError, PDFExportError) as exc:
+                except (
+                    FileNotFoundError,
+                    PermissionError,
+                    OSError,
+                    PDFExportError,
+                ) as exc:
                     logger.exception("Failed to export report %s", index)
-                    results.append({"index": index, "success": False, "error": str(exc)})
+                    results.append(
+                        {"index": index, "success": False, "error": str(exc)}
+                    )
 
             return {
                 "success": True,
@@ -337,7 +359,9 @@ class PDFExportService:
             logger.warning("Unable to read PDF info for %s: %s", path, exc)
             return None
 
-    def list_pdfs(self, pattern: str = "*.pdf", sort_by: str = "modified") -> list[dict[str, Any]]:
+    def list_pdfs(
+        self, pattern: str = "*.pdf", sort_by: str = "modified"
+    ) -> list[dict[str, Any]]:
         """List PDFs in ``output_dir`` matching ``pattern`` sorted by ``sort_by``."""
 
         items: list[dict[str, Any]] = []
@@ -404,14 +428,18 @@ class PDFExportService:
             pdf_canvas.setFont("Helvetica-Bold", 12)
             pdf_canvas.drawString(72, 750, "Therapy Compliance Analysis Report")
             pdf_canvas.setFont("Helvetica", 9)
-            pdf_canvas.drawString(72, 735, datetime.now(UTC).strftime("Generated %Y-%m-%d %H:%M:%S %Z"))
+            pdf_canvas.drawString(
+                72, 735, datetime.now(UTC).strftime("Generated %Y-%m-%d %H:%M:%S %Z")
+            )
             pdf_canvas.setFont("Helvetica", 8)
             pdf_canvas.drawString(
                 72,
                 720,
                 "Fallback renderer in use. Enable WeasyPrint for production-ready exports.",
             )
-            pdf_canvas.drawString(72, 705, f"Original HTML length: {len(html_content)} characters")
+            pdf_canvas.drawString(
+                72, 705, f"Original HTML length: {len(html_content)} characters"
+            )
             pdf_canvas.showPage()
             pdf_canvas.save()
             buffer.seek(0)
@@ -449,7 +477,9 @@ class PDFExportService:
 
         return self._optimize_content_for_print(pdf_data)
 
-    async def _convert_charts_for_pdf(self, charts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def _convert_charts_for_pdf(
+        self, charts: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         converted: list[dict[str, Any]] = []
         for chart in charts:
             try:
@@ -686,7 +716,9 @@ class PDFExportService:
             """
         )
 
-    def _enhance_html_for_pdf(self, html_content: str, data: dict[str, Any] | None) -> str:
+    def _enhance_html_for_pdf(
+        self, html_content: str, data: dict[str, Any] | None
+    ) -> str:
         """Inject styling, metadata and disclaimers into the supplied HTML."""
 
         content = html_content or ""
@@ -704,8 +736,14 @@ class PDFExportService:
         metadata_source: dict[str, Any] = {}
         watermark_value: str | None = None
         if isinstance(data, dict):
-            watermark_value = data.get("watermark") if isinstance(data.get("watermark"), str) else None
-            potential_metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else None
+            watermark_value = (
+                data.get("watermark")
+                if isinstance(data.get("watermark"), str)
+                else None
+            )
+            potential_metadata = (
+                data.get("metadata") if isinstance(data.get("metadata"), dict) else None
+            )
             if potential_metadata:
                 metadata_source = potential_metadata
             else:
@@ -772,12 +810,16 @@ class PDFExportService:
             for finding in report.get("findings", []):
                 finding_copy = finding.copy()
                 finding_copy["source_report"] = index + 1
-                finding_copy["source_title"] = report.get("title", f"Report {index + 1}")
+                finding_copy["source_title"] = report.get(
+                    "title", f"Report {index + 1}"
+                )
                 combined["findings"].append(finding_copy)
 
         return combined
 
-    def _calculate_combined_metrics(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
+    def _calculate_combined_metrics(
+        self, reports: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         total_findings = 0
         total_high = 0
         total_medium = 0
@@ -800,7 +842,10 @@ class PDFExportService:
                 try:
                     scores.append(float(report["compliance_score"]))
                 except (TypeError, ValueError):
-                    logger.debug("Skipping non numeric compliance score: %s", report["compliance_score"])
+                    logger.debug(
+                        "Skipping non numeric compliance score: %s",
+                        report["compliance_score"],
+                    )
 
         average_score = sum(scores) / len(scores) if scores else 0.0
         return {

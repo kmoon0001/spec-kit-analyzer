@@ -1,17 +1,17 @@
-import { FormEvent, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { FormEvent, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
-import { login } from '../api';
-import { useAppStore } from '../../../store/useAppStore';
+import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
+import { login } from "../api";
+import { useAppStore } from "../../../store/useAppStore";
 
-import styles from './LoginOverlay.module.css';
+import styles from "./LoginOverlay.module.css";
 
 export const LoginOverlay = () => {
   const setCredentials = useAppStore((state) => state.auth.setCredentials);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -19,10 +19,11 @@ export const LoginOverlay = () => {
     onSuccess: async (data) => {
       await setCredentials({ username, token: data.access_token });
       setError(null);
-      setPassword('');
+      setPassword("");
     },
     onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Unable to authenticate.';
+      const message =
+        err instanceof Error ? err.message : "Unable to authenticate.";
       setError(message);
     },
   });
@@ -34,7 +35,10 @@ export const LoginOverlay = () => {
 
   return (
     <div className={styles.overlay}>
-      <Card title="Secure Login" subtitle="Authenticate to access the compliance analyzer">
+      <Card
+        title="Secure Login"
+        subtitle="Authenticate to access the compliance analyzer"
+      >
         <form className={styles.form} onSubmit={handleSubmit}>
           <label className={styles.label}>
             Username
@@ -58,9 +62,13 @@ export const LoginOverlay = () => {
             />
           </label>
           {error && <p className={styles.error}>{error}</p>}
-          <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
-            <Button type="submit" variant="primary" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Signing in...' : 'Sign In'}
+          <div style={{ display: "flex", gap: "8px", flexDirection: "column" }}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Signing in..." : "Sign In"}
             </Button>
             <Button
               type="button"
@@ -68,10 +76,10 @@ export const LoginOverlay = () => {
               onClick={async () => {
                 const clear = useAppStore.getState().auth.clear;
                 await clear();
-                localStorage.removeItem('tca-app-store');
+                localStorage.removeItem("tca-app-store");
                 window.location.reload();
               }}
-              style={{ fontSize: '0.8rem', padding: '4px 8px' }}
+              style={{ fontSize: "0.8rem", padding: "4px 8px" }}
             >
               Clear Stored Data & Refresh
             </Button>

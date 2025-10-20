@@ -7,10 +7,11 @@ This middleware provides:
 - Performance metrics collection
 """
 
-import time
-import psutil
 import logging
-from typing import Callable, Dict, Any
+import time
+from typing import Any, Callable, Dict
+
+import psutil
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -46,16 +47,13 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         # Extract request info
         method = request.method
         path = request.url.path
-        user_id = getattr(request.state, 'user_id', None)
+        user_id = getattr(request.state, "user_id", None)
         ip_address = request.client.host if request.client else "unknown"
 
         # Log request
         if self.enable_detailed_logging:
             self.request_logger.log_request(
-                method=method,
-                path=path,
-                user_id=user_id,
-                ip_address=ip_address
+                method=method, path=path, user_id=user_id, ip_address=ip_address
             )
 
         # Process request
@@ -83,7 +81,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                 method=method,
                 path=path,
                 status_code=response.status_code,
-                memory_delta_mb=round(memory_delta, 2)
+                memory_delta_mb=round(memory_delta, 2),
             )
 
             # Log response
@@ -93,7 +91,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                     path=path,
                     status_code=response.status_code,
                     duration_ms=duration_ms,
-                    user_id=user_id
+                    user_id=user_id,
                 )
 
             # Add performance headers
@@ -111,9 +109,9 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                     "method": method,
                     "path": path,
                     "duration_ms": duration_ms,
-                    "error": str(e)
+                    "error": str(e),
                 },
-                exc_info=True
+                exc_info=True,
             )
             raise
 
@@ -121,7 +119,8 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         """Get current performance statistics."""
         avg_response_time = (
             self.total_response_time / self.request_count
-            if self.request_count > 0 else 0
+            if self.request_count > 0
+            else 0
         )
 
         return {
@@ -129,10 +128,16 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
             "average_response_time_ms": round(avg_response_time, 2),
             "slow_requests": self.slow_requests,
             "slow_request_percentage": round(
-                (self.slow_requests / self.request_count * 100)
-                if self.request_count > 0 else 0, 2
+                (
+                    (self.slow_requests / self.request_count * 100)
+                    if self.request_count > 0
+                    else 0
+                ),
+                2,
             ),
-            "current_memory_mb": round(psutil.Process().memory_info().rss / 1024 / 1024, 2),
+            "current_memory_mb": round(
+                psutil.Process().memory_info().rss / 1024 / 1024, 2
+            ),
             "cpu_percent": psutil.Process().cpu_percent(),
         }
 
@@ -158,8 +163,8 @@ class DatabaseQueryMonitor:
                 extra={
                     "query": query[:200] + "..." if len(query) > 200 else query,
                     "duration_ms": duration_ms,
-                    **context
-                }
+                    **context,
+                },
             )
 
         self.logger.debug(
@@ -167,15 +172,14 @@ class DatabaseQueryMonitor:
             extra={
                 "query": query[:100] + "..." if len(query) > 100 else query,
                 "duration_ms": duration_ms,
-                **context
-            }
+                **context,
+            },
         )
 
     def get_query_stats(self) -> Dict[str, Any]:
         """Get database query statistics."""
         avg_query_time = (
-            self.total_query_time / self.query_count
-            if self.query_count > 0 else 0
+            self.total_query_time / self.query_count if self.query_count > 0 else 0
         )
 
         return {
@@ -183,8 +187,12 @@ class DatabaseQueryMonitor:
             "average_query_time_ms": round(avg_query_time, 2),
             "slow_queries": self.slow_queries,
             "slow_query_percentage": round(
-                (self.slow_queries / self.query_count * 100)
-                if self.query_count > 0 else 0, 2
+                (
+                    (self.slow_queries / self.query_count * 100)
+                    if self.query_count > 0
+                    else 0
+                ),
+                2,
             ),
         }
 

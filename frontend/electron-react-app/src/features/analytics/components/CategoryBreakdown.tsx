@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './CategoryBreakdown.module.css';
+import React from "react";
+import styles from "./CategoryBreakdown.module.css";
 
 interface CategoryBreakdownProps {
   categories: Array<{
@@ -9,7 +9,9 @@ interface CategoryBreakdownProps {
   }>;
 }
 
-export const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ categories }) => {
+export const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({
+  categories,
+}) => {
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>📋 Category Breakdown</h3>
@@ -23,11 +25,14 @@ export const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ categories
                   className={styles.progressFill}
                   style={{
                     width: `${category.score}%`,
-                    backgroundColor: category.color
+                    backgroundColor: category.color,
                   }}
                 />
               </div>
-              <div className={styles.scoreLabel} style={{ color: category.color }}>
+              <div
+                className={styles.scoreLabel}
+                style={{ color: category.color }}
+              >
                 {category.score}%
               </div>
             </div>

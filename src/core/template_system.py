@@ -117,7 +117,9 @@ class TemplateMetadata:
             author=data["author"],
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
-            supported_formats=[RenderFormat(fmt) for fmt in data.get("supported_formats", [])],
+            supported_formats=[
+                RenderFormat(fmt) for fmt in data.get("supported_formats", [])
+            ],
             required_data_fields=data.get("required_data_fields", []),
             optional_data_fields=data.get("optional_data_fields", []),
             tags=data.get("tags", []),
@@ -267,7 +269,11 @@ class ComponentLibrary:
     def list_components(self, component_type: ComponentType | None = None) -> list[str]:
         """List available components, optionally filtered by type"""
         if component_type:
-            return [comp_id for comp_id, comp in self.components.items() if comp.component_type == component_type]
+            return [
+                comp_id
+                for comp_id, comp in self.components.items()
+                if comp.component_type == component_type
+            ]
         return list(self.components.keys())
 
     def register_component(self, component: ComponentDefinition) -> None:
@@ -293,7 +299,9 @@ class ComponentLibrary:
         # Check required props
         missing_props = set(component.required_props) - set(render_props.keys())
         if missing_props:
-            raise ValueError(f"Missing required props for component {component_id}: {missing_props}")
+            raise ValueError(
+                f"Missing required props for component {component_id}: {missing_props}"
+            )
 
         # Simple template rendering (basic variable substitution)
         try:
@@ -317,7 +325,9 @@ class TemplateValidator:
             "forbidden_tags": ["script", "iframe", "object", "embed"],
         }
 
-    def validate_template(self, template_content: str, metadata: TemplateMetadata) -> list[str]:
+    def validate_template(
+        self, template_content: str, metadata: TemplateMetadata
+    ) -> list[str]:
         """Validate template content and return list of issues"""
         issues = []
 
@@ -334,9 +344,7 @@ class TemplateValidator:
         template_vars = self._extract_template_variables(template_content)
         missing_required = set(metadata.required_data_fields) - set(template_vars)
         if missing_required:
-            issues.append(
-                f"Required data not used in template: {missing_required}"
-            )
+            issues.append(f"Required data not used in template: {missing_required}")
 
         return issues
 
@@ -383,13 +391,15 @@ class AdvancedTemplateRenderer:
         try:
             from jinja2 import Environment, FileSystemLoader, select_autoescape
         except ImportError as e:
-            raise ImportError("Jinja2 is required for advanced template rendering") from e
+            raise ImportError(
+                "Jinja2 is required for advanced template rendering"
+            ) from e
 
         self.component_library = component_library
         self.validator = TemplateValidator()
         self.jinja_env = Environment(
             loader=FileSystemLoader("src/resources/templates"),
-            autoescape=select_autoescape(["html", "xml"])
+            autoescape=select_autoescape(["html", "xml"]),
         )
         self._register_custom_filters()
         self._register_custom_functions()
@@ -411,7 +421,9 @@ class AdvancedTemplateRenderer:
             except (ValueError, TypeError):
                 return str(value)
 
-        def format_datetime(value: str | datetime, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
+        def format_datetime(
+            value: str | datetime, format_str: str = "%Y-%m-%d %H:%M:%S"
+        ) -> str:
             """Format datetime value"""
             try:
                 if isinstance(value, str):
@@ -444,7 +456,9 @@ class AdvancedTemplateRenderer:
             return json.dumps(config)
 
         # Register global functions
-        self.jinja_env.globals["render_component"] = self.component_library.render_component
+        self.jinja_env.globals["render_component"] = (
+            self.component_library.render_component
+        )
         self.jinja_env.globals["get_chart_config"] = get_chart_config
 
     def render_template(
@@ -481,7 +495,9 @@ class AdvancedTemplateRenderer:
             logger.exception("Template rendering error for %s: %s", template_id, e)
             return self._render_error_template(template_id, str(e))
         except (ValueError, TypeError, KeyError, AttributeError) as e:
-            logger.exception("Unexpected error rendering template %s: %s", template_id, e)
+            logger.exception(
+                "Unexpected error rendering template %s: %s", template_id, e
+            )
             return self._render_error_template(template_id, str(e))
 
     def _html_to_text(self, html_content: str) -> str:
@@ -498,14 +514,10 @@ class AdvancedTemplateRenderer:
         # Convert headers
         html_content = re.sub(r"<h1[^>]*>(.*?)</h1>", r"# \1\n", html_content)
         html_content = re.sub(r"<h2[^>]*>(.*?)</h2>", r"## \1\n", html_content)
-        html_content = re.sub(
-            r"<h3[^>]*>(.*?)</h3>", r"### \1\n", html_content
-        )
+        html_content = re.sub(r"<h3[^>]*>(.*?)</h3>", r"### \1\n", html_content)
 
         # Convert paragraphs
-        html_content = re.sub(
-            r"<p[^>]*>(.*?)</p>", r"\1\n\n", html_content
-        )
+        html_content = re.sub(r"<p[^>]*>(.*?)</p>", r"\1\n\n", html_content)
 
         # Convert lists
         html_content = re.sub(r"<li[^>]*>(.*?)</li>", r"- \1\n", html_content)
@@ -615,7 +627,10 @@ class TemplateLibrary:
                     created_at=datetime.now(),
                     updated_at=datetime.now(),
                     supported_formats=[RenderFormat.HTML, RenderFormat.PDF],
-                    required_data_fields=["performance_metrics", "optimization_results"],
+                    required_data_fields=[
+                        "performance_metrics",
+                        "optimization_results",
+                    ],
                     tags=["performance", "analysis", "metrics"],
                 ),
                 """
@@ -704,7 +719,11 @@ class TemplateLibrary:
     def list_templates(self, template_type: TemplateType | None = None) -> list[str]:
         """List available templates, optionally filtered by type"""
         if template_type:
-            return [tid for tid, tmpl in self.templates.items() if tmpl.template_type == template_type]
+            return [
+                tid
+                for tid, tmpl in self.templates.items()
+                if tmpl.template_type == template_type
+            ]
         return list(self.templates.keys())
 
     def register_template(self, metadata: TemplateMetadata, content: str) -> None:

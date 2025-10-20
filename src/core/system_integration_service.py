@@ -15,9 +15,9 @@ from enum import Enum
 from typing import Any
 
 from .advanced_cache_service import AdvancedCacheService
+from .advanced_performance_optimizer import PerformanceOptimizer
 from .memory_manager import MemoryManager, MemoryPressureLevel
 from .model_resource_factory import model_resource_manager
-from .advanced_performance_optimizer import PerformanceOptimizer
 from .resource_pool import ResourcePoolManager
 
 logger = logging.getLogger(__name__)
@@ -140,9 +140,12 @@ class SystemIntegrationService:
         try:
             # Get memory metrics
             memory_status = self.memory_manager.get_memory_status()
-            memory_pressure = MemoryPressureLevel(memory_status["system_memory"]["pressure_level"])
+            memory_pressure = MemoryPressureLevel(
+                memory_status["system_memory"]["pressure_level"]
+            )
             memory_usage_mb = (
-                memory_status["system_memory"]["total_mb"] - memory_status["system_memory"]["available_mb"]
+                memory_status["system_memory"]["total_mb"]
+                - memory_status["system_memory"]["available_mb"]
             )
 
             # Get cache metrics
@@ -154,9 +157,13 @@ class SystemIntegrationService:
 
             # Get resource pool metrics
             pool_status = self.resource_pool_manager.get_all_pools_status()
-            total_resources = sum(pool["total_resources"] for pool in pool_status.values())
+            total_resources = sum(
+                pool["total_resources"] for pool in pool_status.values()
+            )
             in_use_resources = sum(pool["in_use"] for pool in pool_status.values())
-            resource_utilization = (in_use_resources / total_resources) if total_resources > 0 else 0.0
+            resource_utilization = (
+                (in_use_resources / total_resources) if total_resources > 0 else 0.0
+            )
 
             # Get performance metrics
             perf_analysis = self.performance_optimizer.analyze_performance()
@@ -164,7 +171,10 @@ class SystemIntegrationService:
 
             # Determine health status
             health_status = self._calculate_health_status(
-                memory_pressure, cache_hit_rate, resource_utilization, optimization_score
+                memory_pressure,
+                cache_hit_rate,
+                resource_utilization,
+                optimization_score,
             )
 
             return SystemMetrics(
@@ -198,7 +208,11 @@ class SystemIntegrationService:
         cutoff_time = datetime.now() - timedelta(hours=hours)
 
         with self._lock:
-            return [metrics for metrics in self._metrics_history if metrics.timestamp >= cutoff_time]
+            return [
+                metrics
+                for metrics in self._metrics_history
+                if metrics.timestamp >= cutoff_time
+            ]
 
     def optimize_system(self, aggressive: bool = False) -> dict[str, Any]:
         """Run comprehensive system optimization."""
@@ -222,18 +236,28 @@ class SystemIntegrationService:
             else:
                 cache_result = {"optimizations_applied": False}
             if cache_result["optimizations_applied"]:
-                optimization_results["optimizations_performed"].append("cache_optimization")
+                optimization_results["optimizations_performed"].append(
+                    "cache_optimization"
+                )
 
             # Run memory optimization
             memory_result = self.memory_manager.optimize_if_needed(force=aggressive)
             if memory_result:
-                optimization_results["optimizations_performed"].append("memory_optimization")
-                optimization_results["memory_freed_mb"] = memory_result.get("bytes_freed", 0) // (1024 * 1024)
+                optimization_results["optimizations_performed"].append(
+                    "memory_optimization"
+                )
+                optimization_results["memory_freed_mb"] = memory_result.get(
+                    "bytes_freed", 0
+                ) // (1024 * 1024)
 
             # Run performance optimization
-            perf_result = self.performance_optimizer.optimize_performance(aggressive=aggressive)
+            perf_result = self.performance_optimizer.optimize_performance(
+                aggressive=aggressive
+            )
             if perf_result["optimizations_applied"]:
-                optimization_results["optimizations_performed"].append("performance_optimization")
+                optimization_results["optimizations_performed"].append(
+                    "performance_optimization"
+                )
 
             # Calculate improvement
             post_metrics = self.get_system_metrics()
@@ -241,7 +265,9 @@ class SystemIntegrationService:
                 post_metrics.optimization_score - baseline_metrics.optimization_score
             )
 
-            optimization_results["success"] = len(optimization_results["optimizations_performed"]) > 0
+            optimization_results["success"] = (
+                len(optimization_results["optimizations_performed"]) > 0
+            )
 
             # Notify callbacks
             for callback in self._optimization_callbacks:
@@ -262,7 +288,9 @@ class SystemIntegrationService:
         """Register callback to be called after optimization."""
         self._optimization_callbacks.append(callback)
 
-    def register_health_callback(self, callback: Callable[[SystemMetrics], None]) -> None:
+    def register_health_callback(
+        self, callback: Callable[[SystemMetrics], None]
+    ) -> None:
         """Register callback for health status changes."""
         self._health_callbacks.append(callback)
 
@@ -280,9 +308,11 @@ class SystemIntegrationService:
             },
             "cache": {
                 "hit_rate": current_metrics.cache_hit_rate,
-                "performance": self.cache_service.get_performance_summary()
-                if hasattr(self.cache_service, "get_performance_summary")
-                else {},
+                "performance": (
+                    self.cache_service.get_performance_summary()
+                    if hasattr(self.cache_service, "get_performance_summary")
+                    else {}
+                ),
             },
             "resources": {
                 "utilization": current_metrics.resource_pool_utilization,
@@ -311,7 +341,9 @@ class SystemIntegrationService:
         """Start the optimization thread."""
         if self.config.enable_auto_optimization:
             self._optimization_thread = threading.Thread(
-                target=self._optimization_loop, daemon=True, name="SystemIntegration-Optimizer"
+                target=self._optimization_loop,
+                daemon=True,
+                name="SystemIntegration-Optimizer",
             )
             self._optimization_thread.start()
 
@@ -327,8 +359,12 @@ class SystemIntegrationService:
                     self._metrics_history.append(metrics)
 
                     # Cleanup old metrics
-                    cutoff_time = datetime.now() - timedelta(hours=self.config.metrics_retention_hours)
-                    self._metrics_history = [m for m in self._metrics_history if m.timestamp >= cutoff_time]
+                    cutoff_time = datetime.now() - timedelta(
+                        hours=self.config.metrics_retention_hours
+                    )
+                    self._metrics_history = [
+                        m for m in self._metrics_history if m.timestamp >= cutoff_time
+                    ]
 
                 # Notify health callbacks
                 for callback in self._health_callbacks:
@@ -356,15 +392,19 @@ class SystemIntegrationService:
                 metrics = self.get_system_metrics()
 
                 needs_optimization = (
-                    metrics.health_status in [SystemHealthStatus.POOR, SystemHealthStatus.CRITICAL]
-                    or metrics.memory_pressure in [MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL]
+                    metrics.health_status
+                    in [SystemHealthStatus.POOR, SystemHealthStatus.CRITICAL]
+                    or metrics.memory_pressure
+                    in [MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL]
                     or metrics.cache_hit_rate < self.config.cache_optimization_threshold
                     or metrics.optimization_score < self.config.performance_threshold
                 )
 
                 if needs_optimization:
                     logger.info("Auto-optimization triggered based on system metrics")
-                    self.optimize_system(aggressive=metrics.health_status == SystemHealthStatus.CRITICAL)
+                    self.optimize_system(
+                        aggressive=metrics.health_status == SystemHealthStatus.CRITICAL
+                    )
 
             except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error in optimization loop: %s", e)
@@ -387,11 +427,18 @@ class SystemIntegrationService:
         }[memory_pressure]
 
         cache_score = min(1.0, cache_hit_rate)
-        resource_score = 1.0 - min(1.0, resource_utilization)  # Lower utilization is better
+        resource_score = 1.0 - min(
+            1.0, resource_utilization
+        )  # Lower utilization is better
         perf_score = min(1.0, optimization_score)
 
         # Calculate weighted average
-        overall_score = memory_score * 0.3 + cache_score * 0.25 + resource_score * 0.2 + perf_score * 0.25
+        overall_score = (
+            memory_score * 0.3
+            + cache_score * 0.25
+            + resource_score * 0.2
+            + perf_score * 0.25
+        )
 
         # Map to health status
         if overall_score >= 0.9:

@@ -13,22 +13,30 @@ from typing import Any
 import sqlalchemy
 import sqlalchemy.exc
 import structlog
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
-
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
-from ...core.security_validator import SecurityValidator
-from ...core.file_upload_validator import validate_uploaded_file, sanitize_filename
 from ...core.file_encryption import get_secure_storage
+from ...core.file_upload_validator import sanitize_filename, validate_uploaded_file
+from ...core.persistent_task_registry import TaskStatus, persistent_task_registry
+from ...core.security_validator import SecurityValidator
 from ...database import crud, models, schemas
 from ...database.database import get_async_db
 from ..dependencies import get_analysis_service
-from ..task_registry import analysis_task_registry
 from ..deps.request_tracking import RequestId, log_with_request_id
-from ...core.persistent_task_registry import persistent_task_registry, TaskStatus
+from ..task_registry import analysis_task_registry
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -72,12 +80,12 @@ async def run_analysis_and_save(
             discipline=discipline,
             analysis_mode=analysis_mode,
             strictness=strictness,
-            max_retries=3
+            max_retries=3,
         )
     except sqlite3.IntegrityError:
         logger.warning(
             "Persistent task %s already exists; resetting metadata before rerun",
-            task_id
+            task_id,
         )
         await persistent_task_registry.update_task(
             task_id,
@@ -94,7 +102,7 @@ async def run_analysis_and_save(
             error_message=None,
             retry_count=0,
             max_retries=3,
-            result_data={}
+            result_data={},
         )
 
     tasks[task_id] = {
@@ -124,12 +132,14 @@ async def run_analysis_and_save(
             status = TaskStatus.RUNNING
 
         # Update persistent registry
-        asyncio.create_task(persistent_task_registry.update_task(
-            task_id,
-            status=status,
-            progress=percentage,
-            status_message=message or ""
-        ))
+        asyncio.create_task(
+            persistent_task_registry.update_task(
+                task_id,
+                status=status,
+                progress=percentage,
+                status_message=message or "",
+            )
+        )
 
         logger.info("Task %s progress: %d%% - %s", task_id, percentage, message)
 
@@ -139,7 +149,7 @@ async def run_analysis_and_save(
             await persistent_task_registry.update_task(
                 task_id,
                 status=TaskStatus.RUNNING,
-                started_at=datetime.datetime.now(datetime.UTC)
+                started_at=datetime.datetime.now(datetime.UTC),
             )
 
             logger.info("Starting analysis for task %s", task_id)
@@ -162,12 +172,27 @@ async def run_analysis_and_save(
 
             # Extract findings and other data
             findings = analysis_data.get("findings", [])
-            compliance_score = analysis_data.get("compliance_score") or analysis_payload.get("compliance_score")
-            document_type = analysis_data.get("document_type") or analysis_payload.get("document_type")
+            compliance_score = analysis_data.get(
+                "compliance_score"
+            ) or analysis_payload.get("compliance_score")
+            document_type = analysis_data.get("document_type") or analysis_payload.get(
+                "document_type"
+            )
             report_html = analysis_payload.get("report_html")
 
-            logger.info("Analysis result structure: %s", list(analysis_payload.keys()) if isinstance(analysis_payload, dict) else "Not a dict")
-            logger.info("Found %d findings, compliance score: %s", len(findings), compliance_score)
+            logger.info(
+                "Analysis result structure: %s",
+                (
+                    list(analysis_payload.keys())
+                    if isinstance(analysis_payload, dict)
+                    else "Not a dict"
+                ),
+            )
+            logger.info(
+                "Found %d findings, compliance score: %s",
+                len(findings),
+                compliance_score,
+            )
 
             # Update both legacy and persistent storage
             task_entry = tasks[task_id]
@@ -210,7 +235,7 @@ async def run_analysis_and_save(
                     "document_type": document_type,
                     "report_html": report_html,
                     "strictness": strictness,
-                }
+                },
             )
 
             logger.info("Analysis completed for task %s", task_id)
@@ -240,7 +265,7 @@ async def run_analysis_and_save(
                 progress=0,
                 status_message=f"Analysis failed: {exc}",
                 completed_at=datetime.datetime.now(datetime.UTC),
-                error_message=str(exc)
+                error_message=str(exc),
             )
 
     # Schedule analysis asynchronously without process isolation to ensure progress updates
@@ -260,14 +285,20 @@ async def legacy_upload_document(
 ) -> dict[str, Any]:
     """Legacy-friendly endpoint to upload documents with secure encryption."""
     try:
-        safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
+        safe_filename = SecurityValidator.validate_and_sanitize_filename(
+            file.filename or ""
+        )
     except ValueError as exc:  # pragma: no cover - defensive sanitization
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
     content = await file.read()
     is_valid_size, error = SecurityValidator.validate_file_size(len(content))
     if not is_valid_size:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid file size")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid file size"
+        )
 
     # Store document securely with encryption
     document_id = secure_storage.store_document(
@@ -277,11 +308,16 @@ async def legacy_upload_document(
         metadata={
             "upload_type": "legacy",
             "original_filename": file.filename,
-            "content_type": file.content_type
-        }
+            "content_type": file.content_type,
+        },
     )
 
-    logger.info("Legacy upload stored securely", document_id=document_id, filename=safe_filename, user_id=current_user.id)
+    logger.info(
+        "Legacy upload stored securely",
+        document_id=document_id,
+        filename=safe_filename,
+        user_id=current_user.id,
+    )
     return {"status": "success", "document_id": document_id, "filename": safe_filename}
 
 
@@ -300,14 +336,16 @@ async def legacy_get_document(
             break
 
     if not document_metadata:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found."
+        )
 
     return {
         "id": document_id,
         "filename": document_metadata["filename"],
         "file_size": document_metadata["file_size"],
         "uploaded_at": document_metadata["stored_at"],
-        "metadata": document_metadata["metadata"]
+        "metadata": document_metadata["metadata"],
     }
 
 
@@ -326,9 +364,13 @@ async def legacy_start_analysis(
         )
 
     # Retrieve document content from secure storage
-    document_content = secure_storage.retrieve_document(request.document_id, current_user.id)
+    document_content = secure_storage.retrieve_document(
+        request.document_id, current_user.id
+    )
     if not document_content:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found."
+        )
 
     # Get document metadata
     user_docs = secure_storage.list_user_documents(current_user.id)
@@ -339,19 +381,27 @@ async def legacy_start_analysis(
             break
 
     if not document_metadata:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document metadata not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document metadata not found."
+        )
 
     discipline = (request.discipline or "pt").lower()
     is_valid, error = SecurityValidator.validate_discipline(discipline)
     if not is_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid discipline")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error or "Invalid discipline",
+        )
 
     analysis_mode = request.analysis_type.lower()
     if analysis_mode == "comprehensive":
         analysis_mode = "rubric"
     is_valid_mode, mode_error = SecurityValidator.validate_analysis_mode(analysis_mode)
     if not is_valid_mode:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mode_error or "Invalid analysis mode")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=mode_error or "Invalid analysis mode",
+        )
 
     task_id = uuid.uuid4().hex
     tasks[task_id] = {
@@ -374,7 +424,9 @@ async def legacy_start_analysis(
         current_user.id,  # Pass user ID
     )
 
-    logger.info("Legacy analysis started", document_id=request.document_id, task_id=task_id)
+    logger.info(
+        "Legacy analysis started", document_id=request.document_id, task_id=task_id
+    )
     return {"status": "started", "task_id": task_id}
 
 
@@ -389,7 +441,10 @@ async def legacy_get_analysis_status(
 
     # Check authorization - user must own the task or be admin
     if task.get("user_id") != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this task")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this task",
+        )
 
     current_status = task.get("status", "processing")
     if current_status == "completed":
@@ -433,11 +488,12 @@ async def analyze_document(
         filename=file.filename,
         discipline=discipline,
         analysis_mode=analysis_mode,
-        strictness=strictness
+        strictness=strictness,
     )
     if analysis_service is None:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Analysis service is not ready yet."
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Analysis service is not ready yet.",
         )
 
     try:
@@ -446,34 +502,42 @@ async def analyze_document(
 
         # Enhanced file validation with magic number detection
         is_valid, error_msg = validate_uploaded_file(
-            content,
-            file.filename or "unknown",
-            file.content_type
+            content, file.filename or "unknown", file.content_type
         )
 
         if not is_valid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File validation failed: {error_msg}"
+                detail=f"File validation failed: {error_msg}",
             )
 
         # Sanitize filename
         safe_filename = sanitize_filename(file.filename or "unknown")
 
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
-    discipline_valid, discipline_error = SecurityValidator.validate_discipline(discipline)
+    discipline_valid, discipline_error = SecurityValidator.validate_discipline(
+        discipline
+    )
     if not discipline_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=discipline_error)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=discipline_error
+        )
 
     mode_valid, mode_error = SecurityValidator.validate_analysis_mode(analysis_mode)
     if not mode_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mode_error)
 
-    strictness_valid, strictness_error = SecurityValidator.validate_strictness(strictness)
+    strictness_valid, strictness_error = SecurityValidator.validate_strictness(
+        strictness
+    )
     if not strictness_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=strictness_error)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=strictness_error
+        )
     strictness = (strictness or "standard").lower()
 
     # Content already read above for validation
@@ -522,7 +586,7 @@ async def get_analysis_status(
         f"Status request for task {task_id} by user {current_user.username}",
         level="info",
         user_id=current_user.id,
-        task_id=task_id
+        task_id=task_id,
     )
     task = tasks.get(task_id)
     if not task:
@@ -530,7 +594,10 @@ async def get_analysis_status(
 
     # Check authorization - user must own the task or be admin
     if task.get("user_id") != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this task")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this task",
+        )
 
     current_status = task.get("status", "processing")
     if current_status == "completed":
@@ -548,7 +615,9 @@ async def get_analysis_status(
 
 
 @router.get("/all-tasks")
-async def get_all_tasks(_current_user: models.User = Depends(get_current_active_user)) -> dict[str, dict[str, Any]]:
+async def get_all_tasks(
+    _current_user: models.User = Depends(get_current_active_user),
+) -> dict[str, dict[str, Any]]:
     """Retrieves all current analysis tasks."""
     return tasks
 
@@ -567,26 +636,41 @@ async def export_report_to_pdf(
 
     # Check authorization - user must own the task or be admin
     if task.get("user_id") != _current_user.id and not _current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to export this task")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to export this task",
+        )
 
     try:
         analysis_result = task.get("result", {})
         document_name = task.get("filename", "document")
 
-        report_html = task.get("report_html") if isinstance(task.get("report_html"), str) else None
-        analysis_section = task.get("analysis") if isinstance(task.get("analysis"), dict) else None
-        findings = task.get("findings") if isinstance(task.get("findings"), list) else None
+        report_html = (
+            task.get("report_html")
+            if isinstance(task.get("report_html"), str)
+            else None
+        )
+        analysis_section = (
+            task.get("analysis") if isinstance(task.get("analysis"), dict) else None
+        )
+        findings = (
+            task.get("findings") if isinstance(task.get("findings"), list) else None
+        )
         overall_score = task.get("overall_score")
         document_type = task.get("document_type")
         generated_at = task.get("generated_at")
 
         if report_html is None or analysis_section is None:
             report_gen = ReportGenerator()
-            generated_payload = report_gen.generate_report(analysis_result=analysis_result, document_name=document_name)
+            generated_payload = report_gen.generate_report(
+                analysis_result=analysis_result, document_name=document_name
+            )
             report_html = generated_payload.get("report_html")
             analysis_section = generated_payload.get("analysis")
             findings = generated_payload.get("findings", findings) or []
-            overall_score = (analysis_section or {}).get("compliance_score", overall_score)
+            overall_score = (analysis_section or {}).get(
+                "compliance_score", overall_score
+            )
             document_type = (analysis_section or {}).get("document_type", document_type)
             generated_at = generated_payload.get("generated_at", generated_at)
 
@@ -601,7 +685,11 @@ async def export_report_to_pdf(
         else:
             findings = findings or analysis_section.get("findings", [])
             tasks[task_id]["findings"] = findings
-            overall_score = overall_score if overall_score is not None else analysis_section.get("compliance_score")
+            overall_score = (
+                overall_score
+                if overall_score is not None
+                else analysis_section.get("compliance_score")
+            )
             tasks[task_id]["overall_score"] = overall_score
             document_type = document_type or analysis_section.get("document_type")
             tasks[task_id]["document_type"] = document_type
@@ -618,8 +706,11 @@ async def export_report_to_pdf(
             document_name=document_name,
             metadata={
                 "Document": document_name,
-                "Analysis Date": generated_at or datetime.datetime.now(datetime.UTC).isoformat(),
-                "Compliance Score": overall_score if overall_score is not None else "N/A",
+                "Analysis Date": generated_at
+                or datetime.datetime.now(datetime.UTC).isoformat(),
+                "Compliance Score": (
+                    overall_score if overall_score is not None else "N/A"
+                ),
                 "Total Findings": len(findings or []),
                 "Document Type": document_type or "Unknown",
                 "Discipline": (analysis_section or {}).get("discipline", "Unknown"),
@@ -655,7 +746,11 @@ async def export_report_to_pdf(
         raise HTTPException(status_code=500, detail=f"PDF export failed: {e!s}") from e
 
 
-@router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/feedback",
+    response_model=schemas.FeedbackAnnotation,
+    status_code=status.HTTP_201_CREATED,
+)
 async def submit_feedback(
     feedback: schemas.FeedbackAnnotationCreate,
     db: AsyncSession = Depends(get_async_db),
@@ -663,9 +758,12 @@ async def submit_feedback(
 ):
     """Endpoint to receive and store user feedback on AI findings."""
     try:
-        return await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
+        return await crud.create_feedback_annotation(
+            db=db, feedback=feedback, user_id=current_user.id
+        )
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Failed to save feedback", error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to save feedback: {e}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save feedback: {e}",
         ) from e

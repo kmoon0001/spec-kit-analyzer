@@ -1,306 +1,306 @@
 .dialogOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
 }
 
 .dialogContent {
-    display: flex;
-    flex-direction: column;
-    height: 600px;
-    width: 800px;
-    max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  width: 800px;
+  max-width: 90vw;
 }
 
 .filtersSection {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 20px;
-    background: #f8fafc;
-    border-radius: 8px;
-    margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
 .filterGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .filterLabel {
-    font-size: 14px;
-    font-weight: 600;
-    color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
 }
 
 .filterButtons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .filterButton {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    color: #6b7280;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .filterButton:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+  background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 .filterButton.active {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
 }
 
 .filterIcon {
-    font-size: 14px;
+  font-size: 14px;
 }
 
 .filterText {
-    font-size: 13px;
+  font-size: 13px;
 }
 
 .searchGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .searchInput {
-    padding: 10px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    font-size: 14px;
-    color: #374151;
-    transition: border-color 0.2s ease;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  color: #374151;
+  transition: border-color 0.2s ease;
 }
 
 .searchInput:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .rubricList {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .listHeader {
-    padding: 12px 0;
-    border-bottom: 1px solid #e5e7eb;
-    margin-bottom: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
 }
 
 .headerText {
-    font-size: 14px;
-    font-weight: 600;
-    color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .rubricItems {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .rubricItem {
-    padding: 16px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .rubricItem:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
 .rubricItem.selected {
-    border-color: #3b82f6;
-    background: #eff6ff;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
 
 .rubricHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
 }
 
 .rubricTitle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
 }
 
 .categoryIcon,
 .disciplineIcon {
-    font-size: 16px;
+  font-size: 16px;
 }
 
 .rubricName {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .rubricMeta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .lastModified {
-    font-size: 12px;
-    color: #6b7280;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .rubricDescription {
-    color: #4b5563;
-    line-height: 1.5;
-    margin-bottom: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-bottom: 12px;
 }
 
 .rubricTags {
-    display: flex;
-    gap: 6px;
+  display: flex;
+  gap: 6px;
 }
 
 .tag {
-    padding: 4px 8px;
-    background: #f3f4f6;
-    color: #6b7280;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .actionsSection {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 0;
-    border-top: 1px solid #e5e7eb;
-    margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 20px;
 }
 
 .selectedInfo {
-    flex: 1;
+  flex: 1;
 }
 
 .selectedRubric {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .selectedLabel {
-    font-size: 14px;
-    font-weight: 600;
-    color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
 }
 
 .selectedName {
-    font-size: 14px;
-    color: #1f2937;
-    font-weight: 500;
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 500;
 }
 
 .noSelection {
-    font-size: 14px;
-    color: #6b7280;
-    font-style: italic;
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
 }
 
 .actionButtons {
-    display: flex;
-    gap: 12px;
+  display: flex;
+  gap: 12px;
 }
 
 /* Scrollbar styling */
 .rubricItems::-webkit-scrollbar {
-    width: 6px;
+  width: 6px;
 }
 
 .rubricItems::-webkit-scrollbar-track {
-    background: #f1f5f9;
+  background: #f1f5f9;
 }
 
 .rubricItems::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
 .rubricItems::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+  background: #94a3b8;
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .dialogContent {
-        height: 500px;
-        width: 95vw;
-    }
+  .dialogContent {
+    height: 500px;
+    width: 95vw;
+  }
 
-    .filtersSection {
-        padding: 16px;
-    }
+  .filtersSection {
+    padding: 16px;
+  }
 
-    .filterButtons {
-        flex-direction: column;
-    }
+  .filterButtons {
+    flex-direction: column;
+  }
 
-    .filterButton {
-        width: 100%;
-        justify-content: center;
-    }
+  .filterButton {
+    width: 100%;
+    justify-content: center;
+  }
 
-    .rubricHeader {
-        flex-direction: column;
-        gap: 8px;
-    }
+  .rubricHeader {
+    flex-direction: column;
+    gap: 8px;
+  }
 
-    .actionsSection {
-        flex-direction: column;
-        gap: 16px;
-        align-items: stretch;
-    }
+  .actionsSection {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
 
-    .actionButtons {
-        justify-content: center;
-    }
+  .actionButtons {
+    justify-content: center;
+  }
 }

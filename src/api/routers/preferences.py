@@ -20,11 +20,15 @@ def _merge_preferences(existing: dict[str, object] | None) -> schemas.UserPrefer
     try:
         return schemas.UserPreferences(**base)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
 
 
 @router.get("/me", response_model=schemas.UserPreferences)
-async def get_user_preferences(current_user: models.User = Depends(get_current_active_user)) -> schemas.UserPreferences:
+async def get_user_preferences(
+    current_user: models.User = Depends(get_current_active_user),
+) -> schemas.UserPreferences:
     """Return the authenticated user's persisted application preferences."""
     return _merge_preferences(current_user.preferences)
 
@@ -41,7 +45,9 @@ async def update_user_preferences(
     if strictness := payload.get("default_strictness"):
         is_valid, error = SecurityValidator.validate_strictness(strictness)
         if not is_valid:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=error)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=error
+            )
 
     merged = _merge_preferences(current_user.preferences).model_dump()
     merged.update({k: v for k, v in payload.items() if v is not None})

@@ -86,7 +86,9 @@ class AnalysisDiagnostics:
             try:
                 result = check()
                 diagnostics[result.component] = result
-                logger.debug("Diagnostic check '%s': {result.status.value}", result.component)
+                logger.debug(
+                    "Diagnostic check '%s': {result.status.value}", result.component
+                )
             except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Diagnostic check failed: %s", e)
                 diagnostics[f"check_error_{check.__name__}"] = DiagnosticResult(
@@ -250,7 +252,9 @@ class AnalysisDiagnostics:
                     if response.status_code in [200, 401, 404]:
                         endpoint_results[endpoint] = "accessible"
                     else:
-                        endpoint_results[endpoint] = f"unexpected_status_{response.status_code}"
+                        endpoint_results[endpoint] = (
+                            f"unexpected_status_{response.status_code}"
+                        )
                         overall_status = DiagnosticStatus.WARNING
                 else:
                     # For POST endpoints, we can only check if they're defined
@@ -316,7 +320,9 @@ class AnalysisDiagnostics:
                 status = DiagnosticStatus.WARNING
                 issues.append(f"Low disk space: {disk.percent}% used")
 
-            message = "System resources are adequate" if not issues else "; ".join(issues)
+            message = (
+                "System resources are adequate" if not issues else "; ".join(issues)
+            )
 
             return DiagnosticResult(
                 component="system_resources",
@@ -337,7 +343,9 @@ class AnalysisDiagnostics:
                 component="system_resources",
                 status=DiagnosticStatus.WARNING,
                 message="Cannot check system resources (psutil not installed)",
-                details={"suggestion": "Install psutil for resource monitoring: pip install psutil"},
+                details={
+                    "suggestion": "Install psutil for resource monitoring: pip install psutil"
+                },
                 timestamp=time.time(),
             )
         except Exception as e:
@@ -430,7 +438,9 @@ class AnalysisDiagnostics:
                     message = f"All AI models are ready ({models_ready}/{total_models})"
                 elif loading_status == "loading":
                     status = DiagnosticStatus.WARNING
-                    message = f"AI models are loading ({models_ready}/{total_models} ready)"
+                    message = (
+                        f"AI models are loading ({models_ready}/{total_models} ready)"
+                    )
                 else:
                     status = DiagnosticStatus.ERROR
                     message = f"AI models are not ready ({models_ready}/{total_models})"
@@ -560,13 +570,19 @@ class AnalysisDiagnostics:
                 timestamp=time.time(),
             )
 
-    def _calculate_overall_status(self, diagnostics: dict[str, DiagnosticResult]) -> str:
+    def _calculate_overall_status(
+        self, diagnostics: dict[str, DiagnosticResult]
+    ) -> str:
         """Calculate overall system health status."""
         if not diagnostics:
             return "no_diagnostics"
 
-        error_count = sum(1 for d in diagnostics.values() if d.status == DiagnosticStatus.ERROR)
-        warning_count = sum(1 for d in diagnostics.values() if d.status == DiagnosticStatus.WARNING)
+        error_count = sum(
+            1 for d in diagnostics.values() if d.status == DiagnosticStatus.ERROR
+        )
+        warning_count = sum(
+            1 for d in diagnostics.values() if d.status == DiagnosticStatus.WARNING
+        )
 
         if error_count > 0:
             return f"unhealthy ({error_count} errors, {warning_count} warnings)"

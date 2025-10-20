@@ -7,7 +7,14 @@ from requests.exceptions import HTTPError
 
 from .report_config_manager import ReportConfigurationManager
 from .report_data_service import DataAggregationService
-from .report_models import Report, ReportConfig, ReportExporter, ReportFormat, ReportSection, ReportStatus
+from .report_models import (
+    Report,
+    ReportConfig,
+    ReportExporter,
+    ReportFormat,
+    ReportSection,
+    ReportStatus,
+)
 from .report_template_engine import TemplateEngine
 
 logger = logging.getLogger(__name__)
@@ -39,7 +46,9 @@ class ReportGenerationEngine:
             self.branding_service = ReportBrandingService()
             logger.info("Branding service initialized")
         except ImportError:
-            logger.debug("Branding service not available, reports will use default styling")
+            logger.debug(
+                "Branding service not available, reports will use default styling"
+            )
             self.branding_service = None
 
         # Initialize AI guardrails service for responsible AI
@@ -82,9 +91,13 @@ class ReportGenerationEngine:
                 if hasattr(provider, "provider_id"):
                     self.data_integration_service.register_provider(provider)
             except (ImportError, ModuleNotFoundError, AttributeError) as e:
-                logger.warning("Could not register provider with data integration service: %s", e)
+                logger.warning(
+                    "Could not register provider with data integration service: %s", e
+                )
 
-    def register_report_exporter(self, format: ReportFormat, exporter: ReportExporter) -> None:
+    def register_report_exporter(
+        self, format: ReportFormat, exporter: ReportExporter
+    ) -> None:
         """Register a report exporter"""
         self.report_exporters[format] = exporter
         logger.info("Registered report exporter for format: %s", format.value)
@@ -93,7 +106,9 @@ class ReportGenerationEngine:
         """Generate a report based on configuration (preserves all existing functionality)"""
         # Create report instance
         self.report_counter += 1
-        report_id = f"report_{self.report_counter}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        report_id = (
+            f"report_{self.report_counter}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
 
         report = Report(
             id=report_id,
@@ -107,7 +122,9 @@ class ReportGenerationEngine:
 
         try:
             # Get data from providers
-            aggregated_data = self.data_aggregation_service.get_aggregated_data(config.report_type, config.filters)
+            aggregated_data = self.data_aggregation_service.get_aggregated_data(
+                config.report_type, config.filters
+            )
 
             # Generate report sections
             sections = await self._generate_report_sections(config, aggregated_data)
@@ -118,7 +135,9 @@ class ReportGenerationEngine:
 
             # Add 7 Habits insights if available
             if self.habits_framework:
-                habits_section = await self._generate_habits_insights(config, aggregated_data)
+                habits_section = await self._generate_habits_insights(
+                    config, aggregated_data
+                )
                 if habits_section:
                     sections.append(habits_section)
 
@@ -140,13 +159,17 @@ class ReportGenerationEngine:
 
         return report
 
-    async def _generate_report_sections(self, config: ReportConfig, data: dict[str, Any]) -> list[ReportSection]:
+    async def _generate_report_sections(
+        self, config: ReportConfig, data: dict[str, Any]
+    ) -> list[ReportSection]:
         """Generate report sections based on configuration and data"""
         sections = []
 
         # Executive summary section
         summary_section = ReportSection(
-            id="executive_summary", title="Executive Summary", content=self._generate_executive_summary(config, data)
+            id="executive_summary",
+            title="Executive Summary",
+            content=self._generate_executive_summary(config, data),
         )
         sections.append(summary_section)
 
@@ -163,7 +186,9 @@ class ReportGenerationEngine:
 
         return sections
 
-    def _generate_executive_summary(self, config: ReportConfig, data: dict[str, Any]) -> str:
+    def _generate_executive_summary(
+        self, config: ReportConfig, data: dict[str, Any]
+    ) -> str:
         """Generate executive summary content"""
         summary = f"""
         <h3>Report Overview</h3>
@@ -196,14 +221,18 @@ class ReportGenerationEngine:
             content += "<thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>"
 
             for key, value in data.items():
-                content += f"<tr><td>{key.replace('_', ' ').title()}</td><td>{value}</td></tr>"
+                content += (
+                    f"<tr><td>{key.replace('_', ' ').title()}</td><td>{value}</td></tr>"
+                )
 
             content += "</tbody></table>"
 
         content += "</div>"
         return content
 
-    async def _apply_ai_guardrails(self, sections: list[ReportSection]) -> list[ReportSection]:
+    async def _apply_ai_guardrails(
+        self, sections: list[ReportSection]
+    ) -> list[ReportSection]:
         """Apply AI guardrails to report sections"""
         if not self.guardrails_service:
             return sections
@@ -212,29 +241,44 @@ class ReportGenerationEngine:
         for section in sections:
             try:
                 # Check content with guardrails
-                guardrail_result = await self.guardrails_service.check_content(section.content)
+                guardrail_result = await self.guardrails_service.check_content(
+                    section.content
+                )
 
                 if guardrail_result.get("approved", True):
                     filtered_sections.append(section)
                 else:
                     # Generate safe alternative content
-                    safe_content = self._generate_safe_content_alternative(section, guardrail_result)
+                    safe_content = self._generate_safe_content_alternative(
+                        section, guardrail_result
+                    )
                     section.content = safe_content
                     filtered_sections.append(section)
 
-            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError):
-                logger.warning("Error applying guardrails to section %s: {e}", section.id)
+            except (
+                requests.RequestException,
+                ConnectionError,
+                TimeoutError,
+                HTTPError,
+            ):
+                logger.warning(
+                    "Error applying guardrails to section %s: {e}", section.id
+                )
                 filtered_sections.append(section)  # Include original on error
 
         return filtered_sections
 
-    async def _generate_habits_insights(self, config: ReportConfig, data: dict[str, Any]) -> ReportSection | None:
+    async def _generate_habits_insights(
+        self, config: ReportConfig, data: dict[str, Any]
+    ) -> ReportSection | None:
         """Generate 7 Habits insights section"""
         if not self.habits_framework:
             return None
 
         try:
-            habits_insights = await self.habits_framework.generate_insights(config.report_type, data)
+            habits_insights = await self.habits_framework.generate_insights(
+                config.report_type, data
+            )
 
             if habits_insights:
                 content = self._format_habits_content(habits_insights)
@@ -259,7 +303,9 @@ class ReportGenerationEngine:
 
         for insight in habits_insights:
             habit_name = insight.get("habit", "Unknown Habit")
-            recommendation = insight.get("recommendation", "No recommendation available")
+            recommendation = insight.get(
+                "recommendation", "No recommendation available"
+            )
 
             content += f"""
             <div class='habit-insight'>
@@ -271,7 +317,9 @@ class ReportGenerationEngine:
         content += "</div>"
         return content
 
-    def _generate_safe_content_alternative(self, section: ReportSection, guardrail_result) -> str:
+    def _generate_safe_content_alternative(
+        self, section: ReportSection, guardrail_result
+    ) -> str:
         """Generate safe alternative content when original is blocked"""
         return f"""
         <div class='safe-content-notice'>
@@ -305,7 +353,9 @@ class ReportGenerationEngine:
         template_id = report.config.template_id or "default"
         return self.template_engine.render_template(template_id, context)
 
-    async def export_report(self, report_id: str, formats: list[ReportFormat]) -> dict[ReportFormat, str]:
+    async def export_report(
+        self, report_id: str, formats: list[ReportFormat]
+    ) -> dict[ReportFormat, str]:
         """Export report in specified formats"""
         report = self.generated_reports.get(report_id)
         if not report:
@@ -317,12 +367,16 @@ class ReportGenerationEngine:
             if format in self.report_exporters:
                 try:
                     output_path = f"reports/{report_id}.{format.value}"
-                    success = self.report_exporters[format].export_report(report, format, output_path)
+                    success = self.report_exporters[format].export_report(
+                        report, format, output_path
+                    )
                     if success:
                         exported_files[format] = output_path
                         report.file_paths[format] = output_path
                 except (FileNotFoundError, PermissionError, OSError):
-                    logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
+                    logger.exception(
+                        "Error exporting report %s to {format.value}: {e}", report_id
+                    )
             else:
                 logger.warning("No exporter registered for format: %s", format.value)
 
@@ -381,7 +435,10 @@ class ReportGenerationEngine:
     def get_branding_status(self) -> dict[str, Any]:
         """Get current branding configuration status"""
         if not self.branding_service:
-            return {"status": "unavailable", "message": "Branding service not initialized"}
+            return {
+                "status": "unavailable",
+                "message": "Branding service not initialized",
+            }
 
         try:
             return self.branding_service.get_status()
@@ -391,7 +448,10 @@ class ReportGenerationEngine:
     def get_ai_guardrails_status(self) -> dict[str, Any]:
         """Get status of AI guardrails system"""
         if not self.guardrails_service:
-            return {"status": "unavailable", "message": "AI guardrails service not initialized"}
+            return {
+                "status": "unavailable",
+                "message": "AI guardrails service not initialized",
+            }
 
         try:
             return self.guardrails_service.get_status()
@@ -401,7 +461,10 @@ class ReportGenerationEngine:
     def get_seven_habits_status(self) -> dict[str, Any]:
         """Get status of 7 Habits framework integration"""
         if not self.habits_framework:
-            return {"status": "unavailable", "message": "7 Habits framework not initialized"}
+            return {
+                "status": "unavailable",
+                "message": "7 Habits framework not initialized",
+            }
 
         try:
             return self.habits_framework.get_status()

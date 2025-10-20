@@ -19,7 +19,13 @@ try:
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     REPORTLAB_AVAILABLE = True
 except ImportError:
@@ -126,7 +132,13 @@ class PDFExportServiceFallback:
 
         # Finding style
         self.styles.add(
-            ParagraphStyle(name="Finding", parent=self.styles["Normal"], fontSize=10, spaceAfter=6, leftIndent=20)
+            ParagraphStyle(
+                name="Finding",
+                parent=self.styles["Normal"],
+                fontSize=10,
+                spaceAfter=6,
+                leftIndent=20,
+            )
         )
 
         # Recommendation style
@@ -165,7 +177,10 @@ class PDFExportServiceFallback:
         """Export a compliance report to PDF format."""
         try:
             # Create temporary file
-            temp_file = self.temp_dir / f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            temp_file = (
+                self.temp_dir
+                / f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            )
 
             # Export to file
             options = ExportOptions(include_charts=include_charts, watermark=watermark)
@@ -188,7 +203,10 @@ class PDFExportServiceFallback:
             raise
 
     async def export_to_file(
-        self, report_data: dict[str, Any], output_path: str | Path, options: ExportOptions | None = None
+        self,
+        report_data: dict[str, Any],
+        output_path: str | Path,
+        options: ExportOptions | None = None,
     ) -> ExportResult:
         """Export report to PDF file."""
         start_time = datetime.now()
@@ -202,7 +220,12 @@ class PDFExportServiceFallback:
 
             # Create PDF document
             doc = SimpleDocTemplate(
-                str(output_path), pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18
+                str(output_path),
+                pagesize=letter,
+                rightMargin=72,
+                leftMargin=72,
+                topMargin=72,
+                bottomMargin=18,
             )
 
             # Build document content
@@ -238,7 +261,11 @@ class PDFExportServiceFallback:
             logger.info("PDF export completed: %s ({file_size} bytes)", output_path)
 
             return ExportResult(
-                success=True, file_path=output_path, file_size=file_size, page_count=None, export_time_ms=export_time
+                success=True,
+                file_path=output_path,
+                file_size=file_size,
+                page_count=None,
+                export_time_ms=export_time,
             )
 
         except (OSError, FileNotFoundError) as e:
@@ -259,7 +286,12 @@ class PDFExportServiceFallback:
         story.append(Paragraph("Report Information", self.styles["SectionHeader"]))
 
         metadata = [
-            ["Generated:", report_data.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))],
+            [
+                "Generated:",
+                report_data.get(
+                    "timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ),
+            ],
             ["Document:", report_data.get("document_name", "N/A")],
             ["Document Type:", report_data.get("document_type", "N/A")],
             ["Rubric:", report_data.get("rubric_name", "N/A")],
@@ -331,12 +363,16 @@ class PDFExportServiceFallback:
 
         story.append(Spacer(1, 20))
 
-    def _add_findings_section(self, story: list, findings: list[dict[str, Any]], options: ExportOptions):
+    def _add_findings_section(
+        self, story: list, findings: list[dict[str, Any]], options: ExportOptions
+    ):
         """Add findings section with detailed compliance issues."""
         story.append(Paragraph("Compliance Findings", self.styles["SectionHeader"]))
 
         if not findings:
-            story.append(Paragraph("No compliance issues found.", self.styles["Normal"]))
+            story.append(
+                Paragraph("No compliance issues found.", self.styles["Normal"])
+            )
             story.append(Spacer(1, 20))
             return
 
@@ -348,26 +384,46 @@ class PDFExportServiceFallback:
 
             # Finding details
             description = finding.get("description", "No description available")
-            story.append(Paragraph(f"<b>Issue:</b> {html.escape(description)}", self.styles["Finding"]))
+            story.append(
+                Paragraph(
+                    f"<b>Issue:</b> {html.escape(description)}", self.styles["Finding"]
+                )
+            )
 
             # Evidence
             if "evidence" in finding:
                 evidence = finding["evidence"]
-                story.append(Paragraph(f"<b>Evidence:</b> {html.escape(evidence)}", self.styles["Normal"]))
+                story.append(
+                    Paragraph(
+                        f"<b>Evidence:</b> {html.escape(evidence)}",
+                        self.styles["Normal"],
+                    )
+                )
 
             # Regulation reference
             if "regulation" in finding:
                 regulation = finding["regulation"]
-                story.append(Paragraph(f"<b>Regulation:</b> {html.escape(regulation)}", self.styles["Normal"]))
+                story.append(
+                    Paragraph(
+                        f"<b>Regulation:</b> {html.escape(regulation)}",
+                        self.styles["Normal"],
+                    )
+                )
 
             story.append(Spacer(1, 15))
 
-    def _add_recommendations_section(self, story: list, recommendations: list[dict[str, Any]]):
+    def _add_recommendations_section(
+        self, story: list, recommendations: list[dict[str, Any]]
+    ):
         """Add recommendations section."""
         story.append(Paragraph("Recommendations", self.styles["SectionHeader"]))
 
         if not recommendations:
-            story.append(Paragraph("No specific recommendations available.", self.styles["Normal"]))
+            story.append(
+                Paragraph(
+                    "No specific recommendations available.", self.styles["Normal"]
+                )
+            )
             story.append(Spacer(1, 20))
             return
 
@@ -376,12 +432,19 @@ class PDFExportServiceFallback:
             story.append(Paragraph(title, self.styles["SubsectionHeader"]))
 
             description = rec.get("description", "No description available")
-            story.append(Paragraph(html.escape(description), self.styles["Recommendation"]))
+            story.append(
+                Paragraph(html.escape(description), self.styles["Recommendation"])
+            )
 
             # Priority and timeline
             priority = rec.get("priority", "Medium")
             timeline = rec.get("timeline", "Not specified")
-            story.append(Paragraph(f"<b>Priority:</b> {priority} | <b>Timeline:</b> {timeline}", self.styles["Normal"]))
+            story.append(
+                Paragraph(
+                    f"<b>Priority:</b> {priority} | <b>Timeline:</b> {timeline}",
+                    self.styles["Normal"],
+                )
+            )
 
             story.append(Spacer(1, 15))
 

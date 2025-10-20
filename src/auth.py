@@ -21,7 +21,9 @@ class AuthService:
         settings = get_settings()
         # Ensure a non-empty secret key to prevent runtime failures
         if not settings.auth.secret_key:
-            raise ValueError("AUTH_SECRET_KEY environment variable must be set for security")
+            raise ValueError(
+                "AUTH_SECRET_KEY environment variable must be set for security"
+            )
         self.secret_key = settings.auth.secret_key.get_secret_value()
         self.algorithm = settings.auth.algorithm
         self.access_token_expire_minutes = settings.auth.access_token_expire_minutes
@@ -31,7 +33,9 @@ class AuthService:
         if expires_delta:
             expire = datetime.now(UTC) + expires_delta
         else:
-            expire = datetime.now(UTC) + timedelta(minutes=self.access_token_expire_minutes)
+            expire = datetime.now(UTC) + timedelta(
+                minutes=self.access_token_expire_minutes
+            )
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
@@ -44,6 +48,7 @@ class AuthService:
         except (ValueError, TypeError) as e:
             # Log the error for security monitoring
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Password verification failed: {e}")
 
@@ -76,7 +81,9 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
+        payload = jwt.decode(
+            token, auth_service.secret_key, algorithms=[auth_service.algorithm]
+        )
         username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -93,15 +100,22 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
+async def get_current_active_user(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        )
     return current_user
 
 
-async def get_current_admin_user(current_user: models.User = Depends(get_current_active_user)) -> models.User:
+async def get_current_admin_user(
+    current_user: models.User = Depends(get_current_active_user),
+) -> models.User:
     if not current_user.is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="The user does not have administrative privileges."
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have administrative privileges.",
         )
     return current_user

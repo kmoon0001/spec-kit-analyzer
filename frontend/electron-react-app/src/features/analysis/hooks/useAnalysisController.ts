@@ -1,17 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useDropzone } from 'react-dropzone';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDropzone } from "react-dropzone";
 
-import { analyzeDocument, fetchAnalysisStatus, AnalysisStatus } from '../api';
-import { getConfig } from '../../../lib/config';
-import { useAppStore } from '../../../store/useAppStore';
+import { analyzeDocument, fetchAnalysisStatus, AnalysisStatus } from "../api";
+import { getConfig } from "../../../lib/config";
+import { useAppStore } from "../../../store/useAppStore";
 
-const STRICTNESS_OPTIONS = ['ultra_fast', 'balanced', 'thorough', 'clinical_grade'] as const;
+const STRICTNESS_OPTIONS = [
+  "ultra_fast",
+  "balanced",
+  "thorough",
+  "clinical_grade",
+] as const;
 type StrictnessLevel = 0 | 1 | 2 | 3;
 
 type DesktopAnalysisState = {
   jobId: string | null;
-  status: 'idle' | 'starting' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status:
+    | "idle"
+    | "starting"
+    | "queued"
+    | "running"
+    | "completed"
+    | "failed"
+    | "cancelled";
   statusMessage: string;
   progress: number;
   result: AnalysisStatus | null;
@@ -22,8 +34,8 @@ type DesktopAnalysisState = {
 
 const INITIAL_DESKTOP_STATE: DesktopAnalysisState = {
   jobId: null,
-  status: 'idle',
-  statusMessage: 'Waiting to start',
+  status: "idle",
+  statusMessage: "Waiting to start",
   progress: 0,
   result: null,
   error: null,
@@ -31,18 +43,20 @@ const INITIAL_DESKTOP_STATE: DesktopAnalysisState = {
   meta: null,
 };
 
-const isDesktopRuntime = () => typeof window !== 'undefined' && Boolean(window.desktopApi?.tasks);
+const isDesktopRuntime = () =>
+  typeof window !== "undefined" && Boolean(window.desktopApi?.tasks);
 
 const toError = (error: unknown): Error => {
   if (error instanceof Error) {
     return error;
   }
-  const message = typeof error === 'string' ? error : 'Unexpected error occurred';
+  const message =
+    typeof error === "string" ? error : "Unexpected error occurred";
   return new Error(message);
 };
 
 const clampProgress = (value: number | undefined, fallback: number) => {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
     return fallback;
   }
   if (value < 0) {
@@ -57,12 +71,16 @@ const clampProgress = (value: number | undefined, fallback: number) => {
 export const useAnalysisController = () => {
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [discipline, setDiscipline] = useState('pt');
-  const [selectedRubric, setSelectedRubric] = useState<string>('default');
-  const [autoDetectedDiscipline, setAutoDetectedDiscipline] = useState<string | null>(null);
-  const [autoDetectedRubric, setAutoDetectedRubric] = useState<string | null>(null);
+  const [discipline, setDiscipline] = useState("pt");
+  const [selectedRubric, setSelectedRubric] = useState<string>("default");
+  const [autoDetectedDiscipline, setAutoDetectedDiscipline] = useState<
+    string | null
+  >(null);
+  const [autoDetectedRubric, setAutoDetectedRubric] = useState<string | null>(
+    null,
+  );
   const [rubricSuggestions, setRubricSuggestions] = useState<any[]>([]);
-  const [analysisMode] = useState('rubric');
+  const [analysisMode] = useState("rubric");
   const [strictness, setStrictnessState] = useState<StrictnessLevel>(1);
   const [taskId, setTaskId] = useState<string | null>(null);
   const strictnessLevel = STRICTNESS_OPTIONS[strictness];
@@ -71,7 +89,9 @@ export const useAnalysisController = () => {
   const token = useAppStore((state) => state.auth.token);
   const desktopEnabled = isDesktopRuntime();
 
-  const [desktopState, setDesktopState] = useState<DesktopAnalysisState>(INITIAL_DESKTOP_STATE);
+  const [desktopState, setDesktopState] = useState<DesktopAnalysisState>(
+    INITIAL_DESKTOP_STATE,
+  );
   const activeDesktopJobIdRef = useRef<string | null>(null);
 
   const setStrictness = useCallback((value: StrictnessLevel) => {
@@ -81,7 +101,7 @@ export const useAnalysisController = () => {
   const startMutation = useMutation({
     mutationFn: async () => {
       if (!selectedFile) {
-        throw new Error('Select a document before starting analysis.');
+        throw new Error("Select a document before starting analysis.");
       }
       return analyzeDocument({
         file: selectedFile,
@@ -97,7 +117,7 @@ export const useAnalysisController = () => {
   });
 
   const statusQuery = useQuery<AnalysisStatus>({
-    queryKey: ['analysis-status', taskId],
+    queryKey: ["analysis-status", taskId],
     queryFn: () => fetchAnalysisStatus(taskId as string),
     enabled: Boolean(taskId) && !desktopEnabled,
     refetchInterval: (query) => {
@@ -105,7 +125,7 @@ export const useAnalysisController = () => {
         return false;
       }
       const data = query.state.data;
-      if (!data || data.status !== 'completed') {
+      if (!data || data.status !== "completed") {
         return 1500;
       }
       return false;
@@ -129,8 +149,8 @@ export const useAnalysisController = () => {
       }
       setDesktopState((prev) => ({
         ...prev,
-        status: 'queued',
-        statusMessage: job.statusMessage ?? 'Queued for processing',
+        status: "queued",
+        statusMessage: job.statusMessage ?? "Queued for processing",
         progress: clampProgress(job.progress, prev.progress),
         isPolling: true,
         meta: job.meta ?? prev.meta ?? null,
@@ -147,8 +167,8 @@ export const useAnalysisController = () => {
       }
       setDesktopState((prev) => ({
         ...prev,
-        status: 'running',
-        statusMessage: job.statusMessage ?? 'Running analysis',
+        status: "running",
+        statusMessage: job.statusMessage ?? "Running analysis",
         progress: clampProgress(job.progress, prev.progress),
         isPolling: true,
         meta: job.meta ?? prev.meta ?? null,
@@ -165,7 +185,7 @@ export const useAnalysisController = () => {
       }
       setDesktopState((prev) => ({
         ...prev,
-        status: 'running',
+        status: "running",
         statusMessage: job.statusMessage ?? prev.statusMessage,
         progress: clampProgress(job.progress, prev.progress),
         isPolling: true,
@@ -194,8 +214,8 @@ export const useAnalysisController = () => {
       }
       setDesktopState((prev) => ({
         ...prev,
-        status: 'completed',
-        statusMessage: job.statusMessage ?? 'Analysis completed',
+        status: "completed",
+        statusMessage: job.statusMessage ?? "Analysis completed",
         progress: 100,
         result: result ?? prev.result,
         isPolling: false,
@@ -212,11 +232,12 @@ export const useAnalysisController = () => {
         return;
       }
       activeDesktopJobIdRef.current = null;
-      const errorMessage = job.error?.message ?? job.statusMessage ?? 'Analysis failed';
+      const errorMessage =
+        job.error?.message ?? job.statusMessage ?? "Analysis failed";
       const errorObject = toError(errorMessage);
       setDesktopState((prev) => ({
         ...prev,
-        status: 'failed',
+        status: "failed",
         statusMessage: errorMessage,
         progress: clampProgress(job.progress, prev.progress),
         error: errorObject,
@@ -236,8 +257,8 @@ export const useAnalysisController = () => {
       activeDesktopJobIdRef.current = null;
       setDesktopState((prev) => ({
         ...prev,
-        status: 'cancelled',
-        statusMessage: job.statusMessage ?? 'Analysis cancelled',
+        status: "cancelled",
+        statusMessage: job.statusMessage ?? "Analysis cancelled",
         progress: clampProgress(job.progress, prev.progress),
         isPolling: false,
         meta: job.meta ?? prev.meta ?? null,
@@ -245,12 +266,12 @@ export const useAnalysisController = () => {
     };
 
     const unsubscribes = [
-      tasksApi.on('queued', handleQueued),
-      tasksApi.on('started', handleStarted),
-      tasksApi.on('progress', handleProgress),
-      tasksApi.on('completed', handleCompleted),
-      tasksApi.on('failed', handleFailed),
-      tasksApi.on('cancelled', handleCancelled),
+      tasksApi.on("queued", handleQueued),
+      tasksApi.on("started", handleStarted),
+      tasksApi.on("progress", handleProgress),
+      tasksApi.on("completed", handleCompleted),
+      tasksApi.on("failed", handleFailed),
+      tasksApi.on("cancelled", handleCancelled),
     ];
 
     return () => {
@@ -258,7 +279,7 @@ export const useAnalysisController = () => {
         try {
           unsubscribe();
         } catch (error) {
-          console.warn('Failed to unsubscribe from task event', error);
+          console.warn("Failed to unsubscribe from task event", error);
         }
       });
     };
@@ -266,16 +287,16 @@ export const useAnalysisController = () => {
 
   const startDesktopAnalysis = useCallback(async () => {
     if (!desktopEnabled || !window.desktopApi?.tasks) {
-      throw new Error('Desktop analysis is not available in this runtime.');
+      throw new Error("Desktop analysis is not available in this runtime.");
     }
     if (!selectedFile) {
-      throw new Error('Select a document before starting analysis.');
+      throw new Error("Select a document before starting analysis.");
     }
 
     setDesktopState({
       ...INITIAL_DESKTOP_STATE,
-      status: 'starting',
-      statusMessage: 'Preparing document',
+      status: "starting",
+      statusMessage: "Preparing document",
       progress: 2,
       isPolling: true,
     });
@@ -308,8 +329,8 @@ export const useAnalysisController = () => {
       setDesktopState((prev) => ({
         ...prev,
         jobId: response.jobId,
-        status: 'queued',
-        statusMessage: 'Queued for processing',
+        status: "queued",
+        statusMessage: "Queued for processing",
         progress: 5,
         isPolling: true,
       }));
@@ -318,19 +339,28 @@ export const useAnalysisController = () => {
       activeDesktopJobIdRef.current = null;
       setDesktopState({
         ...INITIAL_DESKTOP_STATE,
-        status: 'failed',
+        status: "failed",
         statusMessage: err.message,
         error: err,
         progress: 0,
       });
       throw err;
     }
-  }, [analysisMode, config.apiBaseUrl, desktopEnabled, discipline, selectedFile, strictnessLevel, selectedRubric, token]);
+  }, [
+    analysisMode,
+    config.apiBaseUrl,
+    desktopEnabled,
+    discipline,
+    selectedFile,
+    strictnessLevel,
+    selectedRubric,
+    token,
+  ]);
 
   const startAnalysis = useCallback(() => {
     if (desktopEnabled) {
       startDesktopAnalysis().catch((error) => {
-        console.error('Failed to start desktop analysis', error);
+        console.error("Failed to start desktop analysis", error);
       });
       return;
     }
@@ -339,16 +369,19 @@ export const useAnalysisController = () => {
 
   const cancelAnalysis = useCallback(async () => {
     if (desktopEnabled && desktopState.jobId && window.desktopApi?.tasks) {
-      await window.desktopApi.tasks.cancel(desktopState.jobId, 'User requested cancellation');
+      await window.desktopApi.tasks.cancel(
+        desktopState.jobId,
+        "User requested cancellation",
+      );
     }
   }, [desktopEnabled, desktopState.jobId]);
 
   const reset = useCallback(() => {
     if (desktopEnabled && desktopState.jobId && window.desktopApi?.tasks) {
-      window.desktopApi.tasks.cancel(desktopState.jobId, 'Reset requested');
+      window.desktopApi.tasks.cancel(desktopState.jobId, "Reset requested");
     }
     if (taskId) {
-      queryClient.removeQueries({ queryKey: ['analysis-status', taskId] });
+      queryClient.removeQueries({ queryKey: ["analysis-status", taskId] });
     }
     activeDesktopJobIdRef.current = null;
     setDesktopState(INITIAL_DESKTOP_STATE);
@@ -369,61 +402,94 @@ export const useAnalysisController = () => {
           const textLower = text.toLowerCase();
 
           // Detect discipline
-          if (textLower.includes('physical therapy') || textLower.includes('pt ') || textLower.includes('mobility') || textLower.includes('strength')) {
-            setAutoDetectedDiscipline('pt');
-          } else if (textLower.includes('occupational therapy') || textLower.includes('ot ') || textLower.includes('adl') || textLower.includes('fine motor')) {
-            setAutoDetectedDiscipline('ot');
-          } else if (textLower.includes('speech therapy') || textLower.includes('slp') || textLower.includes('swallowing') || textLower.includes('communication')) {
-            setAutoDetectedDiscipline('slp');
+          if (
+            textLower.includes("physical therapy") ||
+            textLower.includes("pt ") ||
+            textLower.includes("mobility") ||
+            textLower.includes("strength")
+          ) {
+            setAutoDetectedDiscipline("pt");
+          } else if (
+            textLower.includes("occupational therapy") ||
+            textLower.includes("ot ") ||
+            textLower.includes("adl") ||
+            textLower.includes("fine motor")
+          ) {
+            setAutoDetectedDiscipline("ot");
+          } else if (
+            textLower.includes("speech therapy") ||
+            textLower.includes("slp") ||
+            textLower.includes("swallowing") ||
+            textLower.includes("communication")
+          ) {
+            setAutoDetectedDiscipline("slp");
           }
 
           // Detect rubric
-          if (textLower.includes('part b') || textLower.includes('outpatient therapy')) {
-            setAutoDetectedRubric('Medicare Part B Outpatient Therapy Guidelines');
-            setSelectedRubric('medicare_part_b');
-          } else if (textLower.includes('cms-1500') || textLower.includes('claim form')) {
-            setAutoDetectedRubric('CMS-1500 Documentation Requirements');
-            setSelectedRubric('cms_1500');
-          } else if (textLower.includes('therapy cap') || textLower.includes('exception')) {
-            setAutoDetectedRubric('Medicare Therapy Cap & Exception Guidelines');
-            setSelectedRubric('therapy_cap');
-          } else if (textLower.includes('skilled therapy') || textLower.includes('medical necessity')) {
-            setAutoDetectedRubric('Skilled Therapy Documentation Standards');
-            setSelectedRubric('skilled_therapy');
+          if (
+            textLower.includes("part b") ||
+            textLower.includes("outpatient therapy")
+          ) {
+            setAutoDetectedRubric(
+              "Medicare Part B Outpatient Therapy Guidelines",
+            );
+            setSelectedRubric("medicare_part_b");
+          } else if (
+            textLower.includes("cms-1500") ||
+            textLower.includes("claim form")
+          ) {
+            setAutoDetectedRubric("CMS-1500 Documentation Requirements");
+            setSelectedRubric("cms_1500");
+          } else if (
+            textLower.includes("therapy cap") ||
+            textLower.includes("exception")
+          ) {
+            setAutoDetectedRubric(
+              "Medicare Therapy Cap & Exception Guidelines",
+            );
+            setSelectedRubric("therapy_cap");
+          } else if (
+            textLower.includes("skilled therapy") ||
+            textLower.includes("medical necessity")
+          ) {
+            setAutoDetectedRubric("Skilled Therapy Documentation Standards");
+            setSelectedRubric("skilled_therapy");
           }
 
           // Generate suggestions
           const suggestions = [
-            { rubric_id: 'medicare_part_b', confidence: 0.8 },
-            { rubric_id: 'apta_pt', confidence: 0.6 },
-            { rubric_id: 'skilled_therapy', confidence: 0.4 },
-            { rubric_id: 'default', confidence: 0.2 }
+            { rubric_id: "medicare_part_b", confidence: 0.8 },
+            { rubric_id: "apta_pt", confidence: 0.6 },
+            { rubric_id: "skilled_therapy", confidence: 0.4 },
+            { rubric_id: "default", confidence: 0.2 },
           ];
           setRubricSuggestions(suggestions);
-
         } catch (error) {
-          console.warn('Could not read file for auto-detection:', error);
+          console.warn("Could not read file for auto-detection:", error);
         }
       }
     },
     multiple: false,
     accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
+      "application/pdf": [".pdf"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [".docx"],
+      "text/plain": [".txt"],
     },
   });
 
   const progress = desktopEnabled
     ? desktopState.progress
-    : statusQuery.data?.progress ?? (startMutation.isPending ? 5 : 0);
+    : (statusQuery.data?.progress ?? (startMutation.isPending ? 5 : 0));
 
   const statusMessage = desktopEnabled
     ? desktopState.statusMessage
-    : statusQuery.data?.status_message ?? (startMutation.isPending ? 'Uploading document...' : 'Waiting to start');
+    : (statusQuery.data?.status_message ??
+      (startMutation.isPending ? "Uploading document..." : "Waiting to start"));
 
   const status = desktopEnabled
-    ? ((desktopState.meta as { status?: string } | null)?.status ?? desktopState.status)
+    ? ((desktopState.meta as { status?: string } | null)?.status ??
+      desktopState.status)
     : statusQuery.data?.status;
 
   const summary = useMemo(() => {
@@ -432,7 +498,8 @@ export const useAnalysisController = () => {
         return null;
       }
       const data = desktopState.result;
-      const complianceScore = data.analysis?.compliance_score ?? data.overall_score ?? null;
+      const complianceScore =
+        data.analysis?.compliance_score ?? data.overall_score ?? null;
       const findings = data.analysis?.findings ?? data.findings ?? [];
       return {
         complianceScore,
@@ -445,7 +512,8 @@ export const useAnalysisController = () => {
       return null;
     }
     const data = statusQuery.data;
-    const complianceScore = data.analysis?.compliance_score ?? data.overall_score ?? null;
+    const complianceScore =
+      data.analysis?.compliance_score ?? data.overall_score ?? null;
     const findings = data.analysis?.findings ?? data.findings ?? [];
     return {
       complianceScore,
@@ -456,16 +524,18 @@ export const useAnalysisController = () => {
   }, [desktopEnabled, desktopState.result, statusQuery.data]);
 
   const analysisComplete = desktopEnabled
-    ? desktopState.status === 'completed'
-    : statusQuery.data?.status === 'completed';
+    ? desktopState.status === "completed"
+    : statusQuery.data?.status === "completed";
 
   const analysisFailed = desktopEnabled
-    ? desktopState.status === 'failed'
-    : statusQuery.data?.status === 'failed';
+    ? desktopState.status === "failed"
+    : statusQuery.data?.status === "failed";
 
   const error = desktopEnabled
     ? desktopState.error
-    : (startMutation.error as Error | null) ?? (statusQuery.error as Error | null) ?? null;
+    : ((startMutation.error as Error | null) ??
+      (statusQuery.error as Error | null) ??
+      null);
 
   return {
     selectedFile,
@@ -483,7 +553,9 @@ export const useAnalysisController = () => {
     setStrictness,
     startAnalysis,
     cancelAnalysis,
-    isStarting: desktopEnabled ? desktopState.status === 'starting' : startMutation.isPending,
+    isStarting: desktopEnabled
+      ? desktopState.status === "starting"
+      : startMutation.isPending,
     isPolling: desktopEnabled ? desktopState.isPolling : statusQuery.isFetching,
     taskId,
     progress,

@@ -12,19 +12,21 @@ Provides detailed health monitoring including:
 import asyncio
 import logging
 import os
-import psutil
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+import psutil
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.database import get_async_db
 from src.config import get_settings
+from src.database.database import get_async_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/health", tags=["Health"])
+
 
 class HealthChecker:
     """Comprehensive health checking system."""
@@ -44,15 +46,11 @@ class HealthChecker:
             return {
                 "status": "healthy",
                 "response_time_ms": round(response_time * 1000, 2),
-                "connection_pool": "active"
+                "connection_pool": "active",
             }
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
-            return {
-                "status": "unhealthy",
-                "error": str(e),
-                "response_time_ms": None
-            }
+            return {"status": "unhealthy", "error": str(e), "response_time_ms": None}
 
     async def check_ai_models(self) -> Dict[str, Any]:
         """Check AI model availability and status."""
@@ -63,12 +61,12 @@ class HealthChecker:
                     "status": "healthy",
                     "mode": "mock",
                     "models_loaded": True,
-                    "mock_reason": "AI mocks enabled for testing"
+                    "mock_reason": "AI mocks enabled for testing",
                 }
 
             # Check real AI models
-            from src.core.llm_service import LLMService
             from src.core.hybrid_retriever import HybridRetriever
+            from src.core.llm_service import LLMService
 
             # Check LLM service
             llm_status = "unknown"
@@ -88,19 +86,19 @@ class HealthChecker:
                 retriever_status = f"error: {str(e)}"
 
             return {
-                "status": "healthy" if llm_status == "available" and retriever_status == "healthy" else "degraded",
+                "status": (
+                    "healthy"
+                    if llm_status == "available" and retriever_status == "healthy"
+                    else "degraded"
+                ),
                 "mode": "real_ai",
                 "llm_service": llm_status,
                 "retriever": retriever_status,
-                "models_loaded": llm_status == "available"
+                "models_loaded": llm_status == "available",
             }
         except Exception as e:
             logger.error(f"AI models health check failed: {e}")
-            return {
-                "status": "unhealthy",
-                "error": str(e),
-                "mode": "unknown"
-            }
+            return {"status": "unhealthy", "error": str(e), "mode": "unknown"}
 
     async def check_system_resources(self) -> Dict[str, Any]:
         """Check system resource usage."""
@@ -112,7 +110,7 @@ class HealthChecker:
             memory = psutil.virtual_memory()
 
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
 
             # Process info
             process = psutil.Process()
@@ -125,20 +123,17 @@ class HealthChecker:
                     "total_gb": round(memory.total / (1024**3), 2),
                     "available_gb": round(memory.available / (1024**3), 2),
                     "used_percent": memory.percent,
-                    "process_mb": round(process_memory.rss / (1024**2), 2)
+                    "process_mb": round(process_memory.rss / (1024**2), 2),
                 },
                 "disk": {
                     "total_gb": round(disk.total / (1024**3), 2),
                     "free_gb": round(disk.free / (1024**3), 2),
-                    "used_percent": round((disk.used / disk.total) * 100, 2)
-                }
+                    "used_percent": round((disk.used / disk.total) * 100, 2),
+                },
             }
         except Exception as e:
             logger.error(f"System resources health check failed: {e}")
-            return {
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            return {"status": "unhealthy", "error": str(e)}
 
     async def check_external_dependencies(self) -> Dict[str, Any]:
         """Check external service dependencies."""
@@ -147,16 +142,14 @@ class HealthChecker:
         # Check Hugging Face Hub connectivity
         try:
             import requests
+
             response = requests.get("https://huggingface.co", timeout=5)
             dependencies["huggingface"] = {
                 "status": "healthy" if response.status_code == 200 else "unhealthy",
-                "response_time_ms": round(response.elapsed.total_seconds() * 1000, 2)
+                "response_time_ms": round(response.elapsed.total_seconds() * 1000, 2),
             }
         except Exception as e:
-            dependencies["huggingface"] = {
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            dependencies["huggingface"] = {"status": "unhealthy", "error": str(e)}
 
         return dependencies
 
@@ -167,7 +160,7 @@ class HealthChecker:
             self.check_ai_models(),
             self.check_system_resources(),
             self.check_external_dependencies(),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         database_health, ai_health, system_health, external_health = checks
@@ -190,12 +183,14 @@ class HealthChecker:
                 "database": database_health,
                 "ai_models": ai_health,
                 "system_resources": system_health,
-                "external_dependencies": external_health
-            }
+                "external_dependencies": external_health,
+            },
         }
+
 
 # Global health checker instance
 health_checker = HealthChecker()
+
 
 @router.get("/")
 async def health_check(db: AsyncSession = Depends(get_async_db)):
@@ -208,6 +203,7 @@ async def health_check(db: AsyncSession = Depends(get_async_db)):
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=500, detail="Health check failed")
 
+
 @router.get("/detailed")
 async def detailed_health_check(db: AsyncSession = Depends(get_async_db)):
     """Detailed health check with all metrics."""
@@ -217,9 +213,9 @@ async def detailed_health_check(db: AsyncSession = Depends(get_async_db)):
         # Add additional detailed metrics
         health_status["detailed_metrics"] = {
             "active_connections": len(psutil.net_connections()),
-            "load_average": os.getloadavg() if hasattr(os, 'getloadavg') else None,
+            "load_average": os.getloadavg() if hasattr(os, "getloadavg") else None,
             "python_version": f"{psutil.sys.version_info.major}.{psutil.sys.version_info.minor}.{psutil.sys.version_info.micro}",
-            "platform": psutil.sys.platform
+            "platform": psutil.sys.platform,
         }
 
         status_code = 200 if health_status["status"] == "healthy" else 503
@@ -227,6 +223,7 @@ async def detailed_health_check(db: AsyncSession = Depends(get_async_db)):
     except Exception as e:
         logger.error(f"Detailed health check failed: {e}")
         raise HTTPException(status_code=500, detail="Detailed health check failed")
+
 
 @router.get("/ready")
 async def readiness_check(db: AsyncSession = Depends(get_async_db)):
@@ -242,6 +239,7 @@ async def readiness_check(db: AsyncSession = Depends(get_async_db)):
     except Exception as e:
         logger.error(f"Readiness check failed: {e}")
         raise HTTPException(status_code=503, detail="Service not ready")
+
 
 @router.get("/live")
 async def liveness_check():

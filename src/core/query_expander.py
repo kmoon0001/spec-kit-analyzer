@@ -36,7 +36,9 @@ class ExpansionResult:
         if max_terms and len(all_terms) > max_terms:
             # Keep original query and top-confidence expanded terms
             sorted_expanded = sorted(
-                self.expanded_terms, key=lambda t: self.confidence_scores.get(t, 0.0), reverse=True
+                self.expanded_terms,
+                key=lambda t: self.confidence_scores.get(t, 0.0),
+                reverse=True,
             )
             all_terms = [self.original_query] + sorted_expanded[: max_terms - 1]
 
@@ -95,7 +97,12 @@ class MedicalVocabulary:
             "function": ["ability", "capacity", "performance", "functioning"],
             "mobility": ["movement", "ambulation", "locomotion", "walking"],
             "strength": ["power", "force", "muscle strength", "muscular strength"],
-            "range of motion": ["ROM", "flexibility", "joint mobility", "movement range"],
+            "range of motion": [
+                "ROM",
+                "flexibility",
+                "joint mobility",
+                "movement range",
+            ],
             "balance": ["stability", "equilibrium", "postural control"],
             "coordination": ["motor control", "dexterity", "fine motor skills"],
             "pain": ["discomfort", "ache", "soreness", "tenderness"],
@@ -275,7 +282,11 @@ class SemanticExpander:
         self.medical_terms_cache = {}
 
     def expand_semantically(
-        self, query: str, context_terms: list[str], max_expansions: int = 5, similarity_threshold: float = 0.7
+        self,
+        query: str,
+        context_terms: list[str],
+        max_expansions: int = 5,
+        similarity_threshold: float = 0.7,
     ) -> list[tuple[str, float]]:
         """Expand query using semantic similarity.
 
@@ -305,7 +316,9 @@ class SemanticExpander:
 
                 term_embedding = self._get_embedding(term)
                 if term_embedding is not None:
-                    similarity = self._cosine_similarity(query_embedding, term_embedding)
+                    similarity = self._cosine_similarity(
+                        query_embedding, term_embedding
+                    )
                     if similarity >= similarity_threshold:
                         similarities.append((term, similarity))
 
@@ -461,13 +474,10 @@ class QueryExpander:
         # Filter for medical terms and important words
         key_terms = []
         for word in words:
-            if (
-                len(word) > 2  # Skip very short words
-                and (
-                    self.medical_term_pattern.search(word)
-                    or word in self.medical_vocab.synonyms
-                    or word.upper() in self.medical_vocab.abbreviations
-                )
+            if len(word) > 2 and (  # Skip very short words
+                self.medical_term_pattern.search(word)
+                or word in self.medical_vocab.synonyms
+                or word.upper() in self.medical_vocab.abbreviations
             ):
                 key_terms.append(word)
 
@@ -519,13 +529,16 @@ class QueryExpander:
             term_words = set(term.lower().split())
             # Include if there's word overlap or if it's a common term for the discipline
             if term_words & query_words or any(
-                word in query.lower() for word in ["assessment", "treatment", "therapy", "goals", "progress"]
+                word in query.lower()
+                for word in ["assessment", "treatment", "therapy", "goals", "progress"]
             ):
                 relevant_terms.append(term)
 
         return relevant_terms[:3]  # Limit to top 3 specialty terms
 
-    def _expand_with_context(self, query: str, context_entities: list[str]) -> list[str]:
+    def _expand_with_context(
+        self, query: str, context_entities: list[str]
+    ) -> list[str]:
         """Expand using context entities from the document."""
         context_terms = []
 
@@ -537,7 +550,14 @@ class QueryExpander:
             if (
                 any(
                     keyword in entity_lower
-                    for keyword in ["therapy", "treatment", "assessment", "exercise", "training", "intervention"]
+                    for keyword in [
+                        "therapy",
+                        "treatment",
+                        "assessment",
+                        "exercise",
+                        "training",
+                        "intervention",
+                    ]
                 )
                 or len(entity) > 3
             ):  # Include longer entities
@@ -553,10 +573,34 @@ class QueryExpander:
     def _expand_with_document_type(self, query: str, document_type: str) -> list[str]:
         """Add terms specific to the document type."""
         doc_type_terms = {
-            "progress_note": ["progress", "status", "improvement", "response", "continuation"],
-            "evaluation": ["assessment", "examination", "baseline", "initial", "screening"],
-            "treatment_plan": ["plan", "goals", "objectives", "intervention", "strategy"],
-            "discharge_summary": ["discharge", "completion", "outcomes", "final", "summary"],
+            "progress_note": [
+                "progress",
+                "status",
+                "improvement",
+                "response",
+                "continuation",
+            ],
+            "evaluation": [
+                "assessment",
+                "examination",
+                "baseline",
+                "initial",
+                "screening",
+            ],
+            "treatment_plan": [
+                "plan",
+                "goals",
+                "objectives",
+                "intervention",
+                "strategy",
+            ],
+            "discharge_summary": [
+                "discharge",
+                "completion",
+                "outcomes",
+                "final",
+                "summary",
+            ],
         }
 
         doc_type_key = document_type.lower().replace(" ", "_")
@@ -568,8 +612,12 @@ class QueryExpander:
             "vocabulary_size": {
                 "synonyms": len(self.medical_vocab.synonyms),
                 "abbreviations": len(self.medical_vocab.abbreviations),
-                "specialties": sum(len(terms) for terms in self.medical_vocab.specialties.values()),
-                "treatments": sum(len(terms) for terms in self.medical_vocab.treatments.values()),
+                "specialties": sum(
+                    len(terms) for terms in self.medical_vocab.specialties.values()
+                ),
+                "treatments": sum(
+                    len(terms) for terms in self.medical_vocab.treatments.values()
+                ),
             },
             "expansion_weights": {
                 "synonym_weight": self.synonym_weight,

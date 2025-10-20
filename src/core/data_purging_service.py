@@ -30,7 +30,10 @@ class DataPurgingService:
         if not self.cache_dir.exists():
             return
 
-        logger.info("Purging disk cache with a retention period of %s days.", self.retention_days)
+        logger.info(
+            "Purging disk cache with a retention period of %s days.",
+            self.retention_days,
+        )
         cutoff_time = time.time() - (self.retention_days * 86400)
         purged_count = 0
 
@@ -64,4 +67,6 @@ class DataPurgingService:
             except (OSError, FileNotFoundError):
                 logger.warning("Could not remove temporary item %s: {e}", item)
 
-        logger.info("Removed %s items from the temporary upload directory.", purged_count)
+        logger.info(
+            "Removed %s items from the temporary upload directory.", purged_count
+        )

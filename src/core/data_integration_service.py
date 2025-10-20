@@ -125,7 +125,11 @@ class DataResult(Generic[T]):
         """Convert result to dictionary representation"""
         return {
             "data": self.data,
-            "metadata": (self.metadata.to_dict() if hasattr(self.metadata, "to_dict") else str(self.metadata)),
+            "metadata": (
+                self.metadata.to_dict()
+                if hasattr(self.metadata, "to_dict")
+                else str(self.metadata)
+            ),
             "query": self.query.to_dict(),
             "retrieved_at": self.retrieved_at.isoformat(),
             "record_count": self.record_count,
@@ -176,7 +180,9 @@ class BaseDataProvider(ABC):
 
         return datetime.now() < self._cache_ttl[cache_key]
 
-    def _cache_data(self, cache_key: str, data: Any, ttl: timedelta | None = None) -> None:
+    def _cache_data(
+        self, cache_key: str, data: Any, ttl: timedelta | None = None
+    ) -> None:
         """Cache data with TTL"""
         self._cache[cache_key] = data
         cache_duration = ttl or self.default_cache_duration
@@ -193,7 +199,8 @@ class PerformanceDataProvider(BaseDataProvider):
 
     def __init__(self):
         super().__init__(
-            provider_id="performance_metrics", description="Provides performance metrics and optimization data"
+            provider_id="performance_metrics",
+            description="Provides performance metrics and optimization data",
         )
         self.supported_source_types = [DataSourceType.PERFORMANCE_METRICS]
 
@@ -204,10 +211,26 @@ class PerformanceDataProvider(BaseDataProvider):
             config: Optional configuration parameter (unused in current implementation)
         """
         return {
-            "summary": {"total_optimizations": 15, "avg_response_time": 150, "system_health": "good"},
-            "performance_metrics": {"response_time": 150, "accuracy": 0.95, "throughput": 100},
-            "optimization_results": {"cache_hit_rate": 0.85, "memory_usage": "optimized", "response_time_ms": 150},
-            "system_metrics": {"cpu_usage": 45.2, "memory_usage_mb": 512, "disk_io_rate": "normal"},
+            "summary": {
+                "total_optimizations": 15,
+                "avg_response_time": 150,
+                "system_health": "good",
+            },
+            "performance_metrics": {
+                "response_time": 150,
+                "accuracy": 0.95,
+                "throughput": 100,
+            },
+            "optimization_results": {
+                "cache_hit_rate": 0.85,
+                "memory_usage": "optimized",
+                "response_time_ms": 150,
+            },
+            "system_metrics": {
+                "cpu_usage": 45.2,
+                "memory_usage_mb": 512,
+                "disk_io_rate": "normal",
+            },
         }
 
     def supports_report_type(self, report_type: Any) -> bool:
@@ -357,11 +380,16 @@ class DataIntegrationService:
                     if provider_ids:
                         provider = self.providers[provider_ids[0]]
                         result = await provider.query_data(query)
-                        logger.debug("Query executed successfully for source type %s", source_type.value)
+                        logger.debug(
+                            "Query executed successfully for source type %s",
+                            source_type.value,
+                        )
                         return result
 
             # Return empty result if no providers found
-            logger.warning("No providers found for source types: %s", query.source_types)
+            logger.warning(
+                "No providers found for source types: %s", query.source_types
+            )
             return DataResult(
                 data={},
                 metadata=DataSourceMetadata(
@@ -389,7 +417,9 @@ class DataIntegrationService:
             try:
                 health_status[provider_id] = await provider.health_check()
             except (RuntimeError, ConnectionError, TimeoutError) as e:
-                logger.warning("Health check failed for provider %s: %s", provider_id, e)
+                logger.warning(
+                    "Health check failed for provider %s: %s", provider_id, e
+                )
                 health_status[provider_id] = False
         return health_status
 
@@ -413,7 +443,9 @@ class DataIntegrationService:
         return {
             "query_stats": self._query_stats.copy(),
             "provider_count": len(self.providers),
-            "registry_size": sum(len(providers) for providers in self.provider_registry.values()),
+            "registry_size": sum(
+                len(providers) for providers in self.provider_registry.values()
+            ),
             "available_source_types": list(self.provider_registry.keys()),
         }
 
@@ -439,21 +471,29 @@ class DataIntegrationService:
                 metadata = await provider.get_metadata()
 
                 # Test basic query if possible
-                test_query = DataQuery(source_types=[DataSourceType.PERFORMANCE_METRICS], max_records=1)
+                test_query = DataQuery(
+                    source_types=[DataSourceType.PERFORMANCE_METRICS], max_records=1
+                )
 
                 try:
                     await provider.query_data(test_query)
                     query_test_passed = True
                 except Exception as e:
                     query_test_passed = False
-                    logger.debug("Query test failed for provider %s: %s", provider_id, e)
+                    logger.debug(
+                        "Query test failed for provider %s: %s", provider_id, e
+                    )
 
                 validation_results[provider_id] = {
                     "health_check": is_healthy,
                     "metadata_available": metadata is not None,
                     "query_test": query_test_passed,
-                    "last_updated": metadata.last_updated.isoformat() if metadata else None,
-                    "data_quality": metadata.data_quality.value if metadata else "unknown",
+                    "last_updated": (
+                        metadata.last_updated.isoformat() if metadata else None
+                    ),
+                    "data_quality": (
+                        metadata.data_quality.value if metadata else "unknown"
+                    ),
                 }
 
             except Exception as e:

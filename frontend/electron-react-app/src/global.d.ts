@@ -10,7 +10,7 @@ declare global {
     type?: string;
     message?: string;
     stack?: string;
-    severity?: 'info' | 'warning' | 'error' | 'critical';
+    severity?: "info" | "warning" | "error" | "critical";
     source?: string;
     context?: Record<string, unknown>;
     timestamp?: number;
@@ -133,12 +133,19 @@ declare global {
     startTask: (request: DesktopTaskStartOptions) => Promise<{ jobId: string }>;
     startAnalysis: (
       payload: Record<string, unknown>,
-      options?: { metadata?: Record<string, unknown>; timeoutMs?: number; jobId?: string },
+      options?: {
+        metadata?: Record<string, unknown>;
+        timeoutMs?: number;
+        jobId?: string;
+      },
     ) => Promise<{ jobId: string }>;
     cancel: (jobId: string, reason?: string) => Promise<{ ok: boolean }>;
     list: () => Promise<{ jobs: DesktopTaskSummary[] }>;
     get: (jobId: string) => Promise<{ job: DesktopTaskSummary | null }>;
-    on: <T extends DesktopTaskEventName>(eventName: T, listener: (payload: DesktopTaskEventMap[T]) => void) => () => void;
+    on: <T extends DesktopTaskEventName>(
+      eventName: T,
+      listener: (payload: DesktopTaskEventMap[T]) => void,
+    ) => () => void;
   }
 
   interface DesktopApi {
@@ -146,7 +153,9 @@ declare global {
     openExternal: (url: string) => void;
     platform: NodeJS.Platform;
     tasks: DesktopTasksApi;
-    onDiagnostic?: (listener: (payload: DesktopDiagnosticPayload) => void) => () => void;
+    onDiagnostic?: (
+      listener: (payload: DesktopDiagnosticPayload) => void,
+    ) => () => void;
   }
 
   interface Window {

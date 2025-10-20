@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './RiskFactorWidget.module.css';
+import React from "react";
+import styles from "./RiskFactorWidget.module.css";
 
 interface RiskFactor {
   name: string;
@@ -11,17 +11,19 @@ interface RiskFactorWidgetProps {
   factor: RiskFactor;
 }
 
-export const RiskFactorWidget: React.FC<RiskFactorWidgetProps> = ({ factor }) => {
+export const RiskFactorWidget: React.FC<RiskFactorWidgetProps> = ({
+  factor,
+}) => {
   const getTrendColor = (trend: string) => {
     switch (trend) {
-      case 'improving':
-        return '#28a745';
-      case 'stable':
-        return '#ffc107';
-      case 'worsening':
-        return '#dc3545';
+      case "improving":
+        return "#28a745";
+      case "stable":
+        return "#ffc107";
+      case "worsening":
+        return "#dc3545";
       default:
-        return '#6c757d';
+        return "#6c757d";
     }
   };
 
@@ -33,7 +35,10 @@ export const RiskFactorWidget: React.FC<RiskFactorWidgetProps> = ({ factor }) =>
           <div className={styles.impact}>
             Impact: <span className={styles.impactValue}>{factor.impact}%</span>
           </div>
-          <div className={styles.trend} style={{ color: getTrendColor(factor.trend) }}>
+          <div
+            className={styles.trend}
+            style={{ color: getTrendColor(factor.trend) }}
+          >
             Trend: {factor.trend}
           </div>
         </div>

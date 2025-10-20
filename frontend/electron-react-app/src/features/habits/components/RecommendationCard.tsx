@@ -1,10 +1,10 @@
-import React from 'react';
-import styles from './RecommendationCard.module.css';
+import React from "react";
+import styles from "./RecommendationCard.module.css";
 
 interface Recommendation {
   title: string;
   description: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   action_items: string[];
 }
 
@@ -12,17 +12,19 @@ interface RecommendationCardProps {
   recommendation: Recommendation;
 }
 
-export const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommendation }) => {
+export const RecommendationCard: React.FC<RecommendationCardProps> = ({
+  recommendation,
+}) => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return '#dc3545';
-      case 'medium':
-        return '#ffc107';
-      case 'low':
-        return '#28a745';
+      case "high":
+        return "#dc3545";
+      case "medium":
+        return "#ffc107";
+      case "low":
+        return "#28a745";
       default:
-        return '#007acc';
+        return "#007acc";
     }
   };
 

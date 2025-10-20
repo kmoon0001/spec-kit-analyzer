@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './ConfidenceIndicator.module.css';
+import React from "react";
+import styles from "./ConfidenceIndicator.module.css";
 
 interface ConfidenceIndicatorProps {
   confidence: number;
@@ -15,9 +15,11 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
   showDetails = false,
 }) => {
   const getConfidenceLevel = (score: number) => {
-    if (score >= 0.8) return { level: 'high', color: '#28a745', label: 'High Confidence' };
-    if (score >= 0.6) return { level: 'medium', color: '#ffc107', label: 'Medium Confidence' };
-    return { level: 'low', color: '#dc3545', label: 'Low Confidence' };
+    if (score >= 0.8)
+      return { level: "high", color: "#28a745", label: "High Confidence" };
+    if (score >= 0.6)
+      return { level: "medium", color: "#ffc107", label: "Medium Confidence" };
+    return { level: "low", color: "#dc3545", label: "Low Confidence" };
   };
 
   const { level, color, label } = getConfidenceLevel(confidence);
@@ -33,7 +35,10 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
           {percentage}%
         </div>
         {isCalibrated && (
-          <div className={styles.calibratedIcon} title="Confidence score has been calibrated">
+          <div
+            className={styles.calibratedIcon}
+            title="Confidence score has been calibrated"
+          >
             🎯
           </div>
         )}

@@ -11,7 +11,9 @@ try:
     nltk.data.find("tokenizers/punkt")
     PUNKT_AVAILABLE = True
 except LookupError:
-    logger.warning("NLTK 'punkt' tokenizer data is not available. Falling back to a simple sentence splitter.")
+    logger.warning(
+        "NLTK 'punkt' tokenizer data is not available. Falling back to a simple sentence splitter."
+    )
     PUNKT_AVAILABLE = False
 
 
@@ -22,7 +24,9 @@ def _fallback_sentence_split(text: str) -> list[str]:
     return [sentence.strip() for sentence in sentences if sentence.strip()]
 
 
-def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | None = None):
+def sentence_window_chunker(
+    text: str, window_size: int = 1, metadata: dict | None = None
+):
     """Splits text into sentences and creates chunks with a sliding window of context.
 
     Each chunk dictionary will contain the target sentence and the context window
@@ -46,7 +50,9 @@ def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | No
         try:
             sentences = nltk.sent_tokenize(text)
         except LookupError:
-            logger.warning("Falling back to simple sentence splitting due to missing punkt data.")
+            logger.warning(
+                "Falling back to simple sentence splitting due to missing punkt data."
+            )
             sentences = _fallback_sentence_split(text)
     else:
         sentences = _fallback_sentence_split(text)

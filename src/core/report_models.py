@@ -77,7 +77,9 @@ class ReportConfig:
     description: str = ""
     time_range: TimeRange | None = None
     template_id: str | None = None
-    export_formats: list[ReportFormat] = field(default_factory=lambda: [ReportFormat.HTML])
+    export_formats: list[ReportFormat] = field(
+        default_factory=lambda: [ReportFormat.HTML]
+    )
     filters: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -150,7 +152,9 @@ class Report:
 class DataProvider(Protocol):
     """Protocol for data providers that supply data to reports"""
 
-    def get_data(self, report_type: ReportType, filters: dict[str, Any]) -> dict[str, Any]:
+    def get_data(
+        self, report_type: ReportType, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get data for the specified report type and filters"""
         ...
 
@@ -174,7 +178,9 @@ class TemplateRenderer(Protocol):
 class ReportExporter(Protocol):
     """Protocol for report export functionality"""
 
-    def export_report(self, report: Report, format: ReportFormat, output_path: str) -> bool:
+    def export_report(
+        self, report: Report, format: ReportFormat, output_path: str
+    ) -> bool:
         """Export a report to the specified format and path"""
         ...
 

@@ -8,7 +8,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # --- Configuration ---
 DATABASE_PATH = os.path.join("data", "compliance.db")
@@ -28,7 +30,13 @@ def hash_password(password, salt):
         bytes: The hashed password.
 
     """
-    kdf = PBKDF2HMAC(algorithm=HASH_ALGORITHM, length=32, salt=salt, iterations=ITERATIONS, backend=default_backend())
+    kdf = PBKDF2HMAC(
+        algorithm=HASH_ALGORITHM,
+        length=32,
+        salt=salt,
+        iterations=ITERATIONS,
+        backend=default_backend(),
+    )
     return kdf.derive(password.encode())
 
 
@@ -51,7 +59,8 @@ def add_user(cursor, username, password):
     password_hash = hash_password(password, salt)
 
     cursor.execute(
-        "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)", (username, password_hash, salt)
+        "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
+        (username, password_hash, salt),
     )
     logging.info("User '%s' added successfully.", username)
 

@@ -8,13 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
-from ...database import crud, models, schemas
-from ...database import get_async_db
+from ...database import crud, get_async_db, models, schemas
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
-@router.post("/", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED
+)
 async def submit_feedback(
     feedback: schemas.FeedbackAnnotationCreate,
     db: AsyncSession = Depends(get_async_db),
@@ -25,7 +26,9 @@ async def submit_feedback(
     """
     try:
         # The CRUD function already exists, so we just need to call it.
-        db_feedback = await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
+        db_feedback = await crud.create_feedback_annotation(
+            db=db, feedback=feedback, user_id=current_user.id
+        )
         return db_feedback
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         # In a production system, you might catch more specific database errors.

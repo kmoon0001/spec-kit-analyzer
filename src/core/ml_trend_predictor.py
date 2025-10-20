@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class PatternDict(TypedDict):
     """Type definition for pattern dictionary."""
+
     type: str
     title: str
     description: str
@@ -27,6 +28,7 @@ class PatternDict(TypedDict):
 
 class TrendInfoDict(TypedDict):
     """Type definition for trend info dictionary."""
+
     metric: str
     current: float
     predicted: float
@@ -117,22 +119,32 @@ class MLTrendPredictorService:
 
         """
         try:
-            logger.info("Generating compliance insights for %s days", analysis_period_days)
+            logger.info(
+                "Generating compliance insights for %s days", analysis_period_days
+            )
 
             # Simulate ML processing time
             await asyncio.sleep(2)
 
             # Generate insights based on historical data analysis
-            insights = await self._analyze_compliance_patterns(analysis_period_days, departments, insight_types)
+            insights = await self._analyze_compliance_patterns(
+                analysis_period_days, departments, insight_types
+            )
 
             # Generate trend predictions
-            trends = await self._predict_compliance_trends(analysis_period_days, departments)
+            trends = await self._predict_compliance_trends(
+                analysis_period_days, departments
+            )
 
             # Generate actionable recommendations
-            recommendations = await self._generate_recommendations(insights, trends, departments)
+            recommendations = await self._generate_recommendations(
+                insights, trends, departments
+            )
 
             # Assess risk predictions
-            risk_predictions = await self._assess_risk_predictions(trends, analysis_period_days)
+            risk_predictions = await self._assess_risk_predictions(
+                trends, analysis_period_days
+            )
 
             # Calculate overall confidence score
             confidence_score = self._calculate_overall_confidence(insights, trends)
@@ -148,7 +160,10 @@ class MLTrendPredictorService:
                 "generated_at": datetime.now().isoformat(),
             }
 
-            logger.info("Generated %s insights and {len(trends)} trend predictions", len(insights))
+            logger.info(
+                "Generated %s insights and {len(trends)} trend predictions",
+                len(insights),
+            )
             return result
 
         except Exception as e:
@@ -163,7 +178,10 @@ class MLTrendPredictorService:
             }
 
     async def _analyze_compliance_patterns(
-        self, period_days: int, departments: list[str] | None, insight_types: list[str] | None
+        self,
+        period_days: int,
+        departments: list[str] | None,
+        insight_types: list[str] | None,
     ) -> list[ComplianceInsight]:
         """Analyze historical compliance data to identify patterns."""
         insights = []
@@ -286,7 +304,10 @@ class MLTrendPredictorService:
         return trends
 
     async def _generate_recommendations(
-        self, insights: list[ComplianceInsight], trends: list[TrendPrediction], departments: list[str] | None
+        self,
+        insights: list[ComplianceInsight],
+        trends: list[TrendPrediction],
+        departments: list[str] | None,
     ) -> list[dict[str, Any]]:
         """Generate actionable recommendations based on insights and trends."""
         recommendations = []
@@ -300,9 +321,11 @@ class MLTrendPredictorService:
                         "priority": "high",
                         "category": "immediate_action",
                         "title": f"Address {insight.title}",
-                        "description": insight.recommended_actions[0]
-                        if insight.recommended_actions
-                        else "Review and take action",
+                        "description": (
+                            insight.recommended_actions[0]
+                            if insight.recommended_actions
+                            else "Review and take action"
+                        ),
                         "estimated_impact": "High compliance improvement",
                         "timeframe": "1-2 weeks",
                     },
@@ -311,7 +334,9 @@ class MLTrendPredictorService:
 
         # Trend-based recommendations
         declining_trends = [
-            t for t in trends if t.trend_direction == "decreasing" and t.risk_level in ["medium", "high"]
+            t
+            for t in trends
+            if t.trend_direction == "decreasing" and t.risk_level in ["medium", "high"]
         ]
         for trend in declining_trends:
             recommendations.append(
@@ -349,7 +374,9 @@ class MLTrendPredictorService:
 
         return recommendations[:10]  # Return top 10 recommendations
 
-    async def _assess_risk_predictions(self, trends: list[TrendPrediction], period_days: int) -> list[dict[str, Any]]:
+    async def _assess_risk_predictions(
+        self, trends: list[TrendPrediction], period_days: int
+    ) -> list[dict[str, Any]]:
         """Assess and predict compliance risks."""
         risk_predictions = []
 
@@ -409,7 +436,9 @@ class MLTrendPredictorService:
 
         return risk_predictions
 
-    def _calculate_overall_confidence(self, insights: list[ComplianceInsight], trends: list[TrendPrediction]) -> float:
+    def _calculate_overall_confidence(
+        self, insights: list[ComplianceInsight], trends: list[TrendPrediction]
+    ) -> float:
         """Calculate overall confidence score for the analysis."""
         if not insights and not trends:
             return 0.0

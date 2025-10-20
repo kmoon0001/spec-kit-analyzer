@@ -10,10 +10,10 @@ This module provides comprehensive session management including:
 
 import logging
 import time
+from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set
-from dataclasses import dataclass, field
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SessionInfo:
     """Information about a user session."""
+
     session_id: str
     user_id: int
     username: str
@@ -41,7 +42,7 @@ class EnhancedSessionManager:
         session_timeout_minutes: int = 30,
         max_concurrent_sessions: int = 3,
         max_inactive_minutes: int = 15,
-        cleanup_interval_minutes: int = 5
+        cleanup_interval_minutes: int = 5,
     ):
         self.session_timeout_minutes = session_timeout_minutes
         self.max_concurrent_sessions = max_concurrent_sessions
@@ -65,7 +66,7 @@ class EnhancedSessionManager:
         username: str,
         ip_address: str,
         user_agent: str,
-        login_method: str = "password"
+        login_method: str = "password",
     ) -> str:
         """Create a new session with security checks."""
         try:
@@ -85,7 +86,7 @@ class EnhancedSessionManager:
                 last_activity=now,
                 ip_address=ip_address,
                 user_agent=user_agent,
-                login_method=login_method
+                login_method=login_method,
             )
 
             # Store session
@@ -96,8 +97,12 @@ class EnhancedSessionManager:
             # Cleanup old sessions if needed
             self._cleanup_if_needed()
 
-            logger.info(f"Session created for user {username}",
-                       user_id=user_id, session_id=session_id, ip=ip_address)
+            logger.info(
+                f"Session created for user {username}",
+                user_id=user_id,
+                session_id=session_id,
+                ip=ip_address,
+            )
 
             return session_id
 
@@ -105,7 +110,9 @@ class EnhancedSessionManager:
             logger.error(f"Failed to create session for user {user_id}: {e}")
             raise
 
-    def validate_session(self, session_id: str, ip_address: str) -> Optional[SessionInfo]:
+    def validate_session(
+        self, session_id: str, ip_address: str
+    ) -> Optional[SessionInfo]:
         """Validate session and update activity."""
         try:
             session_info = self._sessions.get(session_id)
@@ -119,8 +126,11 @@ class EnhancedSessionManager:
 
             # Check IP address (basic security check)
             if session_info.ip_address != ip_address:
-                logger.warning(f"Session IP mismatch: {session_id}",
-                             expected=session_info.ip_address, actual=ip_address)
+                logger.warning(
+                    f"Session IP mismatch: {session_id}",
+                    expected=session_info.ip_address,
+                    actual=ip_address,
+                )
                 # Don't invalidate immediately, but log for monitoring
 
             # Update activity
@@ -137,7 +147,9 @@ class EnhancedSessionManager:
         """Invalidate a specific session."""
         return self._invalidate_session(session_id)
 
-    def invalidate_user_sessions(self, user_id: int, keep_current: Optional[str] = None) -> int:
+    def invalidate_user_sessions(
+        self, user_id: int, keep_current: Optional[str] = None
+    ) -> int:
         """Invalidate all sessions for a user, optionally keeping one."""
         try:
             user_session_ids = list(self._user_sessions.get(user_id, set()))
@@ -159,7 +171,9 @@ class EnhancedSessionManager:
 
     def invalidate_password_change_sessions(self, user_id: int) -> int:
         """Invalidate all sessions for a user after password change."""
-        logger.info(f"Invalidating all sessions for user {user_id} due to password change")
+        logger.info(
+            f"Invalidating all sessions for user {user_id} due to password change"
+        )
         return self.invalidate_user_sessions(user_id)
 
     def get_user_sessions(self, user_id: int) -> List[SessionInfo]:
@@ -187,10 +201,10 @@ class EnhancedSessionManager:
             total_ips = len(self._ip_sessions)
 
             return {
-                'active_sessions': active_sessions,
-                'total_users': total_users,
-                'total_ips': total_ips,
-                'total_sessions': len(self._sessions)
+                "active_sessions": active_sessions,
+                "total_users": total_users,
+                "total_ips": total_ips,
+                "total_sessions": len(self._sessions),
             }
 
         except Exception as e:
@@ -208,12 +222,16 @@ class EnhancedSessionManager:
                     continue
 
                 # Check for timeout
-                if now - session_info.created_at > timedelta(minutes=self.session_timeout_minutes):
+                if now - session_info.created_at > timedelta(
+                    minutes=self.session_timeout_minutes
+                ):
                     expired_sessions.append(session_id)
                     continue
 
                 # Check for inactivity
-                if now - session_info.last_activity > timedelta(minutes=self.max_inactive_minutes):
+                if now - session_info.last_activity > timedelta(
+                    minutes=self.max_inactive_minutes
+                ):
                     expired_sessions.append(session_id)
                     continue
 
@@ -233,14 +251,14 @@ class EnhancedSessionManager:
     def _generate_session_id(self) -> str:
         """Generate a secure session ID."""
         import secrets
+
         return secrets.token_urlsafe(32)
 
     def _enforce_concurrent_session_limit(self, user_id: int):
         """Enforce concurrent session limit for a user."""
         user_session_ids = self._user_sessions.get(user_id, set())
         active_sessions = sum(
-            1 for sid in user_session_ids
-            if self._sessions.get(sid, {}).is_active
+            1 for sid in user_session_ids if self._sessions.get(sid, {}).is_active
         )
 
         if active_sessions >= self.max_concurrent_sessions:
@@ -257,18 +275,24 @@ class EnhancedSessionManager:
 
             if oldest_session:
                 self._invalidate_session(oldest_session)
-                logger.info(f"Invalidated oldest session {oldest_session} due to concurrent limit")
+                logger.info(
+                    f"Invalidated oldest session {oldest_session} due to concurrent limit"
+                )
 
     def _is_session_expired(self, session_info: SessionInfo) -> bool:
         """Check if session is expired."""
         now = datetime.utcnow()
 
         # Check absolute timeout
-        if now - session_info.created_at > timedelta(minutes=self.session_timeout_minutes):
+        if now - session_info.created_at > timedelta(
+            minutes=self.session_timeout_minutes
+        ):
             return True
 
         # Check inactivity timeout
-        if now - session_info.last_activity > timedelta(minutes=self.max_inactive_minutes):
+        if now - session_info.last_activity > timedelta(
+            minutes=self.max_inactive_minutes
+        ):
             return True
 
         return False
@@ -322,13 +346,13 @@ def get_session_manager() -> EnhancedSessionManager:
 def initialize_session_manager(
     session_timeout_minutes: int = 30,
     max_concurrent_sessions: int = 3,
-    max_inactive_minutes: int = 15
+    max_inactive_minutes: int = 15,
 ) -> EnhancedSessionManager:
     """Initialize session manager with custom settings."""
     global _session_manager
     _session_manager = EnhancedSessionManager(
         session_timeout_minutes=session_timeout_minutes,
         max_concurrent_sessions=max_concurrent_sessions,
-        max_inactive_minutes=max_inactive_minutes
+        max_inactive_minutes=max_inactive_minutes,
     )
     return _session_manager

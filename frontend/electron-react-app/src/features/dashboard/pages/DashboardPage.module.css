@@ -70,7 +70,11 @@ header p {
 .progressBar > div {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.8));
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.9),
+    rgba(37, 99, 235, 0.8)
+  );
 }
 
 .progressValue {

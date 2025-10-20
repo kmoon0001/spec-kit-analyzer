@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 
 const MAX_HISTORY = 90;
 
-const isDesktopRuntime = () => typeof window !== 'undefined' && Boolean(window.desktopApi?.tasks);
+const isDesktopRuntime = () =>
+  typeof window !== "undefined" && Boolean(window.desktopApi?.tasks);
 
 type DerivedTelemetryMetrics = {
   cpuPercent: number | null;
@@ -13,7 +14,9 @@ type DerivedTelemetryMetrics = {
 };
 
 export const useDesktopTelemetry = () => {
-  const [snapshot, setSnapshot] = useState<DesktopTelemetrySnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<DesktopTelemetrySnapshot | null>(
+    null,
+  );
   const [history, setHistory] = useState<DesktopTelemetrySnapshot[]>([]);
 
   useEffect(() => {
@@ -21,7 +24,7 @@ export const useDesktopTelemetry = () => {
       return undefined;
     }
 
-    const unsubscribe = window.desktopApi!.tasks.on('telemetry', (payload) => {
+    const unsubscribe = window.desktopApi!.tasks.on("telemetry", (payload) => {
       setSnapshot(payload);
       setHistory((prev) => {
         const next = [...prev, payload];
@@ -36,16 +39,18 @@ export const useDesktopTelemetry = () => {
       try {
         unsubscribe?.();
       } catch (error) {
-        console.warn('Failed to unsubscribe telemetry listener', error);
+        console.warn("Failed to unsubscribe telemetry listener", error);
       }
     };
   }, []);
 
   const metrics: DerivedTelemetryMetrics = useMemo(() => {
     const cpuPercent = snapshot?.cpu
-      ? snapshot.cpu.normalizedPercent ?? snapshot.cpu.percent ?? null
+      ? (snapshot.cpu.normalizedPercent ?? snapshot.cpu.percent ?? null)
       : null;
-    const memoryMb = snapshot?.memory?.rss ? snapshot.memory.rss / 1024 / 1024 : null;
+    const memoryMb = snapshot?.memory?.rss
+      ? snapshot.memory.rss / 1024 / 1024
+      : null;
     const eventLoopP99 = snapshot?.eventLoop?.p99 ?? null;
     const activeCount = snapshot?.activeCount ?? 0;
     const queueSize = snapshot?.queueSize ?? 0;

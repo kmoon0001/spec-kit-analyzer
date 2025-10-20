@@ -1,6 +1,6 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8001";
 
 export interface ComplianceTrend {
   dates: string[];
@@ -21,13 +21,13 @@ export interface RiskPrediction {
     }>;
   };
   compliance_forecast: {
-    '30_days': number;
-    '60_days': number;
-    '90_days': number;
+    "30_days": number;
+    "60_days": number;
+    "90_days": number;
     confidence: number;
   };
   recommendations: Array<{
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     action: string;
     impact: string;
     effort: string;
@@ -71,11 +71,13 @@ export interface AdvancedAnalyticsData {
   }>;
 }
 
-export const fetchAdvancedAnalytics = async (timeRange: string): Promise<AdvancedAnalyticsData> => {
+export const fetchAdvancedAnalytics = async (
+  timeRange: string,
+): Promise<AdvancedAnalyticsData> => {
   const response = await axios.get(`${API_BASE_URL}/analytics/advanced`, {
     params: { time_range: timeRange },
     headers: {
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
     },
   });
   return response.data;
@@ -84,7 +86,7 @@ export const fetchAdvancedAnalytics = async (timeRange: string): Promise<Advance
 export const fetchPredictiveAnalytics = async (): Promise<RiskPrediction> => {
   const response = await axios.get(`${API_BASE_URL}/analytics/predictive`, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
     },
   });
   return response.data;
@@ -93,7 +95,7 @@ export const fetchPredictiveAnalytics = async (): Promise<RiskPrediction> => {
 export const fetchBenchmarkData = async (): Promise<BenchmarkData> => {
   const response = await axios.get(`${API_BASE_URL}/analytics/benchmarks`, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
     },
   });
   return response.data;
@@ -105,20 +107,26 @@ export interface MetaAnalyticsData {
     avg_compliance_score: number;
     total_findings: number;
     total_analyses: number;
-    discipline_breakdown: Record<string, {
-      avg_compliance_score: number;
-      user_count: number;
-    }>;
-    team_habit_breakdown: Record<string, {
-      habit_number: number;
-      habit_name: string;
-      percentage: number;
-    }>;
+    discipline_breakdown: Record<
+      string,
+      {
+        avg_compliance_score: number;
+        user_count: number;
+      }
+    >;
+    team_habit_breakdown: Record<
+      string,
+      {
+        habit_number: number;
+        habit_name: string;
+        percentage: number;
+      }
+    >;
   };
   training_needs: Array<{
     habit_name: string;
     percentage_of_findings: number;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     affected_users: number;
     training_focus: string;
   }>;
@@ -140,22 +148,25 @@ export interface MetaAnalyticsData {
     title: string;
     description: string;
     recommendation: string;
-    level: 'positive' | 'concern' | 'action_required' | 'neutral';
+    level: "positive" | "concern" | "action_required" | "neutral";
   }>;
 }
 
-export const fetchMetaAnalytics = async (daysBack: number, discipline?: string): Promise<MetaAnalyticsData> => {
+export const fetchMetaAnalytics = async (
+  daysBack: number,
+  discipline?: string,
+): Promise<MetaAnalyticsData> => {
   const params = new URLSearchParams({
     days_back: daysBack.toString(),
   });
 
-  if (discipline && discipline !== 'All Disciplines') {
-    params.append('discipline', discipline);
+  if (discipline && discipline !== "All Disciplines") {
+    params.append("discipline", discipline);
   }
 
   const response = await axios.get(`${API_BASE_URL}/meta-analytics?${params}`, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
     },
   });
   return response.data;

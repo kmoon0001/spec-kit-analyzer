@@ -46,7 +46,9 @@ class AnalysisStatusTracker:
         self.reset()
 
         # Callbacks for status changes
-        self._status_callbacks: dict[AnalysisState, list[Callable[[dict[str, Any]], None]]] = {}
+        self._status_callbacks: dict[
+            AnalysisState, list[Callable[[dict[str, Any]], None]]
+        ] = {}
         self._timeout_callbacks: list[Callable[[dict[str, Any]], None]] = []
 
     def reset(self) -> None:
@@ -91,7 +93,11 @@ class AnalysisStatusTracker:
         self._trigger_status_callback(AnalysisState.STARTING)
 
     def update_status(
-        self, state: AnalysisState, progress: int | None = None, message: str | None = None, task_id: str | None = None
+        self,
+        state: AnalysisState,
+        progress: int | None = None,
+        message: str | None = None,
+        task_id: str | None = None,
     ) -> None:
         """Update analysis status.
 
@@ -153,7 +159,11 @@ class AnalysisStatusTracker:
         self.last_update = time.time()
 
         elapsed = self.get_elapsed_time()
-        logger.error("Analysis failed: %s | Elapsed: %ss | Analysis: {self.current_analysis}", error_message, elapsed)
+        logger.error(
+            "Analysis failed: %s | Elapsed: %ss | Analysis: {self.current_analysis}",
+            error_message,
+            elapsed,
+        )
 
         self._trigger_status_callback(AnalysisState.FAILED)
 
@@ -177,7 +187,11 @@ class AnalysisStatusTracker:
             self.metadata["result"] = result_data
 
         elapsed = self.get_elapsed_time()
-        logger.info("Analysis completed successfully | Duration: %ss | Analysis: %s", elapsed, self.current_analysis)
+        logger.info(
+            "Analysis completed successfully | Duration: %ss | Analysis: %s",
+            elapsed,
+            self.current_analysis,
+        )
 
         self._trigger_status_callback(AnalysisState.COMPLETED)
 
@@ -192,7 +206,11 @@ class AnalysisStatusTracker:
         self.last_update = time.time()
 
         elapsed = self.get_elapsed_time()
-        logger.info("Analysis cancelled by user | Elapsed: %ss | Analysis: %s", elapsed, self.current_analysis)
+        logger.info(
+            "Analysis cancelled by user | Elapsed: %ss | Analysis: %s",
+            elapsed,
+            self.current_analysis,
+        )
 
         self._trigger_status_callback(AnalysisState.CANCELLED)
 
@@ -275,7 +293,9 @@ class AnalysisStatusTracker:
             "metadata": self.metadata.copy(),
         }
 
-    def add_status_callback(self, state: AnalysisState, callback: Callable[[dict[str, Any]], None]) -> None:
+    def add_status_callback(
+        self, state: AnalysisState, callback: Callable[[dict[str, Any]], None]
+    ) -> None:
         """Add callback for specific state changes.
 
         Args:

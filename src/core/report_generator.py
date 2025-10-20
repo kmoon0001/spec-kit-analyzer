@@ -40,7 +40,9 @@ class ReportGenerator:
         self.habits_enabled = self.settings.habits_framework.enabled
         if self.habits_enabled:
             use_ai = self.settings.habits_framework.ai_features.use_ai_mapping
-            self.habits_framework = SevenHabitsFramework(use_ai_mapping=use_ai, llm_service=llm_service)
+            self.habits_framework = SevenHabitsFramework(
+                use_ai_mapping=use_ai, llm_service=llm_service
+            )
         else:
             self.habits_framework = None
 
@@ -75,7 +77,11 @@ class ReportGenerator:
         return ""
 
     def generate_report(
-        self, analysis_result: dict[str, Any] | None, *, document_name: str | None = None, analysis_mode: str = "rubric"
+        self,
+        analysis_result: dict[str, Any] | None,
+        *,
+        document_name: str | None = None,
+        analysis_mode: str = "rubric",
     ) -> dict[str, Any]:
         """Build the structured compliance report payload used by downstream services.
 
@@ -94,10 +100,14 @@ class ReportGenerator:
         report_ready = self._is_report_ready(checkpoints)
         if report_ready:
             report_html = self.generate_html_report(
-                analysis_result=safe_result, doc_name=doc_name, analysis_mode=analysis_mode
+                analysis_result=safe_result,
+                doc_name=doc_name,
+                analysis_mode=analysis_mode,
             )
         else:
-            report_html = self._build_fallback_report(doc_name, safe_result, checkpoints, fallback_messages)
+            report_html = self._build_fallback_report(
+                doc_name, safe_result, checkpoints, fallback_messages
+            )
 
         payload: dict[str, Any] = {
             "analysis": safe_result,
@@ -112,10 +122,14 @@ class ReportGenerator:
             payload["fallback_messages"] = fallback_messages
         return payload
 
-    def generate_html_report(self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric") -> str:
+    def generate_html_report(
+        self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric"
+    ) -> str:
         return self._generate_rubric_report(analysis_result, doc_name)
 
-    def _normalize_analysis_result(self, analysis_result: dict[str, Any] | None) -> dict[str, Any]:
+    def _normalize_analysis_result(
+        self, analysis_result: dict[str, Any] | None
+    ) -> dict[str, Any]:
         if isinstance(analysis_result, dict):
             normalized: dict[str, Any] = deepcopy(analysis_result)
         else:
@@ -155,7 +169,9 @@ class ReportGenerator:
 
         return normalized
 
-    def _build_stage_checkpoints(self, analysis_result: dict[str, Any]) -> list[dict[str, Any]]:
+    def _build_stage_checkpoints(
+        self, analysis_result: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         stage_definitions: list[dict[str, Any]] = [
             {
                 "id": "ingestion",
@@ -210,8 +226,14 @@ class ReportGenerator:
 
         checkpoints: list[dict[str, Any]] = []
         for stage in stage_definitions:
-            complete = any(self._resolve_path(analysis_result, path) for path in stage["paths"])
-            status = "completed" if complete else ("pending" if stage["required"] else "skipped")
+            complete = any(
+                self._resolve_path(analysis_result, path) for path in stage["paths"]
+            )
+            status = (
+                "completed"
+                if complete
+                else ("pending" if stage["required"] else "skipped")
+            )
             checkpoints.append(
                 {
                     "id": stage["id"],
@@ -233,17 +255,27 @@ class ReportGenerator:
                 return None
         return current
 
-    def _build_fallback_messages(self, analysis_result: dict[str, Any], checkpoints: list[dict[str, Any]]) -> list[str]:
+    def _build_fallback_messages(
+        self, analysis_result: dict[str, Any], checkpoints: list[dict[str, Any]]
+    ) -> list[str]:
         messages: list[str] = []
 
         error = analysis_result.get("error")
         if error:
-            messages.append(f"Analysis engine reported an error: {sanitize_human_text(str(error))}")
+            messages.append(
+                f"Analysis engine reported an error: {sanitize_human_text(str(error))}"
+            )
 
         if analysis_result.get("exception"):
-            messages.append("An exception flag was raised during compliance analysis; results may be incomplete.")
+            messages.append(
+                "An exception flag was raised during compliance analysis; results may be incomplete."
+            )
 
-        missing_required = [cp["label"] for cp in checkpoints if cp["required"] and cp["status"] != "completed"]
+        missing_required = [
+            cp["label"]
+            for cp in checkpoints
+            if cp["required"] and cp["status"] != "completed"
+        ]
         if missing_required:
             joined = ", ".join(missing_required)
             messages.append(
@@ -254,13 +286,17 @@ class ReportGenerator:
             messages.append("No compliance findings were produced for this document.")
 
         if not analysis_result.get("summary"):
-            messages.append("A narrative summary was unavailable when the report was generated.")
+            messages.append(
+                "A narrative summary was unavailable when the report was generated."
+            )
 
         return messages
 
     @staticmethod
     def _is_report_ready(checkpoints: list[dict[str, Any]]) -> bool:
-        return all(cp["status"] == "completed" for cp in checkpoints if cp.get("required"))
+        return all(
+            cp["status"] == "completed" for cp in checkpoints if cp.get("required")
+        )
 
     def _build_fallback_report(
         self,
@@ -288,7 +324,10 @@ class ReportGenerator:
         )
 
         fallback_items = (
-            "".join(f"<li>{sanitize_human_text(message)}</li>" for message in fallback_messages)
+            "".join(
+                f"<li>{sanitize_human_text(message)}</li>"
+                for message in fallback_messages
+            )
             or "<li>No additional context was provided.</li>"
         )
 
@@ -313,45 +352,83 @@ class ReportGenerator:
 
     def _generate_rubric_report(self, analysis_result: dict, doc_name: str) -> str:
         template_str = self.rubric_template_str
-        report_html = self._populate_basic_metadata(template_str, doc_name, analysis_result)
-        report_html = report_html.replace("<!-- Placeholder for logo -->", self._get_logo_html())
+        report_html = self._populate_basic_metadata(
+            template_str, doc_name, analysis_result
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for logo -->", self._get_logo_html()
+        )
         findings = analysis_result.get("findings", [])
         findings_rows_html = self._generate_findings_table(findings, analysis_result)
-        report_html = report_html.replace("<!-- Placeholder for findings rows -->", findings_rows_html)
-        report_html = self._inject_summary_sections(report_html, analysis_result)
-        report_html = self._inject_checklist(report_html, analysis_result.get("deterministic_checks", []))
         report_html = report_html.replace(
-            "<!-- Placeholder for pattern analysis -->", self._build_pattern_analysis(analysis_result)
+            "<!-- Placeholder for findings rows -->", findings_rows_html
         )
-        report_html = report_html.replace("<!-- Placeholder for model limitations -->", self.model_limitations_html)
-        if self.habits_enabled and self.settings.habits_framework.report_integration.show_personal_development_section:
-            personal_dev_html = self._generate_personal_development_section(findings, analysis_result)
-            report_html = report_html.replace("<!-- Placeholder for personal development -->", personal_dev_html)
+        report_html = self._inject_summary_sections(report_html, analysis_result)
+        report_html = self._inject_checklist(
+            report_html, analysis_result.get("deterministic_checks", [])
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for pattern analysis -->",
+            self._build_pattern_analysis(analysis_result),
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for model limitations -->", self.model_limitations_html
+        )
+        if (
+            self.habits_enabled
+            and self.settings.habits_framework.report_integration.show_personal_development_section
+        ):
+            personal_dev_html = self._generate_personal_development_section(
+                findings, analysis_result
+            )
+            report_html = report_html.replace(
+                "<!-- Placeholder for personal development -->", personal_dev_html
+            )
         else:
-            report_html = report_html.replace("<!-- Placeholder for personal development -->", "")
+            report_html = report_html.replace(
+                "<!-- Placeholder for personal development -->", ""
+            )
         return report_html
 
-    def _populate_basic_metadata(self, template_str: str, doc_name: str, analysis_result: dict) -> str:
-        report_html = template_str.replace("<!-- Placeholder for document name -->", doc_name)
+    def _populate_basic_metadata(
+        self, template_str: str, doc_name: str, analysis_result: dict
+    ) -> str:
+        report_html = template_str.replace(
+            "<!-- Placeholder for document name -->", doc_name
+        )
         analysis_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        report_html = report_html.replace("<!-- Placeholder for analysis date -->", analysis_date)
+        report_html = report_html.replace(
+            "<!-- Placeholder for analysis date -->", analysis_date
+        )
         compliance_score = analysis_result.get("compliance_score", "N/A")
-        report_html = report_html.replace("<!-- Placeholder for compliance score -->", str(compliance_score))
+        report_html = report_html.replace(
+            "<!-- Placeholder for compliance score -->", str(compliance_score)
+        )
         findings_count = len(analysis_result.get("findings", []))
-        report_html = report_html.replace("<!-- Placeholder for total findings -->", str(findings_count))
+        report_html = report_html.replace(
+            "<!-- Placeholder for total findings -->", str(findings_count)
+        )
         doc_type = sanitize_human_text(analysis_result.get("document_type", "Unknown"))
         discipline = sanitize_human_text(analysis_result.get("discipline", "Unknown"))
-        report_html = report_html.replace("<!-- Placeholder for document type -->", doc_type)
-        report_html = report_html.replace("<!-- Placeholder for discipline -->", discipline)
+        report_html = report_html.replace(
+            "<!-- Placeholder for document type -->", doc_type
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for discipline -->", discipline
+        )
         overall_confidence = analysis_result.get("overall_confidence")
         if isinstance(overall_confidence, int | float):
             confidence_text = f"{overall_confidence:.0%}"
         else:
             confidence_text = "Not reported"
-        report_html = report_html.replace("<!-- Placeholder for overall confidence -->", confidence_text)
+        report_html = report_html.replace(
+            "<!-- Placeholder for overall confidence -->", confidence_text
+        )
         return report_html
 
-    def _generate_findings_table(self, findings: list, analysis_result: dict | None = None) -> str:
+    def _generate_findings_table(
+        self, findings: list, analysis_result: dict | None = None
+    ) -> str:
         if not findings:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
         findings_rows_html = ""
@@ -398,13 +475,19 @@ class ReportGenerator:
 
     def _generate_text_cell(self, finding: dict) -> str:
         problematic_text = sanitize_human_text(finding.get("text", "N/A"))
-        context_snippet = sanitize_human_text(finding.get("context_snippet", problematic_text))
+        context_snippet = sanitize_human_text(
+            finding.get("context_snippet", problematic_text)
+        )
         combined_payload = f"{context_snippet}|||{problematic_text}"
         encoded_payload = urllib.parse.quote(combined_payload)
         return f'<a href="highlight://{encoded_payload}" class="highlight-link">{problematic_text}</a>'
 
-    def _generate_issue_cell(self, finding: dict, analysis_result: dict | None = None) -> str:
-        issue_title = sanitize_human_text(finding.get("issue_title", "Compliance Issue"))
+    def _generate_issue_cell(
+        self, finding: dict, analysis_result: dict | None = None
+    ) -> str:
+        issue_title = sanitize_human_text(
+            finding.get("issue_title", "Compliance Issue")
+        )
         regulation = sanitize_human_text(finding.get("regulation", ""))
         issue_html = f"<strong>{issue_title}</strong>"
         if regulation:
@@ -413,18 +496,31 @@ class ReportGenerator:
         severity_reason = sanitize_human_text(raw_severity) if raw_severity else None
         if severity_reason:
             issue_html += f"<br><small>{severity_reason}</small>"
-        if self.habits_enabled and self.settings.habits_framework.report_integration.show_habit_tags:
+        if (
+            self.habits_enabled
+            and self.settings.habits_framework.report_integration.show_habit_tags
+        ):
             habit_info = self._get_habit_info_for_finding(finding, analysis_result)
             if habit_info:
                 habit_html = self._generate_habit_tag_html(habit_info)
                 issue_html += habit_html
         return issue_html
 
-    def _get_habit_info_for_finding(self, finding: dict, analysis_result: dict | None = None) -> dict[str, Any] | None:
+    def _get_habit_info_for_finding(
+        self, finding: dict, analysis_result: dict | None = None
+    ) -> dict[str, Any] | None:
         if self.habits_framework:
             context = {
-                "document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown",
-                "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown",
+                "document_type": (
+                    analysis_result.get("document_type", "Unknown")
+                    if analysis_result
+                    else "Unknown"
+                ),
+                "discipline": (
+                    analysis_result.get("discipline", "Unknown")
+                    if analysis_result
+                    else "Unknown"
+                ),
                 "risk_level": finding.get("risk", "Unknown"),
                 "issue_category": finding.get("issue_category", "General"),
             }
@@ -453,7 +549,9 @@ class ReportGenerator:
             return ""
 
         if self.settings.habits_framework.is_prominent():
-            confidence_indicator = f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
+            confidence_indicator = (
+                f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
+            )
             habit_html = (
                 f'<div class="habit-tag prominent" data-confidence="{confidence}">'
                 f'<div class="habit-badge">?? HABIT {habit_number}: {habit_name.upper()}{confidence_indicator}</div>'
@@ -475,14 +573,17 @@ class ReportGenerator:
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
         recommendation = sanitize_human_text(
-            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation")
+            finding.get("personalized_tip")
+            or finding.get("suggestion", "Review and update documentation")
         )
         priority = finding.get("priority")
         if priority:
             recommendation = f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
         return recommendation
 
-    def _generate_prevention_cell(self, finding: dict, analysis_result: dict | None = None) -> str:
+    def _generate_prevention_cell(
+        self, finding: dict, analysis_result: dict | None = None
+    ) -> str:
         if not self.habits_enabled:
             return '<div class="habit-explanation">Review documentation practices regularly</div>'
 
@@ -508,9 +609,13 @@ class ReportGenerator:
     def _generate_confidence_cell(self, finding: dict) -> str:
         confidence = finding.get("confidence", 0)
         if isinstance(confidence, int | float):
-            confidence_html = f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
+            confidence_html = (
+                f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
+            )
         else:
-            confidence_html = '<div class="confidence-indicator">Confidence: Unknown</div>'
+            confidence_html = (
+                '<div class="confidence-indicator">Confidence: Unknown</div>'
+            )
 
         problematic_text = sanitize_human_text(finding.get("text", "N/A"))
         issue_title = sanitize_human_text(finding.get("issue_title", "N/A"))
@@ -519,45 +624,62 @@ class ReportGenerator:
             "please provide additional clarification and guidance."
         )
         encoded_chat_context = urllib.parse.quote(chat_context)
-        chat_link = f'<a href="chat://{encoded_chat_context}" class="chat-link">Ask AI</a>'
+        chat_link = (
+            f'<a href="chat://{encoded_chat_context}" class="chat-link">Ask AI</a>'
+        )
 
         finding_id = finding.get("finding_id", "")
-        feedback_correct_link = (
-            f'<a href="feedback://correct?finding_id={finding_id}" class="feedback-link correct">Correct</a>'
-        )
-        feedback_incorrect_link = (
-            f'<a href="feedback://incorrect?finding_id={finding_id}" class="feedback-link incorrect">Incorrect</a>'
-        )
+        feedback_correct_link = f'<a href="feedback://correct?finding_id={finding_id}" class="feedback-link correct">Correct</a>'
+        feedback_incorrect_link = f'<a href="feedback://incorrect?finding_id={finding_id}" class="feedback-link incorrect">Incorrect</a>'
         feedback_links = f'<div class="feedback-controls">{feedback_correct_link} {feedback_incorrect_link}</div>'
 
         return f"{confidence_html}<br>{chat_link}<br>{feedback_links}"
 
-    def _inject_summary_sections(self, report_html: str, analysis_result: dict[str, Any]) -> str:
+    def _inject_summary_sections(
+        self, report_html: str, analysis_result: dict[str, Any]
+    ) -> str:
         narrative = sanitize_human_text(analysis_result.get("narrative_summary", ""))
         if not narrative:
             narrative = "No narrative summary generated."
-        report_html = report_html.replace("<!-- Placeholder for narrative summary -->", narrative)
+        report_html = report_html.replace(
+            "<!-- Placeholder for narrative summary -->", narrative
+        )
 
         bullet_items = analysis_result.get("bullet_highlights") or []
         if bullet_items:
-            bullets_html = "".join(f"<li>{sanitize_human_text(item)}</li>" for item in bullet_items)
+            bullets_html = "".join(
+                f"<li>{sanitize_human_text(item)}</li>" for item in bullet_items
+            )
         else:
             bullets_html = "<li>No key highlights available.</li>"
-        report_html = report_html.replace("<!-- Placeholder for bullet highlights -->", bullets_html)
+        report_html = report_html.replace(
+            "<!-- Placeholder for bullet highlights -->", bullets_html
+        )
         return report_html
 
-    def _inject_checklist(self, report_html: str, checklist: list[dict[str, Any]]) -> str:
+    def _inject_checklist(
+        self, report_html: str, checklist: list[dict[str, Any]]
+    ) -> str:
         if not checklist:
             rows_html = '<tr><td colspan="4">Checklist data was not captured for this analysis.</td></tr>'
         else:
             rows = []
             for item in checklist:
                 status = (item.get("status") or "review").lower()
-                status_class = "checklist-status-pass" if status == "pass" else "checklist-status-review"
+                status_class = (
+                    "checklist-status-pass"
+                    if status == "pass"
+                    else "checklist-status-review"
+                )
                 status_label = "Pass" if status == "pass" else "Review"
-                evidence = sanitize_human_text(item.get("evidence", "")) or "Not located in document."
+                evidence = (
+                    sanitize_human_text(item.get("evidence", ""))
+                    or "Not located in document."
+                )
                 recommendation = sanitize_human_text(item.get("recommendation", ""))
-                title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
+                title = sanitize_human_text(
+                    item.get("title", item.get("id", "Checklist item"))
+                )
                 rows.append(
                     f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>"
                 )
@@ -570,10 +692,14 @@ class ReportGenerator:
             return "<p>No recurring compliance patterns were detected in this document.</p>"
 
         categories = Counter(
-            sanitize_human_text(finding.get("issue_category", "General")) or "General" for finding in findings
+            sanitize_human_text(finding.get("issue_category", "General")) or "General"
+            for finding in findings
         )
         top_categories = categories.most_common(3)
-        list_items = "".join(f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories)
+        list_items = "".join(
+            f"<li>{category}: {count} finding(s)</li>"
+            for category, count in top_categories
+        )
         return f"<ul>{list_items}</ul>"
 
     def _generate_personal_development_section(

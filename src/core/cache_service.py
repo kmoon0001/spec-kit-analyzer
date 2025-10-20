@@ -139,7 +139,9 @@ class MemoryAwareLRUCache:
 
     def clear_expired(self) -> None:
         expired_keys = [
-            key for key, entry in self.cache.items() if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC)
+            key
+            for key, entry in self.cache.items()
+            if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC)
         ]
         for key in expired_keys:
             self._delete_entry(key)
@@ -164,7 +166,13 @@ class MemoryAwareLRUCache:
 
         return entry["value"]
 
-    def set(self, key: str, value: Any, ttl_seconds: int | None = None, ttl_hours: float | None = None):
+    def set(
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        ttl_hours: float | None = None,
+    ):
         """Set a value in the cache with optional TTL."""
         # Remove existing entry if it exists
         if key in self.cache:
@@ -178,10 +186,19 @@ class MemoryAwareLRUCache:
         if ttl_hours is not None:
             final_ttl_seconds = int(ttl_hours * 3600)
 
-        expires_at = datetime.now(UTC) + timedelta(seconds=final_ttl_seconds) if final_ttl_seconds else None
+        expires_at = (
+            datetime.now(UTC) + timedelta(seconds=final_ttl_seconds)
+            if final_ttl_seconds
+            else None
+        )
 
         # Store the entry
-        self.cache[key] = {"value": value, "size": size, "expires_at": expires_at, "created_at": datetime.now(UTC)}
+        self.cache[key] = {
+            "value": value,
+            "size": size,
+            "expires_at": expires_at,
+            "created_at": datetime.now(UTC),
+        }
         self.current_size_bytes += size
 
     def _cleanup_if_needed(self) -> None:
@@ -227,7 +244,9 @@ class EmbeddingCache:
         return cls._cache.get(_hash_key(text))
 
     @classmethod
-    def set_embedding(cls, text: str, embedding: list[float], ttl_hours: float | None = None) -> None:
+    def set_embedding(
+        cls, text: str, embedding: list[float], ttl_hours: float | None = None
+    ) -> None:
         cls._cache.set(_hash_key(text), embedding, ttl_hours=ttl_hours)
 
     @classmethod
@@ -254,7 +273,11 @@ class NERCache:
 
     @classmethod
     def set_ner_results(
-        cls, text: str, model_name: str, results: list[dict[str, Any]], ttl_hours: float | None = None
+        cls,
+        text: str,
+        model_name: str,
+        results: list[dict[str, Any]],
+        ttl_hours: float | None = None,
     ) -> None:
         cls._cache.set(_hash_key(model_name, text), results, ttl_hours=ttl_hours)
 
@@ -264,7 +287,10 @@ class NERCache:
 
     @classmethod
     def set_document_classification(
-        cls, doc_hash: str, classification: dict[str, Any], ttl_hours: float | None = None
+        cls,
+        doc_hash: str,
+        classification: dict[str, Any],
+        ttl_hours: float | None = None,
     ) -> None:
         cls._cache.set(doc_hash, classification, ttl_hours=ttl_hours)
 
@@ -273,7 +299,9 @@ class NERCache:
         return cls._cache.get(_hash_key(model_name, prompt))
 
     @classmethod
-    def set_llm_response(cls, prompt: str, model_name: str, response: str, ttl_hours: float | None = None) -> None:
+    def set_llm_response(
+        cls, prompt: str, model_name: str, response: str, ttl_hours: float | None = None
+    ) -> None:
         cls._cache.set(_hash_key(model_name, prompt), response, ttl_hours=ttl_hours)
 
     @classmethod
@@ -315,7 +343,9 @@ def get_cache_stats() -> dict[str, float]:
 
     return {
         "total_entries": total_entries,
-        "memory_usage_mb": round(direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3),
+        "memory_usage_mb": round(
+            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3
+        ),
         "system_memory_percent": float(vm.percent),
         "embedding_entries": EmbeddingCache.entry_count(),
         "ner_entries": NERCache.entry_count(),
@@ -361,11 +391,15 @@ class LLMResponseCache:
         return cls.get_response(model_name, prompt)
 
     @classmethod
-    def set_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
+    def set_response(
+        cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24
+    ):
         cls._cache[f"{model_name}:{prompt}"] = response
 
     @classmethod
-    def set_llm_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
+    def set_llm_response(
+        cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24
+    ):
         cls.set_response(model_name, prompt, response, ttl_hours)
 
     @classmethod

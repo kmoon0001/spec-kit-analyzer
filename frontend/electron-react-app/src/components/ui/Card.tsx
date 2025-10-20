@@ -1,17 +1,24 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
-import styles from './Card.module.css';
+import styles from "./Card.module.css";
 
 type CardProps = {
   title?: string;
   subtitle?: string;
   actions?: ReactNode;
   children: ReactNode;
-  variant?: 'default' | 'muted' | 'highlight';
+  variant?: "default" | "muted" | "highlight";
   className?: string;
 };
 
-export const Card = ({ title, subtitle, actions, children, variant = 'default', className = '' }: CardProps) => {
+export const Card = ({
+  title,
+  subtitle,
+  actions,
+  children,
+  variant = "default",
+  className = "",
+}: CardProps) => {
   return (
     <section className={`${styles.card} ${styles[variant]} ${className}`}>
       {(title || actions) && (

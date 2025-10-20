@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { useAppStore } from '../../../store/useAppStore';
-import { fetchMultiLLMAnalysis, fetchConsensusMetrics } from '../api';
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "../../../store/useAppStore";
+import { fetchMultiLLMAnalysis, fetchConsensusMetrics } from "../api";
 
 export interface ConsensusResult {
   consensus_score: number;
@@ -15,11 +15,14 @@ export interface ConsensusResult {
     model_votes: Record<string, boolean>;
     disagreement_flag: boolean;
   }>;
-  model_outputs: Record<string, {
-    findings: any[];
-    confidence: number;
-    processing_time: number;
-  }>;
+  model_outputs: Record<
+    string,
+    {
+      findings: any[];
+      confidence: number;
+      processing_time: number;
+    }
+  >;
   ensemble_metadata: {
     total_models: number;
     agreement_threshold: number;
@@ -32,14 +35,14 @@ export const useMultiLLMConsensus = (documentId?: string) => {
   const token = useAppStore((state) => state.auth.token);
 
   const consensusQuery = useQuery({
-    queryKey: ['multi-llm-consensus', documentId],
+    queryKey: ["multi-llm-consensus", documentId],
     queryFn: () => fetchMultiLLMAnalysis(documentId!),
     enabled: Boolean(token && documentId),
     staleTime: 300000, // 5 minutes
   });
 
   const metricsQuery = useQuery({
-    queryKey: ['consensus-metrics'],
+    queryKey: ["consensus-metrics"],
     queryFn: fetchConsensusMetrics,
     enabled: Boolean(token),
     staleTime: 60000, // 1 minute

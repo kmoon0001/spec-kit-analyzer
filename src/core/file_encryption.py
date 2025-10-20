@@ -51,8 +51,12 @@ class FileEncryptionService:
                 raise ValueError("Invalid FILE_ENCRYPTION_KEY format")
 
         # Generate new key from password
-        password = os.environ.get("FILE_ENCRYPTION_PASSWORD", "default-password-change-in-production")
-        salt = os.environ.get("FILE_ENCRYPTION_SALT", "default-salt-change-in-production").encode()
+        password = os.environ.get(
+            "FILE_ENCRYPTION_PASSWORD", "default-password-change-in-production"
+        )
+        salt = os.environ.get(
+            "FILE_ENCRYPTION_SALT", "default-salt-change-in-production"
+        ).encode()
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -62,7 +66,9 @@ class FileEncryptionService:
         )
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-        logger.warning("Generated encryption key from password. Store FILE_ENCRYPTION_KEY in environment for production!")
+        logger.warning(
+            "Generated encryption key from password. Store FILE_ENCRYPTION_KEY in environment for production!"
+        )
         return key
 
     def encrypt_file_content(self, content: bytes) -> bytes:
@@ -108,8 +114,8 @@ class FileEncryptionService:
             Base64-encoded encrypted text
         """
         try:
-            encrypted_bytes = self.cipher.encrypt(text.encode('utf-8'))
-            return base64.urlsafe_b64encode(encrypted_bytes).decode('utf-8')
+            encrypted_bytes = self.cipher.encrypt(text.encode("utf-8"))
+            return base64.urlsafe_b64encode(encrypted_bytes).decode("utf-8")
         except Exception as e:
             logger.error(f"Failed to encrypt text: {e}")
             raise ValueError(f"Text encryption failed: {e}")
@@ -125,9 +131,9 @@ class FileEncryptionService:
             Decrypted text
         """
         try:
-            encrypted_bytes = base64.urlsafe_b64decode(encrypted_text.encode('utf-8'))
+            encrypted_bytes = base64.urlsafe_b64decode(encrypted_text.encode("utf-8"))
             decrypted_bytes = self.cipher.decrypt(encrypted_bytes)
-            return decrypted_bytes.decode('utf-8')
+            return decrypted_bytes.decode("utf-8")
         except Exception as e:
             logger.error(f"Failed to decrypt text: {e}")
             raise ValueError(f"Text decryption failed: {e}")
@@ -136,7 +142,11 @@ class FileEncryptionService:
 class SecureDocumentStorage:
     """Secure storage for documents with encryption and access control."""
 
-    def __init__(self, storage_dir: str = "secure_storage", encryption_service: Optional[FileEncryptionService] = None):
+    def __init__(
+        self,
+        storage_dir: str = "secure_storage",
+        encryption_service: Optional[FileEncryptionService] = None,
+    ):
         """
         Initialize secure document storage.
 
@@ -155,7 +165,8 @@ class SecureDocumentStorage:
         if self.metadata_file.exists():
             try:
                 import json
-                with open(self.metadata_file, 'r') as f:
+
+                with open(self.metadata_file, "r") as f:
                     return json.load(f)
             except Exception as e:
                 logger.error(f"Failed to load metadata: {e}")
@@ -165,12 +176,19 @@ class SecureDocumentStorage:
         """Save storage metadata."""
         try:
             import json
-            with open(self.metadata_file, 'w') as f:
+
+            with open(self.metadata_file, "w") as f:
                 json.dump(self._metadata, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save metadata: {e}")
 
-    def store_document(self, content: bytes, filename: str, user_id: int, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def store_document(
+        self,
+        content: bytes,
+        filename: str,
+        user_id: int,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         Store encrypted document.
 
@@ -183,15 +201,15 @@ class SecureDocumentStorage:
         Returns:
             Document ID for retrieval
         """
-        import uuid
         import datetime
+        import uuid
 
         doc_id = str(uuid.uuid4())
         encrypted_content = self.encryption_service.encrypt_file_content(content)
 
         # Store encrypted file
         file_path = self.storage_dir / f"{doc_id}.enc"
-        with open(file_path, 'wb') as f:
+        with open(file_path, "wb") as f:
             f.write(encrypted_content)
 
         # Store metadata
@@ -201,7 +219,7 @@ class SecureDocumentStorage:
             "stored_at": datetime.datetime.utcnow().isoformat(),
             "file_size": len(content),
             "encrypted_size": len(encrypted_content),
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
         self._save_metadata()
 
@@ -234,10 +252,12 @@ class SecureDocumentStorage:
             return None
 
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 encrypted_content = f.read()
 
-            decrypted_content = self.encryption_service.decrypt_file_content(encrypted_content)
+            decrypted_content = self.encryption_service.decrypt_file_content(
+                encrypted_content
+            )
             logger.info(f"Retrieved document {doc_id} for user {user_id}")
             return decrypted_content
         except Exception as e:
@@ -288,13 +308,15 @@ class SecureDocumentStorage:
         user_docs = []
         for doc_id, metadata in self._metadata.items():
             if metadata["user_id"] == user_id:
-                user_docs.append({
-                    "doc_id": doc_id,
-                    "filename": metadata["filename"],
-                    "stored_at": metadata["stored_at"],
-                    "file_size": metadata["file_size"],
-                    "metadata": metadata["metadata"]
-                })
+                user_docs.append(
+                    {
+                        "doc_id": doc_id,
+                        "filename": metadata["filename"],
+                        "stored_at": metadata["stored_at"],
+                        "file_size": metadata["file_size"],
+                        "metadata": metadata["metadata"],
+                    }
+                )
 
         return user_docs
 
@@ -307,7 +329,9 @@ class SecureDocumentStorage:
         """
         import datetime
 
-        cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(hours=max_age_hours)
+        cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(
+            hours=max_age_hours
+        )
         expired_docs = []
 
         for doc_id, metadata in self._metadata.items():

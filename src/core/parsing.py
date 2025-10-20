@@ -26,7 +26,16 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
+SUPPORTED_EXTENSIONS = {
+    ".pdf",
+    ".txt",
+    ".docx",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
+    ".bmp",
+}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 
 
@@ -59,7 +68,9 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
 
     if extension not in SUPPORTED_EXTENSIONS:
         supported_list = ", ".join(sorted(SUPPORTED_EXTENSIONS))
-        logger.error("Unsupported file type: %s. Supported: %s", extension, supported_list)
+        logger.error(
+            "Unsupported file type: %s. Supported: %s", extension, supported_list
+        )
         return [
             {
                 "sentence": f"Error: Unsupported file type '{extension}'. Supported formats: {supported_list}",
@@ -67,19 +78,24 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
             },
         ]
 
-    cache_key = "parsed_document_" + hashlib.sha256(file_path.encode("utf-8")).hexdigest()
+    cache_key = (
+        "parsed_document_" + hashlib.sha256(file_path.encode("utf-8")).hexdigest()
+    )
 
     cached_result = cache_service.get_from_disk(cache_key)
     if cached_result is not None:
         logger.info("Cache hit for document: %s", os.path.basename(file_path))
         return cached_result
 
-    logger.info("Cache miss for document: %s. Parsing from scratch.", os.path.basename(file_path))
+    logger.info(
+        "Cache miss for document: %s. Parsing from scratch.",
+        os.path.basename(file_path),
+    )
 
     try:
         # Add overall timeout protection for document parsing
-        import threading
         import queue
+        import threading
 
         def parse_with_timeout():
             try:
@@ -104,13 +120,17 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
 
         # Run parsing with 2-minute timeout
         result_queue = queue.Queue()
-        parse_thread = threading.Thread(target=lambda: result_queue.put(parse_with_timeout()))
+        parse_thread = threading.Thread(
+            target=lambda: result_queue.put(parse_with_timeout())
+        )
         parse_thread.daemon = True
         parse_thread.start()
         parse_thread.join(timeout=120)  # 2 minutes timeout
 
         if parse_thread.is_alive():
-            logger.warning("Document parsing timed out for %s after 2 minutes", file_path)
+            logger.warning(
+                "Document parsing timed out for %s after 2 minutes", file_path
+            )
             result = [
                 {
                     "sentence": f"Error: Document parsing timed out after 2 minutes. The document may be too large or corrupted.",
@@ -129,7 +149,11 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
                 ]
 
         cache_service.set_to_disk(cache_key, result)
-        logger.info("Successfully parsed document: %s (%d chunks)", os.path.basename(file_path), len(result))
+        logger.info(
+            "Successfully parsed document: %s (%d chunks)",
+            os.path.basename(file_path),
+            len(result),
+        )
         return result
 
     except (FileNotFoundError, PermissionError, OSError) as e:
@@ -170,7 +194,13 @@ def _preprocess_image_for_ocr(image):
                 (h, w) = gray.shape[:2]
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, angle, 1.0)
-                gray = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                gray = cv2.warpAffine(
+                    gray,
+                    M,
+                    (w, h),
+                    flags=cv2.INTER_CUBIC,
+                    borderMode=cv2.BORDER_REPLICATE,
+                )
 
         # Noise removal
         gray = cv2.medianBlur(gray, 3)
@@ -206,20 +236,24 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?()[]{}"-/\n '
 
         # Add timeout protection to prevent hanging
+        import queue
         import signal
         import threading
-        import queue
 
         def ocr_with_timeout():
             try:
-                return pytesseract.image_to_string(processed_image, config=custom_config)
+                return pytesseract.image_to_string(
+                    processed_image, config=custom_config
+                )
             except Exception as e:
                 logger.warning("OCR failed for image %s: %s", file_path, e)
                 return ""
 
         # Run OCR with 30-second timeout
         result_queue = queue.Queue()
-        ocr_thread = threading.Thread(target=lambda: result_queue.put(ocr_with_timeout()))
+        ocr_thread = threading.Thread(
+            target=lambda: result_queue.put(ocr_with_timeout())
+        )
         ocr_thread.daemon = True
         ocr_thread.start()
         ocr_thread.join(timeout=30)
@@ -298,26 +332,35 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                             custom_config = r"--oem 3 --psm 6"
 
                             # Add timeout protection to prevent hanging
+                            import queue
                             import signal
                             import threading
-                            import queue
 
                             def ocr_with_timeout():
                                 try:
-                                    return pytesseract.image_to_string(processed_image, config=custom_config)
+                                    return pytesseract.image_to_string(
+                                        processed_image, config=custom_config
+                                    )
                                 except Exception as e:
-                                    logger.warning("OCR failed for page %s: %s", page_num + 1, e)
+                                    logger.warning(
+                                        "OCR failed for page %s: %s", page_num + 1, e
+                                    )
                                     return ""
 
                             # Run OCR with 30-second timeout
                             result_queue = queue.Queue()
-                            ocr_thread = threading.Thread(target=lambda: result_queue.put(ocr_with_timeout()))
+                            ocr_thread = threading.Thread(
+                                target=lambda: result_queue.put(ocr_with_timeout())
+                            )
                             ocr_thread.daemon = True
                             ocr_thread.start()
                             ocr_thread.join(timeout=30)
 
                             if ocr_thread.is_alive():
-                                logger.warning("OCR timed out for page %s after 30 seconds", page_num + 1)
+                                logger.warning(
+                                    "OCR timed out for page %s after 30 seconds",
+                                    page_num + 1,
+                                )
                                 ocr_text = ""
                             else:
                                 try:
@@ -391,7 +434,19 @@ def _split_into_sentences(text: str) -> list[str]:
     text = re.sub(r"([.!?])\s*([A-Z])", r"\1\n\2", text)  # Split on sentence boundaries
 
     # Handle medical abbreviations that shouldn't be split
-    medical_abbrevs = ["Dr.", "Mr.", "Mrs.", "Ms.", "PT.", "OT.", "SLP.", "etc.", "vs.", "i.e.", "e.g."]
+    medical_abbrevs = [
+        "Dr.",
+        "Mr.",
+        "Mrs.",
+        "Ms.",
+        "PT.",
+        "OT.",
+        "SLP.",
+        "etc.",
+        "vs.",
+        "i.e.",
+        "e.g.",
+    ]
     for abbrev in medical_abbrevs:
         text = text.replace(abbrev + "\n", abbrev + " ")
 
@@ -478,9 +533,13 @@ def parse_document_into_sections(text: str) -> dict[str, str]:
 
     for index, match in enumerate(matches):
         header = match.group(1)
-        next_start = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        next_start = (
+            matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        )
         content = text[match.end() : next_start].strip()
-        normalized_header = next((item for item in headers if item.lower() == header.lower()), header)
+        normalized_header = next(
+            (item for item in headers if item.lower() == header.lower()), header
+        )
         sections[normalized_header] = content
 
     return sections

@@ -15,11 +15,13 @@ export interface ConsensusMetrics {
   model_count: number;
 }
 
-export const fetchMultiLLMAnalysis = async (documentId: string): Promise<MultiLLMAnalysisResult> => {
+export const fetchMultiLLMAnalysis = async (
+  documentId: string,
+): Promise<MultiLLMAnalysisResult> => {
   // Placeholder implementation
   return {
     consensus_score: 0.85,
-    model_results: []
+    model_results: [],
   };
 };
 
@@ -28,6 +30,6 @@ export const fetchConsensusMetrics = async (): Promise<ConsensusMetrics> => {
   return {
     agreement_rate: 0.92,
     confidence_variance: 0.15,
-    model_count: 3
+    model_count: 3,
   };
 };

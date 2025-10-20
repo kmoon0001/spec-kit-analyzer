@@ -42,7 +42,9 @@ class DocumentCleanupService:
 
         self._running = True
         self._task = asyncio.create_task(self._cleanup_loop())
-        logger.info(f"Document cleanup service started (interval: {self.cleanup_interval_hours}h, max_age: {self.max_age_hours}h)")
+        logger.info(
+            f"Document cleanup service started (interval: {self.cleanup_interval_hours}h, max_age: {self.max_age_hours}h)"
+        )
 
     async def stop(self):
         """Stop the cleanup service."""
@@ -64,7 +66,9 @@ class DocumentCleanupService:
         while self._running:
             try:
                 await self._run_cleanup()
-                await asyncio.sleep(self.cleanup_interval_hours * 3600)  # Convert hours to seconds
+                await asyncio.sleep(
+                    self.cleanup_interval_hours * 3600
+                )  # Convert hours to seconds
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -84,7 +88,9 @@ class DocumentCleanupService:
         # Clean up old log files
         log_count = await self._cleanup_log_files()
 
-        logger.info(f"Cleanup completed: {expired_count} expired docs, {temp_count} temp files, {log_count} log files")
+        logger.info(
+            f"Cleanup completed: {expired_count} expired docs, {temp_count} temp files, {log_count} log files"
+        )
 
     async def _cleanup_expired_documents(self) -> int:
         """Clean up expired documents from secure storage."""
@@ -92,13 +98,13 @@ class DocumentCleanupService:
             # Run cleanup in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
-                self.secure_storage.cleanup_expired_documents,
-                self.max_age_hours
+                None, self.secure_storage.cleanup_expired_documents, self.max_age_hours
             )
 
             # Count remaining documents
-            user_docs = self.secure_storage.list_user_documents(0)  # This will be empty, but we can check metadata
+            user_docs = self.secure_storage.list_user_documents(
+                0
+            )  # This will be empty, but we can check metadata
             # Note: This is a simplified count - in production you'd want a better way to count expired docs
 
             logger.info("Expired documents cleaned up")
@@ -110,11 +116,7 @@ class DocumentCleanupService:
 
     async def _cleanup_temp_files(self) -> int:
         """Clean up temporary files."""
-        temp_dirs = [
-            Path("temp"),
-            Path(".cache"),
-            Path("secure_storage") / "temp"
-        ]
+        temp_dirs = [Path("temp"), Path(".cache"), Path("secure_storage") / "temp"]
 
         cleaned_count = 0
         cutoff_time = datetime.now() - timedelta(hours=self.max_age_hours)
@@ -139,10 +141,7 @@ class DocumentCleanupService:
 
     async def _cleanup_log_files(self) -> int:
         """Clean up old log files."""
-        log_dirs = [
-            Path("logs"),
-            Path(".")  # Check for log files in root
-        ]
+        log_dirs = [Path("logs"), Path(".")]  # Check for log files in root
 
         cleaned_count = 0
         cutoff_time = datetime.now() - timedelta(days=7)  # Keep logs for 7 days
@@ -177,7 +176,7 @@ class DocumentCleanupService:
             "expired_documents": expired_count,
             "temp_files": temp_count,
             "log_files": log_count,
-            "total_cleaned": expired_count + temp_count + log_count
+            "total_cleaned": expired_count + temp_count + log_count,
         }
 
         logger.info(f"Manual cleanup completed: {stats}")

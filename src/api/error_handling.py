@@ -64,6 +64,7 @@ class ErrorCode(Enum):
 
 class ErrorResponse(BaseModel):
     """Standardized error response model."""
+
     error_code: str
     message: str
     details: Optional[Dict[str, Any]] = None
@@ -91,43 +92,79 @@ class AppException(Exception):
 class AuthenticationError(AppException):
     """Authentication-related errors."""
 
-    def __init__(self, error_code: ErrorCode, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(error_code, message, details, status.HTTP_401_UNAUTHORIZED)
 
 
 class AuthorizationError(AppException):
     """Authorization-related errors."""
 
-    def __init__(self, error_code: ErrorCode, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(error_code, message, details, status.HTTP_403_FORBIDDEN)
 
 
 class ValidationError(AppException):
     """Validation-related errors."""
 
-    def __init__(self, error_code: ErrorCode, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(error_code, message, details, status.HTTP_400_BAD_REQUEST)
 
 
 class BusinessLogicError(AppException):
     """Business logic-related errors."""
 
-    def __init__(self, error_code: ErrorCode, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(error_code, message, details, status.HTTP_422_UNPROCESSABLE_ENTITY)
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            error_code, message, details, status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
 
 
 class SystemError(AppException):
     """System-related errors."""
 
-    def __init__(self, error_code: ErrorCode, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(error_code, message, details, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            error_code, message, details, status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 class SecurityError(AppException):
     """Security-related errors."""
 
-    def __init__(self, error_code: ErrorCode, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(error_code, message, details, status.HTTP_429_TOO_MANY_REQUESTS)
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            error_code, message, details, status.HTTP_429_TOO_MANY_REQUESTS
+        )
 
 
 class ErrorHandler:
@@ -141,33 +178,28 @@ class ErrorHandler:
             "Invalid token": ErrorCode.AUTH_TOKEN_INVALID,
             "Not authorized": ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
             "Session expired": ErrorCode.AUTH_SESSION_EXPIRED,
-
             # Validation errors
             "Invalid input": ErrorCode.VALIDATION_INVALID_INPUT,
             "Missing required field": ErrorCode.VALIDATION_MISSING_REQUIRED_FIELD,
             "Invalid format": ErrorCode.VALIDATION_INVALID_FORMAT,
             "File too large": ErrorCode.VALIDATION_FILE_TOO_LARGE,
             "Invalid file type": ErrorCode.VALIDATION_INVALID_FILE_TYPE,
-
             # Business logic errors
             "Not found": ErrorCode.BUSINESS_RESOURCE_NOT_FOUND,
             "Already exists": ErrorCode.BUSINESS_RESOURCE_ALREADY_EXISTS,
             "Operation not allowed": ErrorCode.BUSINESS_OPERATION_NOT_ALLOWED,
             "Quota exceeded": ErrorCode.BUSINESS_QUOTA_EXCEEDED,
-
             # System errors
             "Internal server error": ErrorCode.SYSTEM_INTERNAL_ERROR,
             "Service unavailable": ErrorCode.SYSTEM_SERVICE_UNAVAILABLE,
             "Database error": ErrorCode.SYSTEM_DATABASE_ERROR,
             "External service error": ErrorCode.SYSTEM_EXTERNAL_SERVICE_ERROR,
             "Timeout": ErrorCode.SYSTEM_TIMEOUT,
-
             # Security errors
             "Suspicious activity": ErrorCode.SECURITY_SUSPICIOUS_ACTIVITY,
             "Rate limit exceeded": ErrorCode.SECURITY_RATE_LIMIT_EXCEEDED,
             "Invalid request": ErrorCode.SECURITY_INVALID_REQUEST,
             "Blocked IP": ErrorCode.SECURITY_BLOCKED_IP,
-
             # Analysis errors
             "Analysis service unavailable": ErrorCode.ANALYSIS_SERVICE_UNAVAILABLE,
             "Invalid document": ErrorCode.ANALYSIS_INVALID_DOCUMENT,
@@ -195,7 +227,7 @@ class ErrorHandler:
         """
         # Extract request ID if not provided
         if not request_id and request:
-            request_id = getattr(request.state, 'request_id', None)
+            request_id = getattr(request.state, "request_id", None)
 
         # Handle application-specific exceptions
         if isinstance(exc, AppException):
@@ -208,7 +240,9 @@ class ErrorHandler:
         # Handle other exceptions
         return self._handle_generic_exception(exc, request_id)
 
-    def _handle_app_exception(self, exc: AppException, request_id: Optional[str]) -> JSONResponse:
+    def _handle_app_exception(
+        self, exc: AppException, request_id: Optional[str]
+    ) -> JSONResponse:
         """Handle application-specific exceptions."""
         error_response = ErrorResponse(
             error_code=exc.error_code.value,
@@ -222,11 +256,11 @@ class ErrorHandler:
         logger.error(
             f"Application error: {exc.error_code.value} - {exc.message}",
             extra={
-                'error_code': exc.error_code.value,
-                'message': exc.message,
-                'details': exc.details,
-                'request_id': request_id,
-            }
+                "error_code": exc.error_code.value,
+                "message": exc.message,
+                "details": exc.details,
+                "request_id": request_id,
+            },
         )
 
         return JSONResponse(
@@ -234,7 +268,9 @@ class ErrorHandler:
             content=error_response.dict(),
         )
 
-    def _handle_http_exception(self, exc: HTTPException, request_id: Optional[str]) -> JSONResponse:
+    def _handle_http_exception(
+        self, exc: HTTPException, request_id: Optional[str]
+    ) -> JSONResponse:
         """Handle HTTP exceptions."""
         # Map common HTTP exception messages to error codes
         error_code = self._map_message_to_error_code(exc.detail)
@@ -250,10 +286,10 @@ class ErrorHandler:
         logger.warning(
             f"HTTP error: {exc.status_code} - {exc.detail}",
             extra={
-                'status_code': exc.status_code,
-                'detail': exc.detail,
-                'request_id': request_id,
-            }
+                "status_code": exc.status_code,
+                "detail": exc.detail,
+                "request_id": request_id,
+            },
         )
 
         return JSONResponse(
@@ -261,7 +297,9 @@ class ErrorHandler:
             content=error_response.dict(),
         )
 
-    def _handle_generic_exception(self, exc: Exception, request_id: Optional[str]) -> JSONResponse:
+    def _handle_generic_exception(
+        self, exc: Exception, request_id: Optional[str]
+    ) -> JSONResponse:
         """Handle generic exceptions."""
         error_response = ErrorResponse(
             error_code=ErrorCode.SYSTEM_INTERNAL_ERROR.value,
@@ -275,11 +313,11 @@ class ErrorHandler:
         logger.error(
             f"Unexpected error: {type(exc).__name__} - {str(exc)}",
             extra={
-                'exception_type': type(exc).__name__,
-                'exception_message': str(exc),
-                'request_id': request_id,
+                "exception_type": type(exc).__name__,
+                "exception_message": str(exc),
+                "request_id": request_id,
             },
-            exc_info=True
+            exc_info=True,
         )
 
         return JSONResponse(
@@ -301,6 +339,7 @@ class ErrorHandler:
     def _get_timestamp(self) -> str:
         """Get current timestamp in ISO format."""
         from datetime import datetime
+
         return datetime.utcnow().isoformat()
 
 

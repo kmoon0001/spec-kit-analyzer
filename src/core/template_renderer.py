@@ -77,7 +77,9 @@ class TemplateRenderer:
             logger.warning("Template not found: %s, using default", template_id)
             template_id = "default"
 
-        template_content = self.templates.get(template_id, self.templates.get("default", ""))
+        template_content = self.templates.get(
+            template_id, self.templates.get("default", "")
+        )
 
         try:
             # Simple template rendering (basic variable substitution)
@@ -90,7 +92,9 @@ class TemplateRenderer:
 
         except Exception as e:
             logger.exception("Error rendering template %s: {e}", template_id)
-            return f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
+            return (
+                f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
+            )
 
     def get_available_templates(self) -> list[str]:
         """Get list of available template IDs"""

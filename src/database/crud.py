@@ -54,7 +54,9 @@ async def get_user_by_username(db: AsyncSession, username: str) -> models.User |
     clean_username = username.strip().lower()
 
     try:
-        result = await db.execute(select(models.User).where(models.User.username == clean_username))
+        result = await db.execute(
+            select(models.User).where(models.User.username == clean_username)
+        )
         return result.scalars().first()
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.error("Failed to get user by username %s: %s", clean_username, e)
@@ -101,7 +103,9 @@ async def create_user(
         raise
 
 
-async def change_user_password(db: AsyncSession, user: models.User, new_hashed_password: str) -> models.User:
+async def change_user_password(
+    db: AsyncSession, user: models.User, new_hashed_password: str
+) -> models.User:
     """Change user password with proper error handling."""
     try:
         user.hashed_password = new_hashed_password  # type: ignore[attr-defined]
@@ -121,7 +125,9 @@ async def change_user_password(db: AsyncSession, user: models.User, new_hashed_p
 # ---------------------------------------------------------------------------
 
 
-async def create_rubric(db: AsyncSession, rubric: schemas.RubricCreate) -> models.ComplianceRubric:
+async def create_rubric(
+    db: AsyncSession, rubric: schemas.RubricCreate
+) -> models.ComplianceRubric:
     """Create a new compliance rubric."""
     db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
@@ -171,21 +177,31 @@ async def get_rubrics(
         query = query.where(models.ComplianceRubric.category == category)
 
     # Apply ordering and pagination
-    query = query.order_by(models.ComplianceRubric.discipline, models.ComplianceRubric.name).offset(skip).limit(limit)
+    query = (
+        query.order_by(models.ComplianceRubric.discipline, models.ComplianceRubric.name)
+        .offset(skip)
+        .limit(limit)
+    )
 
     try:
         result = await db.execute(query)
         rubrics = list(result.scalars().all())
-        logger.debug("Retrieved %d rubrics (skip=%d, limit=%d)", len(rubrics), skip, limit)
+        logger.debug(
+            "Retrieved %d rubrics (skip=%d, limit=%d)", len(rubrics), skip, limit
+        )
         return rubrics
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.error("Failed to get rubrics: %s", e)
         raise
 
 
-async def get_rubric(db: AsyncSession, rubric_id: int) -> models.ComplianceRubric | None:
+async def get_rubric(
+    db: AsyncSession, rubric_id: int
+) -> models.ComplianceRubric | None:
     """Return a single rubric by identifier."""
-    query = select(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
+    query = select(models.ComplianceRubric).where(
+        models.ComplianceRubric.id == rubric_id
+    )
     result = await db.execute(query)
     return result.scalars().first()
 
@@ -263,9 +279,9 @@ async def get_dashboard_statistics(db: AsyncSession) -> dict[str, Any]:
         total_documents_analyzed = total_docs_result.scalar_one_or_none() or 0
 
         # Get overall compliance score
-        avg_score_query = select(func.avg(models.AnalysisReport.compliance_score)).where(
-            models.AnalysisReport.compliance_score.is_not(None)
-        )
+        avg_score_query = select(
+            func.avg(models.AnalysisReport.compliance_score)
+        ).where(models.AnalysisReport.compliance_score.is_not(None))
         avg_score_result = await db.execute(avg_score_query)
         overall_compliance_score = float(avg_score_result.scalar_one_or_none() or 0.0)
 
@@ -300,7 +316,10 @@ async def get_dashboard_statistics(db: AsyncSession) -> dict[str, Any]:
             "last_updated": datetime.datetime.now(datetime.UTC).isoformat(),
         }
 
-        logger.debug("Generated dashboard statistics: %d documents analyzed", total_documents_analyzed)
+        logger.debug(
+            "Generated dashboard statistics: %d documents analyzed",
+            total_documents_analyzed,
+        )
         return statistics
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
@@ -315,13 +334,24 @@ async def get_dashboard_statistics(db: AsyncSession) -> dict[str, Any]:
         }
 
 
-async def get_organizational_metrics(db: AsyncSession, days_back: int) -> dict[str, Any]:
+async def get_organizational_metrics(
+    db: AsyncSession, days_back: int
+) -> dict[str, Any]:
     """Computes high-level organizational metrics."""
     cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_back)
 
-    report_query = select(models.AnalysisReport).filter(models.AnalysisReport.analysis_date >= cutoff_date)
+    report_query = select(models.AnalysisReport).filter(
+        models.AnalysisReport.analysis_date >= cutoff_date
+    )
     reports = list(
-        (await db.execute(report_query.options(selectinload(models.AnalysisReport.findings)))).scalars().unique().all()
+        (
+            await db.execute(
+                report_query.options(selectinload(models.AnalysisReport.findings))
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
     )
 
     total_analyses = len(reports)
@@ -339,7 +369,9 @@ async def get_organizational_metrics(db: AsyncSession, days_back: int) -> dict[s
     }
 
 
-async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str, dict[str, Any]]:
+async def get_discipline_breakdown(
+    db: AsyncSession, days_back: int
+) -> dict[str, dict[str, Any]]:
     """Computes compliance metrics broken down by discipline, querying the JSON field."""
     cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_back)
 
@@ -365,19 +397,35 @@ async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str
         discipline = row.discipline
         if discipline:
             breakdown[discipline] = {
-                "avg_compliance_score": float(row.avg_score) if row.avg_score is not None else None,
+                "avg_compliance_score": (
+                    float(row.avg_score) if row.avg_score is not None else None
+                ),
                 "user_count": int(row.user_count or 0),
             }
     return breakdown
 
 
-async def get_team_habit_breakdown(db: AsyncSession, days_back: int) -> dict[str, dict[str, Any]]:
+async def get_team_habit_breakdown(
+    db: AsyncSession, days_back: int
+) -> dict[str, dict[str, Any]]:
     """Computes the distribution of findings related to habits."""
     # This is a simplified example. A real implementation would join with a habits table.
     return {
-        "habit_1": {"habit_number": 1, "habit_name": "Be Proactive", "percentage": 25.0},
-        "habit_2": {"habit_number": 2, "habit_name": "Begin with the End in Mind", "percentage": 15.0},
-        "habit_3": {"habit_number": 3, "habit_name": "Put First Things First", "percentage": 20.0},
+        "habit_1": {
+            "habit_number": 1,
+            "habit_name": "Be Proactive",
+            "percentage": 25.0,
+        },
+        "habit_2": {
+            "habit_number": 2,
+            "habit_name": "Begin with the End in Mind",
+            "percentage": 15.0,
+        },
+        "habit_3": {
+            "habit_number": 3,
+            "habit_name": "Put First Things First",
+            "percentage": 20.0,
+        },
     }
 
 
@@ -402,7 +450,9 @@ async def get_training_needs(db: AsyncSession, days_back: int) -> list[dict[str,
     ]
 
 
-async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[dict[str, Any]]:
+async def get_team_performance_trends(
+    db: AsyncSession, days_back: int
+) -> list[dict[str, Any]]:
     """Computes team performance trends grouped by week."""
     if days_back <= 0:
         return []
@@ -429,10 +479,16 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
         week_end = now - datetime.timedelta(days=index * 7)
         week_start = week_end - datetime.timedelta(days=7)
 
-        week_reports = [report for report in reports if week_start <= _as_aware(report.analysis_date) < week_end]
+        week_reports = [
+            report
+            for report in reports
+            if week_start <= _as_aware(report.analysis_date) < week_end
+        ]
 
         if week_reports:
-            avg_score = float(np.mean([report.compliance_score for report in week_reports]))
+            avg_score = float(
+                np.mean([report.compliance_score for report in week_reports])
+            )
             total_findings = sum(len(report.findings) for report in week_reports)
         else:
             avg_score = 0.0
@@ -495,7 +551,11 @@ async def get_benchmark_data(
         }
 
         if len(scores) < min_analyses:
-            logger.warning("Insufficient data for benchmarks: %d analyses (minimum: %d)", len(scores), min_analyses)
+            logger.warning(
+                "Insufficient data for benchmarks: %d analyses (minimum: %d)",
+                len(scores),
+                min_analyses,
+            )
             return {
                 **default_benchmarks,
                 "total_analyses": len(scores),
@@ -539,7 +599,9 @@ async def get_benchmark_data(
         }
 
 
-async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
+async def get_all_reports_with_embeddings(
+    db: AsyncSession,
+) -> list[models.AnalysisReport]:
     """Return all analysis reports that have an embedding stored efficiently."""
     query = (
         select(models.AnalysisReport)
@@ -581,7 +643,9 @@ async def get_report(db: AsyncSession, report_id: int) -> models.AnalysisReport 
         report = result.scalars().first()
 
         if report:
-            logger.debug("Retrieved report: %s (ID: %d)", report.document_name, report_id)
+            logger.debug(
+                "Retrieved report: %s (ID: %d)", report.document_name, report_id
+            )
         else:
             logger.warning("Report not found: %d", report_id)
 
@@ -649,7 +713,11 @@ async def create_analysis_report(
         # Load findings for the response
         await db.refresh(db_report, ["findings"])
 
-        logger.info("Created analysis report: %s with %d findings", db_report.document_name, len(findings_data or []))
+        logger.info(
+            "Created analysis report: %s with %d findings",
+            db_report.document_name,
+            len(findings_data or []),
+        )
         return db_report
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
@@ -678,18 +746,27 @@ async def find_similar_report(
                 query_vector = np.frombuffer(embedding, dtype=np.float32)
                 if query_vector.size:
                     query_vector = query_vector.reshape(1, -1)
-                    for report_id, _ in vector_store.search(query_vector, k=5, threshold=threshold):
+                    for report_id, _ in vector_store.search(
+                        query_vector, k=5, threshold=threshold
+                    ):
                         report_id = int(report_id)
-                        if exclude_report_id is not None and report_id == exclude_report_id:
+                        if (
+                            exclude_report_id is not None
+                            and report_id == exclude_report_id
+                        ):
                             continue
                         if report_id not in candidate_ids:
                             candidate_ids.append(report_id)
             except (ValueError, TypeError) as exc:
-                logger.warning("Invalid embedding supplied to find_similar_report: %s", exc)
+                logger.warning(
+                    "Invalid embedding supplied to find_similar_report: %s", exc
+                )
 
     for candidate_id in candidate_ids:
         candidate = await get_report(db, candidate_id)
-        if candidate and (document_type is None or candidate.document_type == document_type):
+        if candidate and (
+            document_type is None or candidate.document_type == document_type
+        ):
             return candidate
 
     for candidate_id in candidate_ids:
@@ -716,7 +793,9 @@ async def find_similar_report(
 # ---------------------------------------------------------------------------
 
 
-async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[models.AnalysisReport]:
+async def get_reports(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> list[models.AnalysisReport]:
     """Return analysis reports with their findings eagerly loaded."""
     query = (
         select(models.AnalysisReport)
@@ -758,18 +837,26 @@ def _as_datetime(value: date | None, *, end: bool = False) -> datetime.datetime 
     if value is None:
         return None
     if end:
-        return datetime.datetime.combine(value, datetime.time.max).replace(microsecond=0)
+        return datetime.datetime.combine(value, datetime.time.max).replace(
+            microsecond=0
+        )
     return datetime.datetime.combine(value, datetime.time.min)
 
 
 async def get_total_findings_count(
-    db: AsyncSession, *, start_date: date | None = None, end_date: date | None = None, discipline: str | None = None
+    db: AsyncSession,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    discipline: str | None = None,
 ) -> int:
     """Return the total number of findings in the specified window."""
     query = (
         select(func.count(models.Finding.id))
         .select_from(models.Finding)
-        .join(models.AnalysisReport, models.Finding.report_id == models.AnalysisReport.id)
+        .join(
+            models.AnalysisReport, models.Finding.report_id == models.AnalysisReport.id
+        )
     )
 
     start_dt = _as_datetime(start_date)
@@ -787,7 +874,11 @@ async def get_total_findings_count(
 
 
 async def get_team_habit_summary(
-    db: AsyncSession, *, start_date: date | None = None, end_date: date | None = None, discipline: str | None = None
+    db: AsyncSession,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    discipline: str | None = None,
 ) -> list[schemas.HabitSummary]:
     """Return an aggregate view of team habits based on progress snapshots."""
     # Discipline filtering is not currently tracked for snapshots; placeholder.
@@ -817,18 +908,29 @@ async def get_team_habit_summary(
     for habit_index in range(1, 8):
         habit_id = f"habit_{habit_index}"
         average = aggregate[habit_id] / denominator
-        summaries.append(schemas.HabitSummary(habit_name=f"Habit {habit_index}", count=int(round(average))))
+        summaries.append(
+            schemas.HabitSummary(
+                habit_name=f"Habit {habit_index}", count=int(round(average))
+            )
+        )
     return summaries
 
 
 async def get_clinician_habit_breakdown(
-    db: AsyncSession, *, start_date: date | None = None, end_date: date | None = None, discipline: str | None = None
+    db: AsyncSession,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    discipline: str | None = None,
 ) -> list[schemas.ClinicianHabitBreakdown]:
     """Return per-clinician habit focus based on their latest snapshots."""
     query = (
         select(models.HabitProgressSnapshot, models.User)
         .join(models.User, models.HabitProgressSnapshot.user_id == models.User.id)
-        .order_by(models.HabitProgressSnapshot.user_id, models.HabitProgressSnapshot.snapshot_date.desc())
+        .order_by(
+            models.HabitProgressSnapshot.user_id,
+            models.HabitProgressSnapshot.snapshot_date.desc(),
+        )
     )
 
     if start_date is not None:
@@ -885,7 +987,10 @@ async def get_habit_trend_data(
 
     query = query.order_by(models.HabitProgressSnapshot.snapshot_date)
     result = await db.execute(query)
-    return [schemas.HabitTrendPoint(date=row.snapshot_date, count=int(row.total_findings)) for row in result.all()]
+    return [
+        schemas.HabitTrendPoint(date=row.snapshot_date, count=int(row.total_findings))
+        for row in result.all()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -893,7 +998,9 @@ async def get_habit_trend_data(
 # ---------------------------------------------------------------------------
 
 
-async def get_user_habit_goals(db: AsyncSession, user_id: int, active_only: bool = True) -> list[models.HabitGoal]:
+async def get_user_habit_goals(
+    db: AsyncSession, user_id: int, active_only: bool = True
+) -> list[models.HabitGoal]:
     """Return goals for the given user."""
     query = select(models.HabitGoal).where(models.HabitGoal.user_id == user_id)
     if active_only:
@@ -903,7 +1010,9 @@ async def get_user_habit_goals(db: AsyncSession, user_id: int, active_only: bool
     return list(result.scalars().all())
 
 
-async def create_personal_habit_goal(db: AsyncSession, user_id: int, goal_data: dict[str, Any]) -> models.HabitGoal:
+async def create_personal_habit_goal(
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any]
+) -> models.HabitGoal:
     """Create a personal habit goal for a user."""
     habit_identifier = goal_data.get("habit_id")
     habit_number: int | None = None
@@ -915,10 +1024,15 @@ async def create_personal_habit_goal(db: AsyncSession, user_id: int, goal_data: 
 
     db_goal = models.HabitGoal(
         user_id=user_id,
-        title=goal_data.get("title") or goal_data.get("habit_name", "Documentation Goal"),
+        title=goal_data.get("title")
+        or goal_data.get("habit_name", "Documentation Goal"),
         description=goal_data.get("description"),
         habit_number=habit_number,
-        target_value=float(goal_data.get("target_value", 0.0)) if goal_data.get("target_value") is not None else None,
+        target_value=(
+            float(goal_data.get("target_value", 0.0))
+            if goal_data.get("target_value") is not None
+            else None
+        ),
         target_date=goal_data.get("target_date"),
         status=goal_data.get("status", "active"),
     )
@@ -937,7 +1051,9 @@ async def create_personal_habit_goal(db: AsyncSession, user_id: int, goal_data: 
     return db_goal
 
 
-async def create_habit_goal(db: AsyncSession, user_id: int, goal_data: dict[str, Any]) -> models.HabitGoal:
+async def create_habit_goal(
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any]
+) -> models.HabitGoal:
     """Compatibility wrapper for legacy API."""
     return await create_personal_habit_goal(db, user_id, goal_data)
 
@@ -946,7 +1062,9 @@ async def update_habit_goal_progress(
     db: AsyncSession, goal_id: int, progress: int, user_id: int
 ) -> models.HabitGoal | None:
     """Update the progress percentage for a user's goal."""
-    query = select(models.HabitGoal).where(models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id)
+    query = select(models.HabitGoal).where(
+        models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id
+    )
     result = await db.execute(query)
     goal = result.scalars().first()
     if goal is None:
@@ -960,9 +1078,13 @@ async def update_habit_goal_progress(
     return goal
 
 
-async def get_user_achievements(db: AsyncSession, user_id: int, category: str | None = None) -> list[dict[str, Any]]:
+async def get_user_achievements(
+    db: AsyncSession, user_id: int, category: str | None = None
+) -> list[dict[str, Any]]:
     """Return achievements for a user grouped by category."""
-    query = select(models.HabitAchievement).where(models.HabitAchievement.user_id == user_id)
+    query = select(models.HabitAchievement).where(
+        models.HabitAchievement.user_id == user_id
+    )
     if category:
         query = query.where(models.HabitAchievement.category == category)
     query = query.order_by(models.HabitAchievement.earned_at.desc())
@@ -991,7 +1113,9 @@ async def get_user_achievements(db: AsyncSession, user_id: int, category: str | 
     return achievements
 
 
-async def get_user_habit_statistics(db: AsyncSession, user_id: int, days_back: int) -> dict[str, Any]:
+async def get_user_habit_statistics(
+    db: AsyncSession, user_id: int, days_back: int
+) -> dict[str, Any]:
     """Return high level habit statistics for a user."""
     cutoff = datetime.datetime.utcnow() - timedelta(days=days_back)
 
@@ -1007,11 +1131,17 @@ async def get_user_habit_statistics(db: AsyncSession, user_id: int, days_back: i
         .order_by(models.HabitProgressSnapshot.snapshot_date.desc())
     )
     result = await db.execute(snapshot_query)
-    snapshots = [snapshot for snapshot in result.scalars().all() if snapshot.snapshot_date >= cutoff.date()]
+    snapshots = [
+        snapshot
+        for snapshot in result.scalars().all()
+        if snapshot.snapshot_date >= cutoff.date()
+    ]
 
     total_findings = sum(snapshot.total_findings for snapshot in snapshots)
     average_consistency = (
-        sum(snapshot.consistency_score for snapshot in snapshots) / len(snapshots) if snapshots else 0.0
+        sum(snapshot.consistency_score for snapshot in snapshots) / len(snapshots)
+        if snapshots
+        else 0.0
     )
 
     return {
@@ -1027,7 +1157,9 @@ async def get_user_habit_statistics(db: AsyncSession, user_id: int, days_back: i
             "average_consistency_score": round(average_consistency, 2),
             "days_analyzed": days_back,
         },
-        "achievement_categories": Counter(achievement["category"] for achievement in achievements),
+        "achievement_categories": Counter(
+            achievement["category"] for achievement in achievements
+        ),
     }
 
 
@@ -1133,11 +1265,15 @@ async def get_user_reports_with_findings(
     Current datasets do not persist a user relationship on reports, so this
     returns all recent reports as a best-effort placeholder for the tracker.
     """
-    query = select(models.AnalysisReport).options(selectinload(models.AnalysisReport.findings))
+    query = select(models.AnalysisReport).options(
+        selectinload(models.AnalysisReport.findings)
+    )
     if start_date is not None:
         query = query.where(models.AnalysisReport.analysis_date >= start_date)
 
-    result = await db.execute(query.order_by(models.AnalysisReport.analysis_date.desc()))
+    result = await db.execute(
+        query.order_by(models.AnalysisReport.analysis_date.desc())
+    )
     return list(result.scalars().unique().all())
 
 
@@ -1209,7 +1345,9 @@ async def bulk_create_findings(
         raise
 
 
-async def bulk_update_user_preferences(db: AsyncSession, user_updates: list[dict[str, Any]]) -> int:
+async def bulk_update_user_preferences(
+    db: AsyncSession, user_updates: list[dict[str, Any]]
+) -> int:
     """Update multiple user preferences in a single transaction.
 
     Args:
@@ -1288,7 +1426,9 @@ async def get_database_health(db: AsyncSession) -> dict[str, Any]:
         # Get recent activity
         recent_cutoff = datetime.datetime.now(datetime.UTC) - timedelta(days=7)
         recent_reports = await db.scalar(
-            select(func.count(models.AnalysisReport.id)).where(models.AnalysisReport.analysis_date >= recent_cutoff)
+            select(func.count(models.AnalysisReport.id)).where(
+                models.AnalysisReport.analysis_date >= recent_cutoff
+            )
         )
 
         # Calculate average compliance score
@@ -1310,8 +1450,12 @@ async def get_database_health(db: AsyncSession) -> dict[str, Any]:
                 "reports_last_7_days": recent_reports or 0,
             },
             "metrics": {
-                "average_compliance_score": round(float(avg_score), 2) if avg_score is not None else None,
-                "findings_per_report": round((finding_count or 0) / max(report_count or 1, 1), 2),
+                "average_compliance_score": (
+                    round(float(avg_score), 2) if avg_score is not None else None
+                ),
+                "findings_per_report": round(
+                    (finding_count or 0) / max(report_count or 1, 1), 2
+                ),
             },
             "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
         }
@@ -1325,7 +1469,9 @@ async def get_database_health(db: AsyncSession) -> dict[str, Any]:
         }
 
 
-async def cleanup_old_data(db: AsyncSession, days_to_keep: int = 365, dry_run: bool = True) -> dict[str, int]:
+async def cleanup_old_data(
+    db: AsyncSession, days_to_keep: int = 365, dry_run: bool = True
+) -> dict[str, int]:
     """Clean up old data from the database.
 
     Args:
@@ -1360,7 +1506,9 @@ async def cleanup_old_data(db: AsyncSession, days_to_keep: int = 365, dry_run: b
             # Delete old reports (findings will be cascade deleted)
             if old_reports_count > 0:
                 await db.execute(
-                    models.AnalysisReport.__table__.delete().where(models.AnalysisReport.analysis_date < cutoff_date)
+                    models.AnalysisReport.__table__.delete().where(
+                        models.AnalysisReport.analysis_date < cutoff_date
+                    )
                 )
 
             # Delete old snapshots
@@ -1372,7 +1520,11 @@ async def cleanup_old_data(db: AsyncSession, days_to_keep: int = 365, dry_run: b
                 )
 
             await db.commit()
-            logger.info("Cleaned up old data: %d reports, %d snapshots", old_reports_count, old_snapshots_count)
+            logger.info(
+                "Cleaned up old data: %d reports, %d snapshots",
+                old_reports_count,
+                old_snapshots_count,
+            )
 
         return cleanup_counts
 
@@ -1381,4 +1533,3 @@ async def cleanup_old_data(db: AsyncSession, days_to_keep: int = 365, dry_run: b
             await db.rollback()
         logger.error("Failed to cleanup old data: %s", e)
         raise
-

@@ -8,11 +8,10 @@ import logging
 import sqlite3
 
 import requests
-from requests.exceptions import HTTPError
-
 import sqlalchemy
 import sqlalchemy.exc
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from requests.exceptions import HTTPError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import get_settings
@@ -28,7 +27,9 @@ router = APIRouter(prefix="/meta-analytics", tags=["Meta Analytics"])
 @router.get("/widget_data")
 async def get_widget_meta_analytics_data(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
-    discipline: str | None = Query(None, description="Filter by discipline (PT, OT, SLP)"),
+    discipline: str | None = Query(
+        None, description="Filter by discipline (PT, OT, SLP)"
+    ),
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
@@ -53,7 +54,9 @@ async def get_widget_meta_analytics_data(
 @router.get("/organizational-overview")
 async def get_organizational_overview(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
-    discipline: str | None = Query(None, description="Filter by discipline (PT, OT, SLP)"),
+    discipline: str | None = Query(
+        None, description="Filter by discipline (PT, OT, SLP)"
+    ),
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
@@ -69,10 +72,16 @@ async def get_organizational_overview(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     if not settings.enable_director_dashboard:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Director dashboard is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Director dashboard is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
@@ -86,7 +95,8 @@ async def get_organizational_overview(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get organizational overview")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve organizational analytics"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve organizational analytics",
         ) from None
 
 
@@ -108,7 +118,10 @@ async def get_training_needs(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
@@ -119,7 +132,11 @@ async def get_training_needs(
 
         return {
             "training_needs": overview_data["training_needs"],
-            "insights": [insight for insight in overview_data["insights"] if insight["type"] == "training"],
+            "insights": [
+                insight
+                for insight in overview_data["insights"]
+                if insight["type"] == "training"
+            ],
             "analysis_period": days_back,
             "discipline_filter": discipline,
         }
@@ -127,7 +144,8 @@ async def get_training_needs(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get training needs")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve training needs"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve training needs",
         ) from None
 
 
@@ -149,7 +167,10 @@ async def get_team_trends(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
@@ -160,7 +181,11 @@ async def get_team_trends(
 
         return {
             "team_trends": overview_data["team_trends"],
-            "trend_insights": [insight for insight in overview_data["insights"] if insight["type"] == "trend"],
+            "trend_insights": [
+                insight
+                for insight in overview_data["insights"]
+                if insight["type"] == "trend"
+            ],
             "weeks_analyzed": weeks_back,
             "discipline_filter": discipline,
         }
@@ -168,7 +193,8 @@ async def get_team_trends(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get team trends")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve team trends"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve team trends",
         ) from None
 
 
@@ -189,12 +215,17 @@ async def get_benchmarks(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
 
-        overview_data = await meta_service.get_organizational_overview(db=db, days_back=days_back)
+        overview_data = await meta_service.get_organizational_overview(
+            db=db, days_back=days_back
+        )
 
         return {
             "benchmarks": overview_data["benchmarks"],
@@ -205,7 +236,8 @@ async def get_benchmarks(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get benchmarks")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve benchmarks"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve benchmarks",
         ) from None
 
 
@@ -226,22 +258,31 @@ async def get_peer_comparison(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     if not settings.habits_framework.dashboard_integration.show_peer_comparison:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Peer comparison is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Peer comparison is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
 
-        comparison_data = await meta_service.get_peer_comparison_data(db=db, user_id=user_id, days_back=days_back)
+        comparison_data = await meta_service.get_peer_comparison_data(
+            db=db, user_id=user_id, days_back=days_back
+        )
 
         return comparison_data
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get peer comparison for user %s", user_id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve peer comparison data"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve peer comparison data",
         ) from None
 
 
@@ -262,7 +303,10 @@ async def get_discipline_comparison(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
@@ -278,7 +322,9 @@ async def get_discipline_comparison(
 
             if overview["organizational_metrics"]:
                 discipline_data[discipline] = {
-                    "metrics": overview["organizational_metrics"]["discipline_breakdown"].get(discipline, {}),
+                    "metrics": overview["organizational_metrics"][
+                        "discipline_breakdown"
+                    ].get(discipline, {}),
                     "training_needs": overview["training_needs"],
                     "insights": overview["insights"],
                 }
@@ -292,13 +338,15 @@ async def get_discipline_comparison(
     except (requests.RequestException, ConnectionError, TimeoutError, HTTPError):
         logger.exception("Failed to get discipline comparison")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve discipline comparison"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve discipline comparison",
         ) from None
 
 
 @router.get("/performance-alerts")
 async def get_performance_alerts(
-    _admin_user: models.User = Depends(require_admin), db: AsyncSession = Depends(get_async_db)
+    _admin_user: models.User = Depends(require_admin),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict:
     """Get performance alerts and recommendations for immediate action.
 
@@ -311,21 +359,32 @@ async def get_performance_alerts(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         meta_service = MetaAnalyticsService()
 
         # Get recent data for alerts (last 30 days)
-        overview_data = await meta_service.get_organizational_overview(db=db, days_back=30)
+        overview_data = await meta_service.get_organizational_overview(
+            db=db, days_back=30
+        )
 
         # Filter for high-priority insights
         alerts = [
-            insight for insight in overview_data["insights"] if insight["level"] in ["concern", "action_required"]
+            insight
+            for insight in overview_data["insights"]
+            if insight["level"] in ["concern", "action_required"]
         ]
 
         # Add urgent training needs
-        urgent_training = [need for need in overview_data["training_needs"] if need["priority"] == "high"]
+        urgent_training = [
+            need
+            for need in overview_data["training_needs"]
+            if need["priority"] == "high"
+        ]
 
         return {
             "performance_alerts": alerts,
@@ -337,5 +396,6 @@ async def get_performance_alerts(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Failed to get performance alerts: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve performance alerts"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve performance alerts",
         ) from None

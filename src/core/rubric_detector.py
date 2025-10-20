@@ -25,164 +25,307 @@ class RubricDetector:
         return {
             "medicare_part_b": {
                 "keywords": [
-                    "outpatient therapy", "part b", "medicare part b", "therapy cap", "therapy services",
-                    "skilled therapy", "outpatient rehabilitation", "therapy evaluation", "therapy assessment",
-                    "functional improvement", "therapy goals", "treatment plan", "therapy progress"
+                    "outpatient therapy",
+                    "part b",
+                    "medicare part b",
+                    "therapy cap",
+                    "therapy services",
+                    "skilled therapy",
+                    "outpatient rehabilitation",
+                    "therapy evaluation",
+                    "therapy assessment",
+                    "functional improvement",
+                    "therapy goals",
+                    "treatment plan",
+                    "therapy progress",
                 ],
                 "patterns": [
                     r"outpatient\s+therapy",
                     r"part\s+b\s+therapy",
                     r"therapy\s+cap",
                     r"skilled\s+therapy",
-                    r"functional\s+improvement"
+                    r"functional\s+improvement",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "cms_1500": {
                 "keywords": [
-                    "cms-1500", "claim form", "billing", "cpt codes", "icd-10", "diagnosis codes",
-                    "procedure codes", "billing codes", "revenue codes", "claim submission",
-                    "insurance billing", "medicare billing", "reimbursement"
+                    "cms-1500",
+                    "claim form",
+                    "billing",
+                    "cpt codes",
+                    "icd-10",
+                    "diagnosis codes",
+                    "procedure codes",
+                    "billing codes",
+                    "revenue codes",
+                    "claim submission",
+                    "insurance billing",
+                    "medicare billing",
+                    "reimbursement",
                 ],
                 "patterns": [
                     r"cms-1500",
                     r"claim\s+form",
                     r"cpt\s+codes?",
                     r"icd-10",
-                    r"billing\s+codes?"
+                    r"billing\s+codes?",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "therapy_cap": {
                 "keywords": [
-                    "therapy cap", "cap exception", "exception request", "therapy limits",
-                    "annual therapy limit", "therapy threshold", "cap documentation",
-                    "exception documentation", "therapy cap exceeded"
+                    "therapy cap",
+                    "cap exception",
+                    "exception request",
+                    "therapy limits",
+                    "annual therapy limit",
+                    "therapy threshold",
+                    "cap documentation",
+                    "exception documentation",
+                    "therapy cap exceeded",
                 ],
                 "patterns": [
                     r"therapy\s+cap",
                     r"cap\s+exception",
                     r"exception\s+request",
-                    r"therapy\s+limits?"
+                    r"therapy\s+limits?",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "skilled_therapy": {
                 "keywords": [
-                    "skilled therapy", "skilled services", "medical necessity", "skilled care",
-                    "therapy necessity", "skilled intervention", "complex therapy",
-                    "skilled assessment", "skilled treatment"
+                    "skilled therapy",
+                    "skilled services",
+                    "medical necessity",
+                    "skilled care",
+                    "therapy necessity",
+                    "skilled intervention",
+                    "complex therapy",
+                    "skilled assessment",
+                    "skilled treatment",
                 ],
                 "patterns": [
                     r"skilled\s+therapy",
                     r"skilled\s+services",
                     r"medical\s+necessity",
-                    r"skilled\s+care"
+                    r"skilled\s+care",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "apta_pt": {
                 "keywords": [
-                    "physical therapy", "pt", "apta", "physical therapist", "mobility", "strength",
-                    "range of motion", "gait", "balance", "coordination", "muscle strength",
-                    "joint mobility", "functional mobility", "ambulation", "transfer"
+                    "physical therapy",
+                    "pt",
+                    "apta",
+                    "physical therapist",
+                    "mobility",
+                    "strength",
+                    "range of motion",
+                    "gait",
+                    "balance",
+                    "coordination",
+                    "muscle strength",
+                    "joint mobility",
+                    "functional mobility",
+                    "ambulation",
+                    "transfer",
                 ],
                 "patterns": [
                     r"physical\s+therapy",
                     r"pt\s+services?",
                     r"range\s+of\s+motion",
                     r"muscle\s+strength",
-                    r"functional\s+mobility"
+                    r"functional\s+mobility",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "aota_ot": {
                 "keywords": [
-                    "occupational therapy", "ot", "aota", "occupational therapist", "adl", "activities of daily living",
-                    "fine motor", "gross motor", "sensory", "cognitive", "adaptive equipment",
-                    "home modifications", "work therapy", "leisure activities"
+                    "occupational therapy",
+                    "ot",
+                    "aota",
+                    "occupational therapist",
+                    "adl",
+                    "activities of daily living",
+                    "fine motor",
+                    "gross motor",
+                    "sensory",
+                    "cognitive",
+                    "adaptive equipment",
+                    "home modifications",
+                    "work therapy",
+                    "leisure activities",
                 ],
                 "patterns": [
                     r"occupational\s+therapy",
                     r"ot\s+services?",
                     r"activities\s+of\s+daily\s+living",
                     r"fine\s+motor",
-                    r"adaptive\s+equipment"
+                    r"adaptive\s+equipment",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "asha_slp": {
                 "keywords": [
-                    "speech therapy", "slp", "asha", "speech language pathologist", "swallowing", "dysphagia",
-                    "communication", "language", "articulation", "voice", "fluency", "cognitive communication",
-                    "aphasia", "dysarthria", "speech production"
+                    "speech therapy",
+                    "slp",
+                    "asha",
+                    "speech language pathologist",
+                    "swallowing",
+                    "dysphagia",
+                    "communication",
+                    "language",
+                    "articulation",
+                    "voice",
+                    "fluency",
+                    "cognitive communication",
+                    "aphasia",
+                    "dysarthria",
+                    "speech production",
                 ],
                 "patterns": [
                     r"speech\s+therapy",
                     r"slp\s+services?",
                     r"speech\s+language",
                     r"swallowing",
-                    r"communication"
+                    r"communication",
                 ],
-                "weight": 1.0
+                "weight": 1.0,
             },
             "default": {
                 "keywords": [
-                    "medicare", "compliance", "documentation", "medical services", "healthcare",
-                    "clinical", "patient care", "medical record", "health record"
+                    "medicare",
+                    "compliance",
+                    "documentation",
+                    "medical services",
+                    "healthcare",
+                    "clinical",
+                    "patient care",
+                    "medical record",
+                    "health record",
                 ],
                 "patterns": [
                     r"medicare",
                     r"compliance",
                     r"medical\s+services?",
-                    r"clinical"
+                    r"clinical",
                 ],
-                "weight": 0.5
-            }
+                "weight": 0.5,
+            },
         }
 
     def _load_discipline_keywords(self) -> dict[str, list[str]]:
         """Load discipline-specific keywords for detection."""
         return {
             "pt": [
-                "physical therapy", "pt", "physical therapist", "mobility", "strength", "range of motion",
-                "gait", "balance", "coordination", "muscle strength", "joint mobility", "functional mobility",
-                "ambulation", "transfer", "walking", "standing", "sitting", "lifting"
+                "physical therapy",
+                "pt",
+                "physical therapist",
+                "mobility",
+                "strength",
+                "range of motion",
+                "gait",
+                "balance",
+                "coordination",
+                "muscle strength",
+                "joint mobility",
+                "functional mobility",
+                "ambulation",
+                "transfer",
+                "walking",
+                "standing",
+                "sitting",
+                "lifting",
             ],
             "ot": [
-                "occupational therapy", "ot", "occupational therapist", "adl", "activities of daily living",
-                "fine motor", "gross motor", "sensory", "cognitive", "adaptive equipment", "home modifications",
-                "work therapy", "leisure activities", "dressing", "feeding", "bathing", "toileting"
+                "occupational therapy",
+                "ot",
+                "occupational therapist",
+                "adl",
+                "activities of daily living",
+                "fine motor",
+                "gross motor",
+                "sensory",
+                "cognitive",
+                "adaptive equipment",
+                "home modifications",
+                "work therapy",
+                "leisure activities",
+                "dressing",
+                "feeding",
+                "bathing",
+                "toileting",
             ],
             "slp": [
-                "speech therapy", "slp", "speech language pathologist", "swallowing", "dysphagia",
-                "communication", "language", "articulation", "voice", "fluency", "cognitive communication",
-                "aphasia", "dysarthria", "speech production", "speaking", "listening", "reading", "writing"
-            ]
+                "speech therapy",
+                "slp",
+                "speech language pathologist",
+                "swallowing",
+                "dysphagia",
+                "communication",
+                "language",
+                "articulation",
+                "voice",
+                "fluency",
+                "cognitive communication",
+                "aphasia",
+                "dysarthria",
+                "speech production",
+                "speaking",
+                "listening",
+                "reading",
+                "writing",
+            ],
         }
 
     def _load_document_type_patterns(self) -> dict[str, list[str]]:
         """Load document type patterns for better rubric selection."""
         return {
             "evaluation": [
-                "evaluation", "assessment", "initial evaluation", "comprehensive evaluation",
-                "therapy evaluation", "functional evaluation", "clinical evaluation"
+                "evaluation",
+                "assessment",
+                "initial evaluation",
+                "comprehensive evaluation",
+                "therapy evaluation",
+                "functional evaluation",
+                "clinical evaluation",
             ],
             "progress_note": [
-                "progress note", "therapy note", "treatment note", "visit note", "session note",
-                "progress report", "therapy progress", "treatment progress"
+                "progress note",
+                "therapy note",
+                "treatment note",
+                "visit note",
+                "session note",
+                "progress report",
+                "therapy progress",
+                "treatment progress",
             ],
             "discharge": [
-                "discharge", "discharge summary", "discharge planning", "discharge note",
-                "final report", "completion", "therapy completion"
+                "discharge",
+                "discharge summary",
+                "discharge planning",
+                "discharge note",
+                "final report",
+                "completion",
+                "therapy completion",
             ],
             "plan_of_care": [
-                "plan of care", "treatment plan", "therapy plan", "care plan", "intervention plan",
-                "goals", "therapy goals", "treatment goals", "outcome goals"
-            ]
+                "plan of care",
+                "treatment plan",
+                "therapy plan",
+                "care plan",
+                "intervention plan",
+                "goals",
+                "therapy goals",
+                "treatment goals",
+                "outcome goals",
+            ],
         }
 
-    def detect_rubric(self, document_text: str, filename: str | None = None) -> tuple[str, float, dict[str, Any]]:
+    def detect_rubric(
+        self, document_text: str, filename: str | None = None
+    ) -> tuple[str, float, dict[str, Any]]:
         """
         Detect the most appropriate rubric based on document content.
 
@@ -198,7 +341,7 @@ class RubricDetector:
 
         # Normalize text for analysis
         text_lower = document_text.lower()
-        text_words = set(re.findall(r'\b\w+\b', text_lower))
+        text_words = set(re.findall(r"\b\w+\b", text_lower))
 
         # Calculate scores for each rubric
         rubric_scores = {}
@@ -206,7 +349,7 @@ class RubricDetector:
             "document_length": len(document_text),
             "word_count": len(text_words),
             "filename": filename,
-            "matches": {}
+            "matches": {},
         }
 
         for rubric_id, rubric_config in self.rubric_patterns.items():
@@ -220,14 +363,18 @@ class RubricDetector:
                     # Weight by keyword frequency and importance
                     frequency = text_lower.count(keyword_lower)
                     weight = rubric_config["weight"]
-                    keyword_score = min(frequency * weight, 5.0)  # Cap at 5 points per keyword
+                    keyword_score = min(
+                        frequency * weight, 5.0
+                    )  # Cap at 5 points per keyword
                     score += keyword_score
-                    matches.append({
-                        "type": "keyword",
-                        "text": keyword,
-                        "frequency": frequency,
-                        "score": keyword_score
-                    })
+                    matches.append(
+                        {
+                            "type": "keyword",
+                            "text": keyword,
+                            "frequency": frequency,
+                            "score": keyword_score,
+                        }
+                    )
 
             # Check pattern matches
             for pattern in rubric_config["patterns"]:
@@ -235,15 +382,19 @@ class RubricDetector:
                 if pattern_matches:
                     frequency = len(pattern_matches)
                     weight = rubric_config["weight"]
-                    pattern_score = min(frequency * weight * 2, 10.0)  # Patterns worth more
+                    pattern_score = min(
+                        frequency * weight * 2, 10.0
+                    )  # Patterns worth more
                     score += pattern_score
-                    matches.append({
-                        "type": "pattern",
-                        "pattern": pattern,
-                        "matches": pattern_matches,
-                        "frequency": frequency,
-                        "score": pattern_score
-                    })
+                    matches.append(
+                        {
+                            "type": "pattern",
+                            "pattern": pattern,
+                            "matches": pattern_matches,
+                            "frequency": frequency,
+                            "score": pattern_score,
+                        }
+                    )
 
             # Apply document type bonus
             doc_type_bonus = self._calculate_document_type_bonus(text_lower, rubric_id)
@@ -258,7 +409,7 @@ class RubricDetector:
                 "score": score,
                 "matches": matches,
                 "doc_type_bonus": doc_type_bonus,
-                "filename_bonus": filename_bonus
+                "filename_bonus": filename_bonus,
             }
 
         # Find the best rubric
@@ -269,7 +420,9 @@ class RubricDetector:
         best_rubric_id, best_score = best_rubric
 
         # Calculate confidence (0-1 scale)
-        total_possible_score = sum(config["weight"] * 10 for config in self.rubric_patterns.values())
+        total_possible_score = sum(
+            config["weight"] * 10 for config in self.rubric_patterns.values()
+        )
         confidence = min(best_score / max(total_possible_score, 1), 1.0)
 
         # If confidence is very low, default to general Medicare rubric
@@ -326,7 +479,7 @@ class RubricDetector:
             "medicare_part_b": ["part b", "outpatient", "therapy", "medicare"],
             "cms_1500": ["cms", "1500", "claim", "billing"],
             "therapy_cap": ["cap", "exception", "limit"],
-            "skilled_therapy": ["skilled", "necessity", "complex"]
+            "skilled_therapy": ["skilled", "necessity", "complex"],
         }
 
         patterns = filename_patterns.get(rubric_id, [])
@@ -368,12 +521,16 @@ class RubricDetector:
         discipline, score = best_discipline
 
         # Calculate confidence
-        total_keywords = sum(len(keywords) for keywords in self.discipline_keywords.values())
+        total_keywords = sum(
+            len(keywords) for keywords in self.discipline_keywords.values()
+        )
         confidence = min(score / max(total_keywords, 1), 1.0)
 
         return discipline, confidence
 
-    def get_rubric_suggestions(self, document_text: str, filename: str | None = None) -> list[dict[str, Any]]:
+    def get_rubric_suggestions(
+        self, document_text: str, filename: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get multiple rubric suggestions ranked by confidence.
 
@@ -385,22 +542,28 @@ class RubricDetector:
             List of rubric suggestions with scores and details
         """
         if not document_text:
-            return [{"rubric_id": "default", "confidence": 0.0, "reason": "empty_document"}]
+            return [
+                {"rubric_id": "default", "confidence": 0.0, "reason": "empty_document"}
+            ]
 
         rubric_id, confidence, details = self.detect_rubric(document_text, filename)
 
         # Get all scores and sort them
         all_scores = details.get("all_scores", {})
-        sorted_suggestions = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
+        sorted_suggestions = sorted(
+            all_scores.items(), key=lambda x: x[1], reverse=True
+        )
 
         suggestions = []
         for rubric_id, score in sorted_suggestions[:5]:  # Top 5 suggestions
             rubric_confidence = min(score / max(sum(all_scores.values()), 1), 1.0)
-            suggestions.append({
-                "rubric_id": rubric_id,
-                "confidence": rubric_confidence,
-                "score": score,
-                "matches": details["matches"].get(rubric_id, {}).get("matches", [])
-            })
+            suggestions.append(
+                {
+                    "rubric_id": rubric_id,
+                    "confidence": rubric_confidence,
+                    "score": score,
+                    "matches": details["matches"].get(rubric_id, {}).get("matches", []),
+                }
+            )
 
         return suggestions

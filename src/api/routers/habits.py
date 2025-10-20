@@ -8,7 +8,6 @@ import logging
 import sqlite3
 
 import requests
-
 import sqlalchemy
 import sqlalchemy.exc
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -42,7 +41,10 @@ async def get_habit_progression(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     progression_service = HabitProgressionService()
 
@@ -56,13 +58,15 @@ async def get_habit_progression(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get habit progression for user %s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve habit progression data"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve habit progression data",
         ) from None
 
 
 @router.get("/summary", response_model=schemas.UserProgressSummary)
 async def get_progress_summary(
-    current_user: models.User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> schemas.UserProgressSummary:
     """Get a quick summary of user's habit progress.
 
@@ -71,7 +75,10 @@ async def get_progress_summary(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     progression_service = HabitProgressionService()
 
@@ -102,20 +109,28 @@ async def get_progress_summary(
 
         return schemas.UserProgressSummary(
             user_id=current_user.id,
-            overall_progress_percentage=progression_data["overall_progress"]["percentage"],
+            overall_progress_percentage=progression_data["overall_progress"][
+                "percentage"
+            ],
             overall_status=progression_data["overall_progress"]["status"],
             current_streak=progression_data["current_streak"],
             total_analyses=total_analyses,
             mastered_habits_count=mastered_count,
             active_goals_count=len(goals),
-            recent_achievements=[schemas.HabitAchievement.model_validate(ach) for ach in recent_achievements],
+            recent_achievements=[
+                schemas.HabitAchievement.model_validate(ach)
+                for ach in recent_achievements
+            ],
             next_milestone=next_milestone,
         )
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
-        logger.exception("Failed to get progress summary for user %s: %s", current_user.id, e)
+        logger.exception(
+            "Failed to get progress summary for user %s: %s", current_user.id, e
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve progress summary"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve progress summary",
         ) from None
 
 
@@ -129,7 +144,10 @@ async def get_user_goals(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         goals = await crud.get_user_habit_goals(db, current_user.id, active_only)
@@ -138,7 +156,8 @@ async def get_user_goals(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get goals for user %s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve goals"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve goals",
         ) from None
 
 
@@ -152,7 +171,10 @@ async def create_goal(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         goal = await crud.create_habit_goal(db, current_user.id, goal_data.model_dump())
@@ -160,7 +182,10 @@ async def create_goal(
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to create goal for user %s", current_user.id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create goal") from None
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create goal",
+        ) from None
 
 
 @router.put("/goals/{goal_id}/progress")
@@ -174,34 +199,52 @@ async def update_goal_progress(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
-        goal = await crud.update_habit_goal_progress(db, goal_id, progress, current_user.id)
+        goal = await crud.update_habit_goal_progress(
+            db, goal_id, progress, current_user.id
+        )
 
         if not goal:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found"
+            )
 
         return schemas.HabitGoal.model_validate(goal)
 
     except HTTPException:
         raise
-    except (sqlite3.Error, ConnectionError, sqlalchemy.exc.SQLAlchemyError, TimeoutError, requests.RequestException):
+    except (
+        sqlite3.Error,
+        ConnectionError,
+        sqlalchemy.exc.SQLAlchemyError,
+        TimeoutError,
+        requests.RequestException,
+    ):
         logger.exception("Failed to update goal progress for user %s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update goal progress"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update goal progress",
         ) from None
 
 
 @router.get("/achievements", response_model=list[schemas.HabitAchievement])
 async def get_user_achievements(
-    current_user: models.User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> list[schemas.HabitAchievement]:
     """Get user's habit achievements."""
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         achievements = await crud.get_user_achievements(db, current_user.id)
@@ -210,7 +253,8 @@ async def get_user_achievements(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get achievements for user %s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve achievements"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve achievements",
         ) from None
 
 
@@ -224,7 +268,10 @@ async def get_weekly_trends(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     progression_service = HabitProgressionService()
 
@@ -239,19 +286,24 @@ async def get_weekly_trends(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get weekly trends for user %s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve weekly trends"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve weekly trends",
         ) from None
 
 
 @router.get("/recommendations", response_model=list[schemas.HabitRecommendation])
 async def get_habit_recommendations(
-    current_user: models.User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
+    current_user: models.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> list[schemas.HabitRecommendation]:
     """Get personalized habit recommendations."""
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     progression_service = HabitProgressionService()
 
@@ -268,7 +320,8 @@ async def get_habit_recommendations(
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get recommendations for user %s", current_user.id)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve recommendations"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve recommendations",
         ) from None
 
 
@@ -281,16 +334,24 @@ async def get_habit_details(
     settings = get_settings()
 
     if not settings.habits_framework.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habits framework is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Habits framework is not enabled",
+        )
 
     try:
         progression_service = HabitProgressionService()
-        habit_details = progression_service.habits_framework.get_habit_details(f"habit_{habit_number}")
+        habit_details = progression_service.habits_framework.get_habit_details(
+            f"habit_{habit_number}"
+        )
 
         return {"habit_id": f"habit_{habit_number}", **habit_details}
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
-        logger.exception("Failed to get habit details for habit %s: %s", habit_number, e)
+        logger.exception(
+            "Failed to get habit details for habit %s: %s", habit_number, e
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve habit details"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve habit details",
         ) from None

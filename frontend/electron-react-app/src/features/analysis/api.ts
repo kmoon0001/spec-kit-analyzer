@@ -1,4 +1,4 @@
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from "../../lib/api/client";
 
 export type AnalysisStartResponse = {
   task_id: string;
@@ -6,7 +6,7 @@ export type AnalysisStartResponse = {
 };
 
 export type AnalysisStatus = {
-  status: 'processing' | 'analyzing' | 'completed' | 'failed';
+  status: "processing" | "analyzing" | "completed" | "failed";
   status_message?: string;
   progress?: number;
   filename?: string;
@@ -51,31 +51,43 @@ export type Rubric = {
   value: number;
 };
 
-export const analyzeDocument = async (
-  payload: { file: File; discipline: string; analysisMode: string; strictness: 'ultra_fast' | 'balanced' | 'thorough' | 'clinical_grade'; rubric?: string },
-): Promise<AnalysisStartResponse> => {
+export const analyzeDocument = async (payload: {
+  file: File;
+  discipline: string;
+  analysisMode: string;
+  strictness: "ultra_fast" | "balanced" | "thorough" | "clinical_grade";
+  rubric?: string;
+}): Promise<AnalysisStartResponse> => {
   const formData = new FormData();
-  formData.append('file', payload.file);
-  formData.append('discipline', payload.discipline);
-  formData.append('analysis_mode', payload.analysisMode);
-  formData.append('strictness', payload.strictness);
+  formData.append("file", payload.file);
+  formData.append("discipline", payload.discipline);
+  formData.append("analysis_mode", payload.analysisMode);
+  formData.append("strictness", payload.strictness);
   if (payload.rubric) {
-    formData.append('rubric', payload.rubric);
+    formData.append("rubric", payload.rubric);
   }
 
-  const { data } = await apiClient.post<AnalysisStartResponse>('/analysis/analyze', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const { data } = await apiClient.post<AnalysisStartResponse>(
+    "/analysis/analyze",
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 };
 
-export const fetchAnalysisStatus = async (taskId: string): Promise<AnalysisStatus> => {
-  const { data } = await apiClient.get<AnalysisStatus>(`/analysis/status/${taskId}`);
+export const fetchAnalysisStatus = async (
+  taskId: string,
+): Promise<AnalysisStatus> => {
+  const { data } = await apiClient.get<AnalysisStatus>(
+    `/analysis/status/${taskId}`,
+  );
   return data;
 };
 
 export const fetchRubrics = async (): Promise<Rubric[]> => {
-  const { data } = await apiClient.get<{ rubrics: Rubric[] }>('/rubrics');
+  const { data } = await apiClient.get<{ rubrics: Rubric[] }>("/rubrics");
   return data.rubrics;
 };
 
@@ -92,8 +104,12 @@ export type StrictnessLevel = {
   description: string;
 };
 
-export const fetchStrictnessLevels = async (): Promise<Record<string, StrictnessLevel>> => {
-  const { data } = await apiClient.get<Record<string, StrictnessLevel>>('/api/strictness/levels');
+export const fetchStrictnessLevels = async (): Promise<
+  Record<string, StrictnessLevel>
+> => {
+  const { data } = await apiClient.get<Record<string, StrictnessLevel>>(
+    "/api/strictness/levels",
+  );
   return data;
 };
 
@@ -103,16 +119,20 @@ export const getCurrentStrictnessLevel = async (): Promise<{
   performance_metrics: Record<string, unknown>;
   success: boolean;
 }> => {
-  const { data } = await apiClient.get('/api/strictness/current');
+  const { data } = await apiClient.get("/api/strictness/current");
   return data;
 };
 
-export const setStrictnessLevel = async (levelName: string): Promise<{
+export const setStrictnessLevel = async (
+  levelName: string,
+): Promise<{
   current_level: string;
   level_config: StrictnessLevel;
   performance_metrics: Record<string, unknown>;
   success: boolean;
 }> => {
-  const { data } = await apiClient.post('/api/strictness/set', { level_name: levelName });
+  const { data } = await apiClient.post("/api/strictness/set", {
+    level_name: levelName,
+  });
   return data;
 };

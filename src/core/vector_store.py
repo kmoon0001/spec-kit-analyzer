@@ -65,7 +65,10 @@ class VectorStore:
                 self.index = faiss.IndexFlatL2(self.embedding_dim)
                 self.index = faiss.IndexIDMap(self.index)
                 self.is_initialized = True
-                logger.info("FAISS index initialized with embedding dimension: %s", self.embedding_dim)
+                logger.info(
+                    "FAISS index initialized with embedding dimension: %s",
+                    self.embedding_dim,
+                )
             except Exception as exc:  # pragma: no cover - defensive
                 logger.exception("Failed to initialize FAISS index: %s", exc)
                 self.is_initialized = False
@@ -99,23 +102,35 @@ class VectorStore:
             if _FAISS_AVAILABLE and self.index is not None:
                 self.index.add_with_ids(vectors.astype("float32"), np.array(ids))
                 self.report_ids.extend(ids)
-                logger.info("Added %s new vectors to the index. Total vectors: %s", len(ids), self._total_vectors())
+                logger.info(
+                    "Added %s new vectors to the index. Total vectors: %s",
+                    len(ids),
+                    self._total_vectors(),
+                )
             else:
                 for vec, vec_id in zip(vectors, ids, strict=False):
                     self._fallback_vectors.append(vec.astype("float32"))
                     self._fallback_ids.append(int(vec_id))
                 self.report_ids.extend(ids)
-                logger.info("Added %s vectors to fallback store. Total vectors: %s", len(ids), self._total_vectors())
+                logger.info(
+                    "Added %s vectors to fallback store. Total vectors: %s",
+                    len(ids),
+                    self._total_vectors(),
+                )
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as exc:
             logger.exception("Failed to add vectors to vector store: %s", exc)
 
-    def search(self, query_vector: np.ndarray, k: int, threshold: float = 0.9) -> list[tuple[int, float]]:
+    def search(
+        self, query_vector: np.ndarray, k: int, threshold: float = 0.9
+    ) -> list[tuple[int, float]]:
         """Searches the index for similar vectors.
 
         Returns a list of (id, similarity) pairs with similarity in [0,1].
         """
         if not self.is_initialized or self._total_vectors() == 0:
-            logger.warning("Cannot search: vector store is not initialized or is empty.")
+            logger.warning(
+                "Cannot search: vector store is not initialized or is empty."
+            )
             return []
 
         try:

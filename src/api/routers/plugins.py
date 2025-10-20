@@ -4,22 +4,22 @@ Provides REST API endpoints for managing plugins including discovery,
 loading, configuration, and status monitoring.
 """
 
+import datetime
 import json
 import logging
+import uuid
 from dataclasses import asdict
-import datetime
 from typing import Any
 
 import requests
-import uuid
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from src.auth import get_current_user
-from ...config import get_settings
 from src.core.plugin_system import PluginConfig, plugin_manager
 from src.database.models import User
+
+from ...config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,9 @@ def _ensure_admin_or_test(current_user: User) -> None:
 
 def _build_discovery_payload() -> "PluginDiscoveryResponse":
     discovered_plugins = plugin_manager.discover_plugins()
-    plugins_data = [_metadata_to_dict(metadata) or {} for metadata in discovered_plugins]
+    plugins_data = [
+        _metadata_to_dict(metadata) or {} for metadata in discovered_plugins
+    ]
     return PluginDiscoveryResponse(
         total_discovered=len(plugins_data),
         discovered_plugins=plugins_data,
@@ -86,8 +88,12 @@ class PluginConfigRequest(BaseModel):
     """Plugin configuration request."""
 
     enabled: bool = Field(default=True, description="Whether the plugin is enabled")
-    settings: dict[str, Any] = Field(default_factory=dict, description="Plugin-specific settings")
-    priority: int = Field(default=100, description="Plugin priority (lower = higher priority)")
+    settings: dict[str, Any] = Field(
+        default_factory=dict, description="Plugin-specific settings"
+    )
+    priority: int = Field(
+        default=100, description="Plugin priority (lower = higher priority)"
+    )
     auto_load: bool = Field(default=True, description="Whether to auto-load on startup")
 
 
@@ -120,7 +126,9 @@ class PluginBatchRequest(BaseModel):
 
 
 @router.get("/discover")
-async def discover_plugins(current_user: User = Depends(get_current_user)) -> PluginDiscoveryResponse:
+async def discover_plugins(
+    current_user: User = Depends(get_current_user),
+) -> PluginDiscoveryResponse:
     """Discover available plugins in the configured directories."""
     try:
         logger.info("User %s requested plugin discovery", current_user.username)
@@ -128,31 +136,40 @@ async def discover_plugins(current_user: User = Depends(get_current_user)) -> Pl
     except (FileNotFoundError, PermissionError, OSError) as e:
         logger.exception("Plugin discovery failed: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Plugin discovery failed: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Plugin discovery failed: {e!s}",
         ) from e
 
 
 @router.post("/discover")
-async def discover_plugins_post(current_user: User = Depends(get_current_user)) -> PluginDiscoveryResponse:
+async def discover_plugins_post(
+    current_user: User = Depends(get_current_user),
+) -> PluginDiscoveryResponse:
     """POST variant maintained for legacy clients expecting a form submission."""
     return await discover_plugins(current_user)
 
 
 @router.get("/")
-async def list_plugins(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def list_plugins(
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """List all plugins with their current status."""
     return {}
 
 
 @router.get("/extension-points")
-async def list_extension_points(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def list_extension_points(
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """List all available extension points and their handlers."""
     try:
         logger.info("User %s requested extension points list", current_user.username)
 
         extension_points = []
         for point_name, handlers in plugin_manager.extension_points.items():
-            modules = {getattr(handler, "__module__", "unknown") for handler in handlers}
+            modules = {
+                getattr(handler, "__module__", "unknown") for handler in handlers
+            }
             extension_points.append(
                 {
                     "name": point_name,
@@ -169,7 +186,8 @@ async def list_extension_points(current_user: User = Depends(get_current_user)) 
 
     except requests.RequestException as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to list extension points: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list extension points: {e!s}",
         ) from e
 
 
@@ -183,7 +201,8 @@ async def batch_load_plugins(
     operation = request.operation.lower().strip()
     if operation not in {"load_all_available", "reload_all"}:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported batch operation: {request.operation}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported batch operation: {request.operation}",
         )
 
     task_id = uuid.uuid4().hex
@@ -200,7 +219,8 @@ async def batch_load_plugins(
             "error": str(e),
         }
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to execute batch operation: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to execute batch operation: {e!s}",
         ) from e
 
     plugin_batch_tasks[task_id] = {
@@ -215,25 +235,38 @@ async def batch_load_plugins(
 
 
 @router.get("/batch/status/{task_id}")
-async def get_batch_status(task_id: str, current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def get_batch_status(
+    task_id: str, current_user: User = Depends(get_current_user)
+) -> dict[str, Any]:
     """Retrieve the status of a batch plugin operation."""
     _ensure_admin_or_test(current_user)
 
     task = plugin_batch_tasks.get(task_id)
     if task is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Batch task not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Batch task not found"
+        )
     return task
 
 
 @router.get("/{plugin_name}")
-async def get_plugin_status(plugin_name: str, current_user: User = Depends(get_current_user)) -> PluginStatusResponse:
+async def get_plugin_status(
+    plugin_name: str, current_user: User = Depends(get_current_user)
+) -> PluginStatusResponse:
     """Get detailed status information for a specific plugin."""
     try:
-        logger.info("User %s requested status for plugin: %s", current_user.username, plugin_name)
+        logger.info(
+            "User %s requested status for plugin: %s",
+            current_user.username,
+            plugin_name,
+        )
         status_info = plugin_manager.get_plugin_status(plugin_name)
 
         if not status_info["discovered"]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Plugin '{plugin_name}' not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Plugin '{plugin_name}' not found",
+            )
 
         payload = _status_to_dict(status_info)
         return PluginStatusResponse(**payload)
@@ -243,7 +276,8 @@ async def get_plugin_status(plugin_name: str, current_user: User = Depends(get_c
     except Exception as e:
         logger.exception("Failed to get plugin status for %s: %s", plugin_name, e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get plugin status: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get plugin status: {e!s}",
         ) from e
 
 
@@ -257,17 +291,24 @@ async def get_plugin_status_legacy(
 
 @router.post("/{plugin_name}/load")
 async def load_plugin(
-    plugin_name: str, config: PluginConfigRequest | None = None, current_user: User = Depends(get_current_user)
+    plugin_name: str,
+    config: PluginConfigRequest | None = None,
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Load a specific plugin with optional configuration."""
     _ensure_admin_or_test(current_user)
 
     try:
-        logger.info("User %s requested to load plugin: %s", current_user.username, plugin_name)
+        logger.info(
+            "User %s requested to load plugin: %s", current_user.username, plugin_name
+        )
 
         status_info = plugin_manager.get_plugin_status(plugin_name)
         if not status_info["discovered"]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Plugin '{plugin_name}' not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Plugin '{plugin_name}' not found",
+            )
 
         plugin_config = None
         if config is not None:
@@ -282,49 +323,68 @@ async def load_plugin(
         success = plugin_manager.load_plugin(plugin_name, plugin_config)
 
         if success:
-            updated_status = _status_to_dict(plugin_manager.get_plugin_status(plugin_name))
+            updated_status = _status_to_dict(
+                plugin_manager.get_plugin_status(plugin_name)
+            )
             return {
                 "success": True,
                 "message": f"Plugin '{plugin_name}' loaded successfully",
                 "plugin": updated_status,
             }
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to load plugin '{plugin_name}'")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to load plugin '{plugin_name}'",
+        )
 
     except HTTPException:
         raise
     except requests.RequestException as e:
         logger.exception("Failed to load plugin %s: %s", plugin_name, e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to load plugin: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load plugin: {e!s}",
         ) from e
 
 
 @router.post("/{plugin_name}/unload")
-async def unload_plugin(plugin_name: str, current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def unload_plugin(
+    plugin_name: str, current_user: User = Depends(get_current_user)
+) -> dict[str, Any]:
     """Unload a specific plugin."""
     _ensure_admin_or_test(current_user)
 
     try:
-        logger.info("User %s requested to unload plugin: %s", current_user.username, plugin_name)
+        logger.info(
+            "User %s requested to unload plugin: %s", current_user.username, plugin_name
+        )
         status_info = plugin_manager.get_plugin_status(plugin_name)
         if not status_info["discovered"]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Plugin '{plugin_name}' not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Plugin '{plugin_name}' not found",
+            )
 
         success = plugin_manager.unload_plugin(plugin_name)
 
         if success:
-            updated_status = _status_to_dict(plugin_manager.get_plugin_status(plugin_name))
+            updated_status = _status_to_dict(
+                plugin_manager.get_plugin_status(plugin_name)
+            )
             return {
                 "success": True,
                 "message": f"Plugin '{plugin_name}' unloaded successfully",
                 "plugin": updated_status,
             }
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to unload plugin '{plugin_name}'")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to unload plugin '{plugin_name}'",
+        )
 
     except requests.RequestException as e:
         logger.exception("Failed to unload plugin %s: %s", plugin_name, e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to unload plugin: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to unload plugin: {e!s}",
         ) from e
 
 
@@ -348,7 +408,7 @@ async def load_all_plugins(
         logger.exception("Failed to start plugin loading: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start plugin loading: {e!s}"
+            detail=f"Failed to start plugin loading: {e!s}",
         ) from e
 
 
@@ -367,4 +427,8 @@ async def _load_all_plugins_background():
     successful_loads = sum(1 for success in results.values() if success)
     total_plugins = len(results)
 
-    logger.info("Background plugin loading complete: %s/%s successful", successful_loads, total_plugins)
+    logger.info(
+        "Background plugin loading complete: %s/%s successful",
+        successful_loads,
+        total_plugins,
+    )

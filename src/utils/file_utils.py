@@ -19,7 +19,9 @@ def clear_temp_uploads(temp_dir: str):
 
     """
     if not os.path.exists(temp_dir):
-        logger.warning("Temporary directory does not exist. Skipping cleanup.", path=temp_dir)
+        logger.warning(
+            "Temporary directory does not exist. Skipping cleanup.", path=temp_dir
+        )
         return
 
     if not os.path.isdir(temp_dir):
@@ -36,4 +38,6 @@ def clear_temp_uploads(temp_dir: str):
                 shutil.rmtree(file_path)
             logger.info("Successfully removed temporary file/directory", path=file_path)
         except (OSError, PermissionError) as e:
-            logger.exception("Failed to delete temporary file", path=file_path, error=str(e))
+            logger.exception(
+                "Failed to delete temporary file", path=file_path, error=str(e)
+            )

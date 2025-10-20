@@ -1,5 +1,5 @@
-import React from 'react';
-import styles from './NEREntityDisplay.module.css';
+import React from "react";
+import styles from "./NEREntityDisplay.module.css";
 
 interface NEREntity {
   text: string;
@@ -25,18 +25,18 @@ export const NEREntityDisplay: React.FC<NEREntityDisplayProps> = ({
 }) => {
   const getEntityColor = (label: string) => {
     const colorMap: Record<string, string> = {
-      'PERSON': '#007acc',
-      'CONDITION': '#dc3545',
-      'MEDICATION': '#28a745',
-      'PROCEDURE': '#ffc107',
-      'ANATOMY': '#17a2b8',
-      'SYMPTOM': '#e83e8c',
-      'TREATMENT': '#6f42c1',
-      'DEVICE': '#fd7e14',
-      'DOSAGE': '#20c997',
-      'FREQUENCY': '#6610f2',
+      PERSON: "#007acc",
+      CONDITION: "#dc3545",
+      MEDICATION: "#28a745",
+      PROCEDURE: "#ffc107",
+      ANATOMY: "#17a2b8",
+      SYMPTOM: "#e83e8c",
+      TREATMENT: "#6f42c1",
+      DEVICE: "#fd7e14",
+      DOSAGE: "#20c997",
+      FREQUENCY: "#6610f2",
     };
-    return colorMap[label] || '#6c757d';
+    return colorMap[label] || "#6c757d";
   };
 
   const renderHighlightedText = () => {
@@ -56,7 +56,7 @@ export const NEREntityDisplay: React.FC<NEREntityDisplayProps> = ({
         parts.push(
           <span key={`text-${index}`}>
             {originalText.slice(lastIndex, entity.start)}
-          </span>
+          </span>,
         );
       }
 
@@ -65,11 +65,11 @@ export const NEREntityDisplay: React.FC<NEREntityDisplayProps> = ({
         <span
           key={`entity-${index}`}
           className={styles.highlightedEntity}
-          style={{ backgroundColor: getEntityColor(entity.label) + '20' }}
+          style={{ backgroundColor: getEntityColor(entity.label) + "20" }}
           title={`${entity.label} (${Math.round(entity.confidence * 100)}%)`}
         >
           {entity.text}
-        </span>
+        </span>,
       );
 
       lastIndex = entity.end;
@@ -77,30 +77,31 @@ export const NEREntityDisplay: React.FC<NEREntityDisplayProps> = ({
 
     // Add remaining text
     if (lastIndex < originalText.length) {
-      parts.push(
-        <span key="text-end">
-          {originalText.slice(lastIndex)}
-        </span>
-      );
+      parts.push(<span key="text-end">{originalText.slice(lastIndex)}</span>);
     }
 
     return <div className={styles.highlightedText}>{parts}</div>;
   };
 
-  const groupedEntities = entities.reduce((groups, entity) => {
-    const key = entity.label;
-    if (!groups[key]) {
-      groups[key] = [];
-    }
-    groups[key].push(entity);
-    return groups;
-  }, {} as Record<string, NEREntity[]>);
+  const groupedEntities = entities.reduce(
+    (groups, entity) => {
+      const key = entity.label;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(entity);
+      return groups;
+    },
+    {} as Record<string, NEREntity[]>,
+  );
 
   return (
     <div className={styles.container}>
       {highlightInText && (
         <div className={styles.textSection}>
-          <h4 className={styles.sectionTitle}>📝 Text with Highlighted Entities</h4>
+          <h4 className={styles.sectionTitle}>
+            📝 Text with Highlighted Entities
+          </h4>
           {renderHighlightedText()}
         </div>
       )}
@@ -123,7 +124,9 @@ export const NEREntityDisplay: React.FC<NEREntityDisplayProps> = ({
                   style={{ borderLeftColor: getEntityColor(label) }}
                 >
                   <span className={styles.groupLabel}>{label}</span>
-                  <span className={styles.groupCount}>({entityList.length})</span>
+                  <span className={styles.groupCount}>
+                    ({entityList.length})
+                  </span>
                 </div>
 
                 <div className={styles.entityList}>

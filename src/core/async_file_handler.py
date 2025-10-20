@@ -53,7 +53,9 @@ class AsyncFileHandler:
                 return None
 
             # Read file asynchronously
-            async with aiofiles.open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            async with aiofiles.open(
+                file_path, "r", encoding="utf-8", errors="ignore"
+            ) as f:
                 content = await f.read()
 
             logger.info("Successfully read document: %s", file_path.name)
@@ -93,7 +95,9 @@ class AsyncFileHandler:
         """
         if not aiofiles:
             # Fallback to sync writing if aiofiles not available
-            return await asyncio.to_thread(self._write_report_sync, report_path, content)
+            return await asyncio.to_thread(
+                self._write_report_sync, report_path, content
+            )
 
         try:
             # Ensure directory exists
@@ -151,7 +155,9 @@ class AsyncFileHandler:
 
                     config = yaml.safe_load(content)
                 except ImportError:
-                    logger.warning("YAML support not available, skipping %s", config_path)
+                    logger.warning(
+                        "YAML support not available, skipping %s", config_path
+                    )
                     return None
             else:
                 logger.warning("Unsupported config format: %s", config_path.suffix)
@@ -176,7 +182,9 @@ class AsyncFileHandler:
                 try:
                     config = yaml.safe_load(content)
                 except ImportError:
-                    logger.warning("YAML support not available, skipping %s", config_path)
+                    logger.warning(
+                        "YAML support not available, skipping %s", config_path
+                    )
                     return None
             else:
                 logger.warning("Unsupported config format: %s", config_path.suffix)
@@ -189,7 +197,9 @@ class AsyncFileHandler:
             logger.exception("Failed to read config %s: %s", config_path, e)
             return None
 
-    async def batch_read_documents(self, file_paths: list[Path], progress_callback=None) -> dict[Path, str | None]:
+    async def batch_read_documents(
+        self, file_paths: list[Path], progress_callback=None
+    ) -> dict[Path, str | None]:
         """Asynchronously read multiple documents with progress reporting.
 
         Args:
@@ -218,10 +228,15 @@ class AsyncFileHandler:
                     # Report progress
                     if progress_callback:
                         progress = ((index + 1) / total_files) * 100
-                        await asyncio.to_thread(progress_callback, progress, f"Read {file_path.name}")
+                        await asyncio.to_thread(
+                            progress_callback, progress, f"Read {file_path.name}"
+                        )
 
             # Create tasks for all files
-            tasks = [read_with_semaphore(file_path, i) for i, file_path in enumerate(file_paths)]
+            tasks = [
+                read_with_semaphore(file_path, i)
+                for i, file_path in enumerate(file_paths)
+            ]
 
             # Execute all tasks concurrently
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -233,7 +248,9 @@ class AsyncFileHandler:
             logger.exception("Batch document reading failed: %s", e)
             return results
 
-    async def cleanup_temp_files_async(self, temp_dir: Path, max_age_hours: int = 24) -> int:
+    async def cleanup_temp_files_async(
+        self, temp_dir: Path, max_age_hours: int = 24
+    ) -> int:
         """Asynchronously clean up old temporary files.
 
         Args:

@@ -12,9 +12,11 @@ from typing import Any, Optional
 import numpy as np
 import psutil
 
+
 @dataclass
 class PerformanceMetrics:
     """Performance metrics data class."""
+
     cpu_usage: float = 0.0
     memory_usage: float = 0.0
     memory_usage_mb: float = 0.0
@@ -58,13 +60,17 @@ try:
                 cache_hit_rate=0.75,
                 response_time=150.0,
                 avg_response_time_ms=150.0,
-                bottlenecks=["hit rate", "memory usage"]
+                bottlenecks=["hit rate", "memory usage"],
             )
 
         async def optimize_performance(self, aggressive=False, target_improvement=None):
             self.optimization_in_progress = True
             self.optimization_count += 1
-            return {"status": "completed", "aggressive": aggressive, "target_improvement": target_improvement}
+            return {
+                "status": "completed",
+                "aggressive": aggressive,
+                "target_improvement": target_improvement,
+            }
 
         def _identify_bottlenecks(self, cache_stats):
             # Return mock bottlenecks for testing
@@ -72,7 +78,11 @@ try:
 
         def _generate_optimization_recommendations(self, cache_stats, bottlenecks):
             # Return mock recommendations for testing
-            return ["Base recommendation", "increase_cache_size", "optimize_memory_allocation"]
+            return [
+                "Base recommendation",
+                "increase_cache_size",
+                "optimize_memory_allocation",
+            ]
 
         async def _optimize_memory_usage(self, aggressive=False):
             return {"status": "optimized", "aggressive": aggressive}
@@ -85,11 +95,12 @@ try:
                 "status": "active",
                 "optimization_in_progress": self.optimization_in_progress,
                 "optimization_count": self.optimization_count,
-                "last_optimization": datetime.now().isoformat()
+                "last_optimization": datetime.now().isoformat(),
             }
 
     class MockAdvancedCache:
         """Mock advanced cache for testing compatibility."""
+
         def __init__(self):
             self.cache_warming = MockCacheWarming()
 
@@ -98,11 +109,12 @@ try:
                 "hit_rate": 0.85,
                 "miss_rate": 0.15,
                 "memory_usage_mb": 500.0,
-                "total_requests": 1000
+                "total_requests": 1000,
             }
 
     class MockCacheWarming:
         """Mock cache warming for testing compatibility."""
+
         def __init__(self):
             self.status = "idle"
 
@@ -121,14 +133,16 @@ except ImportError:
 # Global performance optimizer instance
 performance_optimizer = _performance_optimizer
 
+
 def get_cache_stats():
     """Get cache statistics for testing compatibility."""
     return {
         "memory_usage_mb": 500.0,
         "hit_rate": 0.85,
         "miss_rate": 0.15,
-        "total_requests": 1000
+        "total_requests": 1000,
     }
+
 
 try:
     from src.core.advanced_cache_service import AdvancedCacheService
@@ -212,7 +226,9 @@ class AdvancedPerformanceOptimizer:
 
         try:
             # Collect comprehensive metrics
-            current_metrics = await self.resource_monitor.collect_comprehensive_metrics()
+            current_metrics = (
+                await self.resource_monitor.collect_comprehensive_metrics()
+            )
             self.performance_history.append(current_metrics)
 
             # Keep only last 1000 metrics (about 16 hours at 1-minute intervals)
@@ -220,26 +236,37 @@ class AdvancedPerformanceOptimizer:
                 self.performance_history = self.performance_history[-1000:]
 
             # AI-powered performance analysis
-            ai_insights = await self.ai_optimizer.analyze_performance_patterns(self.performance_history)
+            ai_insights = await self.ai_optimizer.analyze_performance_patterns(
+                self.performance_history
+            )
 
             # Generate optimization recommendations
-            optimization_plan = await self.ai_optimizer.generate_optimization_plan(current_metrics, ai_insights)
+            optimization_plan = await self.ai_optimizer.generate_optimization_plan(
+                current_metrics, ai_insights
+            )
 
             # Predict future performance issues
-            predictions = await self.ai_optimizer.predict_performance_issues(self.performance_history)
+            predictions = await self.ai_optimizer.predict_performance_issues(
+                self.performance_history
+            )
 
             analysis_result = {
                 "current_metrics": current_metrics,
                 "ai_insights": ai_insights,
                 "optimization_plan": optimization_plan,
                 "predictions": predictions,
-                "system_health_score": self._calculate_system_health_score(current_metrics),
+                "system_health_score": self._calculate_system_health_score(
+                    current_metrics
+                ),
                 "bottleneck_analysis": await self._analyze_bottlenecks(current_metrics),
                 "optimization_opportunities": await self._identify_optimization_opportunities(),
                 "timestamp": datetime.now().isoformat(),
             }
 
-            logger.info("Advanced analysis complete - Health Score: %.1f/100", analysis_result["system_health_score"])
+            logger.info(
+                "Advanced analysis complete - Health Score: %.1f/100",
+                analysis_result["system_health_score"],
+            )
             return analysis_result
 
         except Exception as e:
@@ -250,7 +277,9 @@ class AdvancedPerformanceOptimizer:
         self, aggressive: bool = False, target_improvement: float = 30.0
     ) -> dict[str, Any]:
         """Execute AI-driven intelligent optimization with advanced techniques."""
-        logger.info("Starting intelligent optimization (target: %.1f%%)", target_improvement)
+        logger.info(
+            "Starting intelligent optimization (target: %.1f%%)", target_improvement
+        )
 
         start_time = time.time()
         optimization_results: dict[str, Any] = {
@@ -275,20 +304,30 @@ class AdvancedPerformanceOptimizer:
             # Phase 2: Parallel Processing Optimization
             logger.info("Phase 2: Parallel processing optimization")
             try:
-                parallel_results = await self.parallel_processor.optimize_parallel_processing()
-                optimization_results["optimizations_applied"].append("parallel_processing")
+                parallel_results = (
+                    await self.parallel_processor.optimize_parallel_processing()
+                )
+                optimization_results["optimizations_applied"].append(
+                    "parallel_processing"
+                )
                 optimization_results["parallel_optimization"] = parallel_results
             except Exception as e:
-                optimization_results["errors"].append(f"Parallel optimization failed: {e!s}")
+                optimization_results["errors"].append(
+                    f"Parallel optimization failed: {e!s}"
+                )
 
             # Phase 3: Advanced Memory Optimization
             logger.info("Phase 3: Advanced memory optimization")
             try:
-                memory_results = await self.memory_optimizer.optimize_memory_advanced(aggressive)
+                memory_results = await self.memory_optimizer.optimize_memory_advanced(
+                    aggressive
+                )
                 optimization_results["optimizations_applied"].append("advanced_memory")
                 optimization_results["memory_optimization"] = memory_results
             except Exception as e:
-                optimization_results["errors"].append(f"Memory optimization failed: {e!s}")
+                optimization_results["errors"].append(
+                    f"Memory optimization failed: {e!s}"
+                )
 
             # Phase 4: AI Model Optimization
             logger.info("Phase 4: AI model optimization")
@@ -297,7 +336,9 @@ class AdvancedPerformanceOptimizer:
                 optimization_results["optimizations_applied"].append("ai_models")
                 optimization_results["model_optimization"] = model_results
             except Exception as e:
-                optimization_results["errors"].append(f"AI model optimization failed: {e!s}")
+                optimization_results["errors"].append(
+                    f"AI model optimization failed: {e!s}"
+                )
 
             # Phase 5: System-Level Optimizations
             if aggressive:
@@ -307,7 +348,9 @@ class AdvancedPerformanceOptimizer:
                     optimization_results["optimizations_applied"].append("system_level")
                     optimization_results["system_optimization"] = system_results
                 except Exception as e:
-                    optimization_results["errors"].append(f"System optimization failed: {e!s}")
+                    optimization_results["errors"].append(
+                        f"System optimization failed: {e!s}"
+                    )
 
             # Phase 6: Performance Validation
             logger.info("Phase 6: Performance validation")
@@ -319,18 +362,24 @@ class AdvancedPerformanceOptimizer:
 
             # Calculate improvements
             if baseline_metrics and final_metrics:
-                improvements = self._calculate_advanced_improvements(baseline_metrics, final_metrics)
+                improvements = self._calculate_advanced_improvements(
+                    baseline_metrics, final_metrics
+                )
                 optimization_results["performance_improvements"] = improvements
 
                 total_improvement = improvements.get("overall_improvement_percent", 0.0)
                 optimization_results["total_improvement_percent"] = total_improvement
-                optimization_results["target_achieved"] = total_improvement >= target_improvement
+                optimization_results["target_achieved"] = (
+                    total_improvement >= target_improvement
+                )
 
             # Store optimization history
             optimization_record = {
                 "timestamp": datetime.now().isoformat(),
                 "duration_seconds": time.time() - start_time,
-                "improvements": optimization_results.get("performance_improvements", {}),
+                "improvements": optimization_results.get(
+                    "performance_improvements", {}
+                ),
                 "optimizations_applied": optimization_results["optimizations_applied"],
                 "aggressive_mode": aggressive,
                 "target_improvement": target_improvement,
@@ -348,7 +397,9 @@ class AdvancedPerformanceOptimizer:
                 }
             )
 
-            logger.info("Intelligent optimization completed in %ss", time.time() - start_time)
+            logger.info(
+                "Intelligent optimization completed in %ss", time.time() - start_time
+            )
             return optimization_results
 
         except Exception as e:
@@ -391,7 +442,8 @@ class AdvancedPerformanceOptimizer:
             results["inference_speed_improvement"] += 8.0
 
             logger.info(
-                "AI model optimization completed - %s optimizations applied", len(results["optimizations_applied"])
+                "AI model optimization completed - %s optimizations applied",
+                len(results["optimizations_applied"]),
             )
 
         except Exception as e:
@@ -434,10 +486,13 @@ class AdvancedPerformanceOptimizer:
                 # Enable memory compression if available
                 results["optimizations_applied"].append("memory_management")
             except Exception as e:
-                results["warnings"].append(f"Memory management optimization failed: {e}")
+                results["warnings"].append(
+                    f"Memory management optimization failed: {e}"
+                )
 
             logger.info(
-                "System-level optimization completed - %s optimizations applied", len(results["optimizations_applied"])
+                "System-level optimization completed - %s optimizations applied",
+                len(results["optimizations_applied"]),
             )
 
         except Exception as e:
@@ -469,7 +524,9 @@ class AdvancedPerformanceOptimizer:
             # Temperature score
             temp_score: float = 100.0
             if metrics.temperature_celsius:
-                temp_score = max(0.0, 100.0 - max(0.0, metrics.temperature_celsius - 40) * 2)
+                temp_score = max(
+                    0.0, 100.0 - max(0.0, metrics.temperature_celsius - 40) * 2
+                )
 
             # GPU score
             gpu_score: float = 100.0
@@ -491,7 +548,9 @@ class AdvancedPerformanceOptimizer:
             logger.exception("Error calculating system health score: %s", e)
             return 50.0  # Default neutral score
 
-    async def _analyze_bottlenecks(self, metrics: SystemResourceMetrics) -> list[dict[str, Any]]:
+    async def _analyze_bottlenecks(
+        self, metrics: SystemResourceMetrics
+    ) -> list[dict[str, Any]]:
         """Analyze system bottlenecks and provide specific recommendations."""
         bottlenecks = []
 
@@ -543,7 +602,11 @@ class AdvancedPerformanceOptimizer:
                 )
 
             # Temperature bottleneck analysis
-            if metrics.temperature_celsius and metrics.temperature_celsius > self.thresholds["temperature_critical"]:
+            if (
+                metrics.temperature_celsius
+                and metrics.temperature_celsius
+                > self.thresholds["temperature_critical"]
+            ):
                 bottlenecks.append(
                     {
                         "type": "temperature",
@@ -615,7 +678,9 @@ class AdvancedPerformanceOptimizer:
                     recent_optimizations = self.optimization_history[-3:]
                     avg_improvement = np.mean(
                         [
-                            opt.get("improvements", {}).get("overall_improvement_percent", 0)
+                            opt.get("improvements", {}).get(
+                                "overall_improvement_percent", 0
+                            )
                             for opt in recent_optimizations
                         ]
                     )
@@ -646,14 +711,18 @@ class AdvancedPerformanceOptimizer:
             # CPU improvement (lower is better)
             if baseline.cpu_usage_percent > 0:
                 cpu_improvement = (
-                    (baseline.cpu_usage_percent - final.cpu_usage_percent) / baseline.cpu_usage_percent * 100
+                    (baseline.cpu_usage_percent - final.cpu_usage_percent)
+                    / baseline.cpu_usage_percent
+                    * 100
                 )
                 improvements["cpu_improvement_percent"] = cpu_improvement
 
             # Memory improvement (lower is better)
             if baseline.memory_usage_percent > 0:
                 memory_improvement = (
-                    (baseline.memory_usage_percent - final.memory_usage_percent) / baseline.memory_usage_percent * 100
+                    (baseline.memory_usage_percent - final.memory_usage_percent)
+                    / baseline.memory_usage_percent
+                    * 100
                 )
                 improvements["memory_improvement_percent"] = memory_improvement
 
@@ -661,13 +730,17 @@ class AdvancedPerformanceOptimizer:
             baseline_disk_io = baseline.disk_io_read_mb_s + baseline.disk_io_write_mb_s
             final_disk_io = final.disk_io_read_mb_s + final.disk_io_write_mb_s
             if baseline_disk_io > 0:
-                disk_improvement = (baseline_disk_io - final_disk_io) / baseline_disk_io * 100
+                disk_improvement = (
+                    (baseline_disk_io - final_disk_io) / baseline_disk_io * 100
+                )
                 improvements["disk_io_improvement_percent"] = disk_improvement
 
             # Temperature improvement (lower is better)
             if baseline.temperature_celsius and final.temperature_celsius:
                 temp_improvement = (
-                    (baseline.temperature_celsius - final.temperature_celsius) / baseline.temperature_celsius * 100
+                    (baseline.temperature_celsius - final.temperature_celsius)
+                    / baseline.temperature_celsius
+                    * 100
                 )
                 improvements["temperature_improvement_percent"] = temp_improvement
 
@@ -675,17 +748,28 @@ class AdvancedPerformanceOptimizer:
             baseline_health = self._calculate_system_health_score(baseline)
             final_health = self._calculate_system_health_score(final)
             if baseline_health > 0:
-                health_improvement = (final_health - baseline_health) / baseline_health * 100
+                health_improvement = (
+                    (final_health - baseline_health) / baseline_health * 100
+                )
                 improvements["system_health_improvement_percent"] = health_improvement
 
             # Weighted overall improvement
-            weights = {"cpu": 0.3, "memory": 0.3, "disk_io": 0.2, "temperature": 0.1, "health": 0.1}
+            weights = {
+                "cpu": 0.3,
+                "memory": 0.3,
+                "disk_io": 0.2,
+                "temperature": 0.1,
+                "health": 0.1,
+            }
             overall_improvement = (
                 improvements.get("cpu_improvement_percent", 0) * weights["cpu"]
                 + improvements.get("memory_improvement_percent", 0) * weights["memory"]
-                + improvements.get("disk_io_improvement_percent", 0) * weights["disk_io"]
-                + improvements.get("temperature_improvement_percent", 0) * weights["temperature"]
-                + improvements.get("system_health_improvement_percent", 0) * weights["health"]
+                + improvements.get("disk_io_improvement_percent", 0)
+                * weights["disk_io"]
+                + improvements.get("temperature_improvement_percent", 0)
+                * weights["temperature"]
+                + improvements.get("system_health_improvement_percent", 0)
+                * weights["health"]
             )
             improvements["overall_improvement_percent"] = overall_improvement
 
@@ -787,7 +871,9 @@ class SystemResourceMonitor:
 class AIPerformanceOptimizer:
     """AI-powered performance optimization and prediction."""
 
-    async def analyze_performance_patterns(self, history: list[SystemResourceMetrics]) -> dict[str, Any]:
+    async def analyze_performance_patterns(
+        self, history: list[SystemResourceMetrics]
+    ) -> dict[str, Any]:
         """Analyze performance patterns using AI techniques."""
         insights: dict[str, Any] = {
             "patterns_detected": [],
@@ -798,7 +884,9 @@ class AIPerformanceOptimizer:
 
         try:
             if len(history) < 10:
-                insights["recommendations"].append("Insufficient data for pattern analysis")
+                insights["recommendations"].append(
+                    "Insufficient data for pattern analysis"
+                )
                 return insights
 
             # Extract time series data
@@ -808,7 +896,9 @@ class AIPerformanceOptimizer:
             # Trend analysis
             if len(cpu_values) > 5:
                 cpu_trend = np.polyfit(range(len(cpu_values)), cpu_values, 1)[0]
-                memory_trend = np.polyfit(range(len(memory_values)), memory_values, 1)[0]
+                memory_trend = np.polyfit(range(len(memory_values)), memory_values, 1)[
+                    0
+                ]
 
                 insights["trends"] = {
                     "cpu_trend_per_hour": cpu_trend * 60,  # Assuming 1-minute intervals
@@ -817,14 +907,20 @@ class AIPerformanceOptimizer:
 
                 # Generate trend-based recommendations
                 if cpu_trend > 0.5:
-                    insights["recommendations"].append("CPU usage trending upward - consider optimization")
+                    insights["recommendations"].append(
+                        "CPU usage trending upward - consider optimization"
+                    )
                 if memory_trend > 0.5:
-                    insights["recommendations"].append("Memory usage trending upward - implement cleanup")
+                    insights["recommendations"].append(
+                        "Memory usage trending upward - implement cleanup"
+                    )
 
             # Pattern detection (simplified)
             cpu_variance = np.var(cpu_values)
             if cpu_variance > 500:  # High variance
-                insights["patterns_detected"].append("High CPU usage variability detected")
+                insights["patterns_detected"].append(
+                    "High CPU usage variability detected"
+                )
                 insights["recommendations"].append("Implement CPU load balancing")
 
             # Anomaly detection (simplified)
@@ -837,7 +933,9 @@ class AIPerformanceOptimizer:
                             "type": "cpu_spike",
                             "value": value,
                             "timestamp": history[-(10 - i)].timestamp.isoformat(),
-                            "severity": "high" if value > cpu_mean + 2 * cpu_std else "medium",
+                            "severity": (
+                                "high" if value > cpu_mean + 2 * cpu_std else "medium"
+                            ),
                         }
                     )
 
@@ -866,7 +964,10 @@ class AIPerformanceOptimizer:
                         estimated_duration_minutes=15,
                         prerequisites=["System administrator access"],
                         risks=["Temporary performance impact during optimization"],
-                        success_metrics=["CPU usage reduction > 20%", "Response time improvement"],
+                        success_metrics=[
+                            "CPU usage reduction > 20%",
+                            "Response time improvement",
+                        ],
                     )
                 )
 
@@ -882,7 +983,10 @@ class AIPerformanceOptimizer:
                         estimated_duration_minutes=10,
                         prerequisites=["Memory management permissions"],
                         risks=["Temporary cache miss increase"],
-                        success_metrics=["Memory usage reduction > 15%", "Cache efficiency improvement"],
+                        success_metrics=[
+                            "Memory usage reduction > 15%",
+                            "Cache efficiency improvement",
+                        ],
                     )
                 )
 
@@ -899,7 +1003,10 @@ class AIPerformanceOptimizer:
                         estimated_duration_minutes=30,
                         prerequisites=["AI model deployment", "Historical data"],
                         risks=["Prediction accuracy dependency"],
-                        success_metrics=["CPU trend stabilization", "Proactive optimization triggers"],
+                        success_metrics=[
+                            "CPU trend stabilization",
+                            "Proactive optimization triggers",
+                        ],
                     )
                 )
 
@@ -908,7 +1015,9 @@ class AIPerformanceOptimizer:
 
         return plans
 
-    async def predict_performance_issues(self, history: list[SystemResourceMetrics]) -> dict[str, Any]:
+    async def predict_performance_issues(
+        self, history: list[SystemResourceMetrics]
+    ) -> dict[str, Any]:
         """Predict future performance issues using ML techniques."""
         predictions: dict[str, Any] = {
             "cpu_predictions": {},
@@ -969,15 +1078,21 @@ class AIPerformanceOptimizer:
                 "cpu_risk": cpu_risk,
                 "memory_risk": memory_risk,
                 "overall_risk": max(
-                    cpu_risk, memory_risk, key=lambda x: ["low", "medium", "high", "critical"].index(x)
+                    cpu_risk,
+                    memory_risk,
+                    key=lambda x: ["low", "medium", "high", "critical"].index(x),
                 ),
             }
 
             # Recommended actions
             if cpu_risk in ["high", "critical"]:
-                predictions["recommended_actions"].append("Schedule CPU optimization within next 30 minutes")
+                predictions["recommended_actions"].append(
+                    "Schedule CPU optimization within next 30 minutes"
+                )
             if memory_risk in ["high", "critical"]:
-                predictions["recommended_actions"].append("Execute memory cleanup immediately")
+                predictions["recommended_actions"].append(
+                    "Execute memory cleanup immediately"
+                )
 
         except Exception as e:
             logger.exception("Error in performance prediction: %s", e)
@@ -1004,14 +1119,20 @@ class ParallelProcessingOptimizer:
             results["cpu_cores_utilized"] = cpu_count
 
             # Optimize thread pool
-            optimal_threads = min(32, (cpu_count or 1) * 4)  # 4 threads per core, max 32
-            results["optimizations_applied"].append(f"thread_pool_size_{optimal_threads}")
+            optimal_threads = min(
+                32, (cpu_count or 1) * 4
+            )  # 4 threads per core, max 32
+            results["optimizations_applied"].append(
+                f"thread_pool_size_{optimal_threads}"
+            )
             results["thread_pool_optimized"] = True
             results["performance_improvement_estimate"] += 15.0
 
             # Optimize process pool for CPU-bound tasks
             optimal_processes = cpu_count or 1
-            results["optimizations_applied"].append(f"process_pool_size_{optimal_processes}")
+            results["optimizations_applied"].append(
+                f"process_pool_size_{optimal_processes}"
+            )
             results["process_pool_optimized"] = True
             results["performance_improvement_estimate"] += 20.0
 
@@ -1026,7 +1147,8 @@ class ParallelProcessingOptimizer:
                 pass  # NUMA not available
 
             logger.info(
-                "Parallel processing optimization completed - %s optimizations", len(results["optimizations_applied"])
+                "Parallel processing optimization completed - %s optimizations",
+                len(results["optimizations_applied"]),
             )
 
         except (ImportError, ModuleNotFoundError, AttributeError) as e:
@@ -1039,7 +1161,9 @@ class ParallelProcessingOptimizer:
 class AdvancedMemoryOptimizer:
     """Advanced memory optimization techniques."""
 
-    async def optimize_memory_advanced(self, aggressive: bool = False) -> dict[str, Any]:
+    async def optimize_memory_advanced(
+        self, aggressive: bool = False
+    ) -> dict[str, Any]:
         """Execute advanced memory optimization."""
         results: dict[str, Any] = {
             "initial_memory_mb": 0.0,
@@ -1076,9 +1200,14 @@ class AdvancedMemoryOptimizer:
             # Get final memory usage
             final_memory = psutil.virtual_memory()
             results["final_memory_mb"] = final_memory.used / (1024 * 1024)
-            results["memory_freed_mb"] = results["initial_memory_mb"] - results["final_memory_mb"]
+            results["memory_freed_mb"] = (
+                results["initial_memory_mb"] - results["final_memory_mb"]
+            )
 
-            logger.info("Advanced memory optimization completed - %.1fMB freed", results["memory_freed_mb"])
+            logger.info(
+                "Advanced memory optimization completed - %.1fMB freed",
+                results["memory_freed_mb"],
+            )
 
         except Exception as e:
             logger.exception("Advanced memory optimization error: %s", e)

@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     """Manages user sessions with security features."""
 
-    def __init__(self, max_sessions_per_user: int = 5, session_timeout_minutes: int = 30):
+    def __init__(
+        self, max_sessions_per_user: int = 5, session_timeout_minutes: int = 30
+    ):
         """
         Initialize session manager.
 
@@ -59,7 +61,9 @@ class SessionManager:
         user_sessions = self._user_sessions.get(user.id, set())
         if len(user_sessions) >= self.max_sessions_per_user:
             # Remove oldest session
-            oldest_session_id = min(user_sessions, key=lambda sid: self._sessions[sid]['created_at'])
+            oldest_session_id = min(
+                user_sessions, key=lambda sid: self._sessions[sid]["created_at"]
+            )
             self._remove_session(oldest_session_id)
 
         # Generate session ID
@@ -67,15 +71,15 @@ class SessionManager:
 
         # Create session data
         session_data = {
-            'session_id': session_id,
-            'user_id': user.id,
-            'username': user.username,
-            'created_at': time.time(),
-            'last_activity': time.time(),
-            'expires_at': time.time() + (self.session_timeout_minutes * 60),
-            'client_info': client_info,
-            'is_active': True,
-            'refresh_count': 0,
+            "session_id": session_id,
+            "user_id": user.id,
+            "username": user.username,
+            "created_at": time.time(),
+            "last_activity": time.time(),
+            "expires_at": time.time() + (self.session_timeout_minutes * 60),
+            "client_info": client_info,
+            "is_active": True,
+            "refresh_count": 0,
         }
 
         # Store session
@@ -86,12 +90,15 @@ class SessionManager:
             self._user_sessions[user.id] = set()
         self._user_sessions[user.id].add(session_id)
 
-        logger.info(f"Session created for user {user.username}", extra={
-            'session_id': session_id,
-            'user_id': user.id,
-            'client_ip': client_info.get('ip'),
-            'user_agent': client_info.get('user_agent'),
-        })
+        logger.info(
+            f"Session created for user {user.username}",
+            extra={
+                "session_id": session_id,
+                "user_id": user.id,
+                "client_ip": client_info.get("ip"),
+                "user_agent": client_info.get("user_agent"),
+            },
+        )
 
         return session_id
 
@@ -111,16 +118,16 @@ class SessionManager:
         session = self._sessions[session_id]
 
         # Check if session is active
-        if not session['is_active']:
+        if not session["is_active"]:
             return None
 
         # Check if session is expired
-        if time.time() > session['expires_at']:
+        if time.time() > session["expires_at"]:
             self._remove_session(session_id)
             return None
 
         # Update last activity
-        session['last_activity'] = time.time()
+        session["last_activity"] = time.time()
 
         return session
 
@@ -139,19 +146,22 @@ class SessionManager:
             return None
 
         # Check refresh limit
-        if session['refresh_count'] >= 10:  # Max 10 refreshes per session
+        if session["refresh_count"] >= 10:  # Max 10 refreshes per session
             self._remove_session(session_id)
             return None
 
         # Extend expiration
-        session['expires_at'] = time.time() + (self.session_timeout_minutes * 60)
-        session['refresh_count'] += 1
+        session["expires_at"] = time.time() + (self.session_timeout_minutes * 60)
+        session["refresh_count"] += 1
 
-        logger.info(f"Session refreshed for user {session['username']}", extra={
-            'session_id': session_id,
-            'user_id': session['user_id'],
-            'refresh_count': session['refresh_count'],
-        })
+        logger.info(
+            f"Session refreshed for user {session['username']}",
+            extra={
+                "session_id": session_id,
+                "user_id": session["user_id"],
+                "refresh_count": session["refresh_count"],
+            },
+        )
 
         return session_id
 
@@ -169,7 +179,7 @@ class SessionManager:
             return False
 
         session = self._sessions[session_id]
-        user_id = session['user_id']
+        user_id = session["user_id"]
 
         # Remove from user sessions
         if user_id in self._user_sessions:
@@ -180,10 +190,13 @@ class SessionManager:
         # Remove session
         del self._sessions[session_id]
 
-        logger.info(f"Session invalidated for user {session['username']}", extra={
-            'session_id': session_id,
-            'user_id': user_id,
-        })
+        logger.info(
+            f"Session invalidated for user {session['username']}",
+            extra={
+                "session_id": session_id,
+                "user_id": user_id,
+            },
+        )
 
         return True
 
@@ -226,16 +239,22 @@ class SessionManager:
         sessions = []
         for session_id in self._user_sessions[user_id]:
             session = self._sessions.get(session_id)
-            if session and session['is_active'] and time.time() <= session['expires_at']:
+            if (
+                session
+                and session["is_active"]
+                and time.time() <= session["expires_at"]
+            ):
                 # Return safe session data (without sensitive info)
-                sessions.append({
-                    'session_id': session['session_id'],
-                    'created_at': session['created_at'],
-                    'last_activity': session['last_activity'],
-                    'expires_at': session['expires_at'],
-                    'client_info': session['client_info'],
-                    'refresh_count': session['refresh_count'],
-                })
+                sessions.append(
+                    {
+                        "session_id": session["session_id"],
+                        "created_at": session["created_at"],
+                        "last_activity": session["last_activity"],
+                        "expires_at": session["expires_at"],
+                        "client_info": session["client_info"],
+                        "refresh_count": session["refresh_count"],
+                    }
+                )
 
         return sessions
 
@@ -243,7 +262,7 @@ class SessionManager:
         """Remove session from storage."""
         if session_id in self._sessions:
             session = self._sessions[session_id]
-            user_id = session['user_id']
+            user_id = session["user_id"]
 
             # Remove from user sessions
             if user_id in self._user_sessions:
@@ -266,7 +285,7 @@ class SessionManager:
 
         expired_sessions = []
         for session_id, session in self._sessions.items():
-            if current_time > session['expires_at']:
+            if current_time > session["expires_at"]:
                 expired_sessions.append(session_id)
 
         for session_id in expired_sessions:
@@ -277,16 +296,20 @@ class SessionManager:
 
     def get_session_stats(self) -> Dict[str, Any]:
         """Get session statistics."""
-        active_sessions = sum(1 for s in self._sessions.values() if s['is_active'] and time.time() <= s['expires_at'])
+        active_sessions = sum(
+            1
+            for s in self._sessions.values()
+            if s["is_active"] and time.time() <= s["expires_at"]
+        )
         total_sessions = len(self._sessions)
         unique_users = len(self._user_sessions)
 
         return {
-            'active_sessions': active_sessions,
-            'total_sessions': total_sessions,
-            'unique_users': unique_users,
-            'max_sessions_per_user': self.max_sessions_per_user,
-            'session_timeout_minutes': self.session_timeout_minutes,
+            "active_sessions": active_sessions,
+            "total_sessions": total_sessions,
+            "unique_users": unique_users,
+            "max_sessions_per_user": self.max_sessions_per_user,
+            "session_timeout_minutes": self.session_timeout_minutes,
         }
 
 
@@ -300,7 +323,9 @@ class SessionSecurityValidator:
         self._max_failed_attempts = 5
         self._block_duration = 3600  # 1 hour
 
-    def validate_session_security(self, session_id: str, client_info: Dict[str, Any]) -> bool:
+    def validate_session_security(
+        self, session_id: str, client_info: Dict[str, Any]
+    ) -> bool:
         """
         Validate session security.
 
@@ -311,7 +336,7 @@ class SessionSecurityValidator:
         Returns:
             True if session is secure, False otherwise
         """
-        client_ip = client_info.get('ip', '')
+        client_ip = client_info.get("ip", "")
 
         # Check if IP is blocked
         if client_ip in self._blocked_ips:
@@ -349,8 +374,10 @@ class SessionSecurityValidator:
 
             # Schedule unblocking
             import threading
+
             def unblock():
                 import time
+
                 time.sleep(self._block_duration)
                 self._blocked_ips.discard(client_ip)
                 if client_ip in self._failed_attempts:
@@ -359,18 +386,20 @@ class SessionSecurityValidator:
 
             threading.Thread(target=unblock, daemon=True).start()
 
-    def _is_suspicious_activity(self, session: Dict[str, Any], client_info: Dict[str, Any]) -> bool:
+    def _is_suspicious_activity(
+        self, session: Dict[str, Any], client_info: Dict[str, Any]
+    ) -> bool:
         """Check for suspicious activity patterns."""
         # Check IP change
-        if session['client_info'].get('ip') != client_info.get('ip'):
+        if session["client_info"].get("ip") != client_info.get("ip"):
             return True
 
         # Check user agent change
-        if session['client_info'].get('user_agent') != client_info.get('user_agent'):
+        if session["client_info"].get("user_agent") != client_info.get("user_agent"):
             return True
 
         # Check for rapid session refreshes
-        if session['refresh_count'] > 5:
+        if session["refresh_count"] > 5:
             return True
 
         return False

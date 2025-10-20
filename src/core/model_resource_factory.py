@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class LLMResourceFactory(ResourceFactory[LLMService]):
     """Factory for creating and managing LLM service instances."""
 
-    def __init__(self, model_name: str = "microsoft/DialoGPT-medium", device: str = "auto"):
+    def __init__(
+        self, model_name: str = "microsoft/DialoGPT-medium", device: str = "auto"
+    ):
         self.model_name = model_name
         self.device = self._determine_device(device)
         self._model_size_mb = 0
@@ -26,12 +28,14 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
     def create_resource(self, resource_id: str) -> LLMService:
         """Create a new LLM service instance."""
         try:
-            logger.info("Creating LLM resource %s with model {self.model_name}", resource_id)
+            logger.info(
+                "Creating LLM resource %s with model {self.model_name}", resource_id
+            )
 
             # Create LLM service with specified model
             llm_service = LLMService(
                 model_repo_id=self.model_name,
-                model_filename="model.gguf"  # Default filename
+                model_filename="model.gguf",  # Default filename
             )
 
             # Initialize the model (this will load it into memory)
@@ -121,7 +125,11 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
     def create_resource(self, resource_id: str) -> SentenceTransformer:
         """Create a new sentence transformer model instance."""
         try:
-            logger.info("Creating embedding model resource %s with model %s", resource_id, self.model_name)
+            logger.info(
+                "Creating embedding model resource %s with model %s",
+                resource_id,
+                self.model_name,
+            )
 
             # Create sentence transformer model
             model = SentenceTransformer(self.model_name)
@@ -133,7 +141,9 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
             return model
 
         except Exception as e:
-            logger.exception("Failed to create embedding model resource %s: %s", resource_id, e)
+            logger.exception(
+                "Failed to create embedding model resource %s: %s", resource_id, e
+            )
             raise
 
     def validate_resource(self, resource: SentenceTransformer) -> bool:
@@ -218,7 +228,9 @@ class ModelResourceManager:
             # Initialize resource factories
             self._factories["llm"] = LLMResourceFactory()
             self._factories["embeddings"] = EmbeddingModelResourceFactory()
-            self._factories["tokenizer"] = TokenizerResourceFactory("microsoft/DialoGPT-medium")
+            self._factories["tokenizer"] = TokenizerResourceFactory(
+                "microsoft/DialoGPT-medium"
+            )
 
             self._initialized = True
             logger.info("Model resource manager initialized successfully")

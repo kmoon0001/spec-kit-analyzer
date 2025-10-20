@@ -1,9 +1,12 @@
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from "../../lib/api/client";
 
 export type DashboardStatistics = {
   total_documents_analyzed: number;
   overall_compliance_score: number;
-  compliance_by_category: Record<string, { average_score: number; document_count: number }>;
+  compliance_by_category: Record<
+    string,
+    { average_score: number; document_count: number }
+  >;
   last_updated: string;
   error?: string;
 };
@@ -23,12 +26,16 @@ const camelCaseStatistics = (payload: DashboardStatistics) => ({
 });
 
 export const fetchDashboardStatistics = async () => {
-  const { data } = await apiClient.get<DashboardStatistics>('/dashboard/statistics');
+  const { data } = await apiClient.get<DashboardStatistics>(
+    "/dashboard/statistics",
+  );
   return camelCaseStatistics(data);
 };
 
 export const fetchDashboardOverview = async () => {
-  const { data } = await apiClient.get<DashboardOverview>('/dashboard/overview');
+  const { data } = await apiClient.get<DashboardOverview>(
+    "/dashboard/overview",
+  );
   return {
     aiHealth: data.ai_health,
     recentActivity: data.recent_activity,

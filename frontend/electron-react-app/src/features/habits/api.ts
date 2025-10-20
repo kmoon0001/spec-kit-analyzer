@@ -1,6 +1,6 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8001";
 
 export interface HabitProgression {
   overall_progress: {
@@ -9,12 +9,15 @@ export interface HabitProgression {
   };
   current_streak: number;
   improvement_rate: number;
-  habit_breakdown: Record<string, {
-    habit_number: number;
-    habit_name: string;
-    percentage: number;
-    mastery_level: 'Mastered' | 'Proficient' | 'Developing' | 'Needs Focus';
-  }>;
+  habit_breakdown: Record<
+    string,
+    {
+      habit_number: number;
+      habit_name: string;
+      percentage: number;
+      mastery_level: "Mastered" | "Proficient" | "Developing" | "Needs Focus";
+    }
+  >;
   achievements: Array<{
     id: string;
     title: string;
@@ -25,7 +28,7 @@ export interface HabitProgression {
   recommendations: Array<{
     title: string;
     description: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     action_items: string[];
   }>;
   current_goals: Array<{
@@ -51,17 +54,18 @@ export interface HabitsAchievements {
 export const fetchHabitsProgression = async (): Promise<HabitProgression> => {
   const response = await axios.get(`${API_BASE_URL}/habits/progression`, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
     },
   });
   return response.data;
 };
 
-export const fetchHabitsAchievements = async (): Promise<HabitsAchievements> => {
-  const response = await axios.get(`${API_BASE_URL}/habits/achievements`, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-    },
-  });
-  return response.data;
-};
+export const fetchHabitsAchievements =
+  async (): Promise<HabitsAchievements> => {
+    const response = await axios.get(`${API_BASE_URL}/habits/achievements`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+      },
+    });
+    return response.data;
+  };

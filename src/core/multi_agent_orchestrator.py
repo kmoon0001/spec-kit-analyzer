@@ -86,7 +86,9 @@ class MultiAgentOrchestrator:
         self._initialize_agents()
         self._initialize_workflow_templates()
 
-        logger.info("Multi-agent orchestrator initialized with enhanced context sharing")
+        logger.info(
+            "Multi-agent orchestrator initialized with enhanced context sharing"
+        )
 
     async def execute_workflow(
         self,
@@ -111,7 +113,9 @@ class MultiAgentOrchestrator:
         start_time = datetime.now()
 
         try:
-            logger.info("Starting multi-agent workflow %s ({workflow_type})", workflow_id)
+            logger.info(
+                "Starting multi-agent workflow %s ({workflow_type})", workflow_id
+            )
 
             # Initialize shared context
             context = WorkflowContext(
@@ -142,14 +146,18 @@ class MultiAgentOrchestrator:
                 "workflow_type": workflow_type,
                 "overall_confidence": overall_confidence,
                 "processing_time_ms": processing_time,
-                "agent_results": {result.agent_role.value: result.data for result in results},
+                "agent_results": {
+                    result.agent_role.value: result.data for result in results
+                },
                 "quality_metrics": context.quality_metrics,
                 "context_insights": context.agent_insights,
                 "cross_references": context.cross_references,
                 "success": all(result.success for result in results),
             }
 
-            logger.info("Multi-agent workflow %s completed in {processing_time}ms", workflow_id)
+            logger.info(
+                "Multi-agent workflow %s completed in {processing_time}ms", workflow_id
+            )
             return final_result
 
         except Exception as e:
@@ -158,7 +166,8 @@ class MultiAgentOrchestrator:
                 "workflow_id": workflow_id,
                 "success": False,
                 "error": str(e),
-                "processing_time_ms": (datetime.now() - start_time).total_seconds() * 1000,
+                "processing_time_ms": (datetime.now() - start_time).total_seconds()
+                * 1000,
             }
         finally:
             # Cleanup
@@ -196,7 +205,9 @@ class MultiAgentOrchestrator:
 
         return results
 
-    async def _execute_agent(self, agent_role: AgentRole, context: WorkflowContext) -> AgentResult:
+    async def _execute_agent(
+        self, agent_role: AgentRole, context: WorkflowContext
+    ) -> AgentResult:
         """Execute a specific agent with enhanced context and prompt engineering."""
         start_time = datetime.now()
 
@@ -225,7 +236,12 @@ class MultiAgentOrchestrator:
                 next_agents=result_data.get("next_agents", []),
             )
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
             logger.exception("Agent %s failed: {e}", agent_role.value)
 
@@ -237,7 +253,9 @@ class MultiAgentOrchestrator:
                 processing_time_ms=processing_time,
             )
 
-    def _prepare_agent_context(self, agent_role: AgentRole, context: WorkflowContext) -> dict[str, Any]:
+    def _prepare_agent_context(
+        self, agent_role: AgentRole, context: WorkflowContext
+    ) -> dict[str, Any]:
         """Prepare optimized context for a specific agent with enhanced prompt engineering."""
         base_context = {
             "workflow_id": context.workflow_id,
@@ -268,7 +286,9 @@ class MultiAgentOrchestrator:
             base_context.update(
                 {
                     "focus": "Identify specific compliance issues using the provided rubric and regulatory guidelines",
-                    "previous_analysis": context.agent_insights.get("document_analyzer", {}),
+                    "previous_analysis": context.agent_insights.get(
+                        "document_analyzer", {}
+                    ),
                     "output_requirements": [
                         "compliance_issues",
                         "rule_violations",
@@ -283,7 +303,9 @@ class MultiAgentOrchestrator:
             base_context.update(
                 {
                     "focus": "Assess financial and regulatory risks associated with identified compliance issues",
-                    "compliance_findings": context.agent_insights.get("compliance_checker", {}),
+                    "compliance_findings": context.agent_insights.get(
+                        "compliance_checker", {}
+                    ),
                     "output_requirements": [
                         "risk_levels",
                         "financial_impact",
@@ -299,7 +321,12 @@ class MultiAgentOrchestrator:
                 {
                     "focus": "Generate specific, actionable recommendations based on all previous analysis",
                     "all_previous_insights": context.agent_insights,
-                    "output_requirements": ["specific_actions", "implementation_steps", "timelines", "success_metrics"],
+                    "output_requirements": [
+                        "specific_actions",
+                        "implementation_steps",
+                        "timelines",
+                        "success_metrics",
+                    ],
                     "prompt_optimization": "Synthesize insights from all previous agents to create comprehensive recommendations",
                 }
             )
@@ -360,9 +387,19 @@ class MultiAgentOrchestrator:
         await asyncio.sleep(0.5)  # Simulate processing time
 
         return {
-            "clinical_concepts": ["patient_progress", "functional_status", "treatment_response"],
-            "document_structure": {"sections": ["subjective", "objective", "assessment", "plan"]},
-            "key_phrases": ["improved range of motion", "patient reports", "treatment goals"],
+            "clinical_concepts": [
+                "patient_progress",
+                "functional_status",
+                "treatment_response",
+            ],
+            "document_structure": {
+                "sections": ["subjective", "objective", "assessment", "plan"]
+            },
+            "key_phrases": [
+                "improved range of motion",
+                "patient reports",
+                "treatment goals",
+            ],
             "medical_terminology": ["ROM", "ADL", "functional_mobility"],
             "confidence": 0.92,
             "context_updates": {
@@ -372,7 +409,9 @@ class MultiAgentOrchestrator:
             },
         }
 
-    async def _compliance_checker_agent(self, context: dict[str, Any]) -> dict[str, Any]:
+    async def _compliance_checker_agent(
+        self, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compliance checking agent with rule-based analysis."""
         await asyncio.sleep(0.8)  # Simulate processing time
 
@@ -400,7 +439,11 @@ class MultiAgentOrchestrator:
         await asyncio.sleep(0.6)  # Simulate processing time
 
         return {
-            "risk_levels": {"financial": "medium", "regulatory": "high", "operational": "low"},
+            "risk_levels": {
+                "financial": "medium",
+                "regulatory": "high",
+                "operational": "low",
+            },
             "financial_impact": {"potential_denial": 0.3, "estimated_loss": 250.00},
             "regulatory_consequences": ["audit_risk", "compliance_review"],
             "priority_rankings": [1, 3, 2],  # Based on compliance issues
@@ -411,7 +454,9 @@ class MultiAgentOrchestrator:
             },
         }
 
-    async def _recommendation_generator_agent(self, context: dict[str, Any]) -> dict[str, Any]:
+    async def _recommendation_generator_agent(
+        self, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Recommendation generation agent with actionable guidance."""
         await asyncio.sleep(0.7)  # Simulate processing time
 
@@ -427,7 +472,11 @@ class MultiAgentOrchestrator:
                 "Train staff on medical necessity documentation",
             ],
             "timelines": ["immediate", "1-2 weeks", "ongoing"],
-            "success_metrics": ["compliance_score_improvement", "audit_readiness", "documentation_quality"],
+            "success_metrics": [
+                "compliance_score_improvement",
+                "audit_readiness",
+                "documentation_quality",
+            ],
             "confidence": 0.90,
             "context_updates": {
                 "improvement_potential": "high",

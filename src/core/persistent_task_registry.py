@@ -8,7 +8,7 @@ import json
 import logging
 import sqlite3
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -64,7 +64,8 @@ class PersistentTaskRegistry:
         """Initialize the SQLite database with task table."""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS tasks (
                         task_id TEXT PRIMARY KEY,
                         status TEXT NOT NULL,
@@ -83,12 +84,19 @@ class PersistentTaskRegistry:
                         max_retries INTEGER DEFAULT 3,
                         result_data TEXT NULL
                     )
-                """)
+                """
+                )
 
                 # Create indexes for better performance
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at)")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at)"
+                )
 
                 conn.commit()
                 logger.info("Task database initialized", db_path=self.db_path)
@@ -104,18 +112,29 @@ class PersistentTaskRegistry:
                 task = TaskMetadata(task_id=task_id, **kwargs)
 
                 with sqlite3.connect(self.db_path) as conn:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO tasks (
                             task_id, status, progress, status_message, filename,
                             user_id, discipline, analysis_mode, strictness,
                             created_at, retry_count, max_retries
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        task.task_id, task.status.value, task.progress, task.status_message,
-                        task.filename, task.user_id, task.discipline, task.analysis_mode,
-                        task.strictness, task.created_at.isoformat(), task.retry_count,
-                        task.max_retries
-                    ))
+                    """,
+                        (
+                            task.task_id,
+                            task.status.value,
+                            task.progress,
+                            task.status_message,
+                            task.filename,
+                            task.user_id,
+                            task.discipline,
+                            task.analysis_mode,
+                            task.strictness,
+                            task.created_at.isoformat(),
+                            task.retry_count,
+                            task.max_retries,
+                        ),
+                    )
                     conn.commit()
 
                 logger.info("Task created", task_id=task_id, status=task.status.value)
@@ -134,11 +153,15 @@ class PersistentTaskRegistry:
                 values = []
 
                 for field, value in kwargs.items():
-                    if field == 'status' and isinstance(value, TaskStatus):
+                    if field == "status" and isinstance(value, TaskStatus):
                         value = value.value
-                    elif field in ['created_at', 'started_at', 'completed_at'] and isinstance(value, datetime):
+                    elif field in [
+                        "created_at",
+                        "started_at",
+                        "completed_at",
+                    ] and isinstance(value, datetime):
                         value = value.isoformat()
-                    elif field == 'result_data' and isinstance(value, dict):
+                    elif field == "result_data" and isinstance(value, dict):
                         value = json.dumps(value)
 
                     update_fields.append(f"{field} = ?")
@@ -152,12 +175,14 @@ class PersistentTaskRegistry:
                 with sqlite3.connect(self.db_path) as conn:
                     cursor = conn.execute(
                         f"UPDATE tasks SET {', '.join(update_fields)} WHERE task_id = ?",
-                        values
+                        values,
                     )
                     conn.commit()
 
                     if cursor.rowcount > 0:
-                        logger.debug("Task updated", task_id=task_id, fields=list(kwargs.keys()))
+                        logger.debug(
+                            "Task updated", task_id=task_id, fields=list(kwargs.keys())
+                        )
                         return True
                     else:
                         logger.warning("Task not found for update", task_id=task_id)
@@ -172,7 +197,9 @@ class PersistentTaskRegistry:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                cursor = conn.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,))
+                cursor = conn.execute(
+                    "SELECT * FROM tasks WHERE task_id = ?", (task_id,)
+                )
                 row = cursor.fetchone()
 
                 if row:
@@ -183,14 +210,16 @@ class PersistentTaskRegistry:
             logger.error("Failed to get task", task_id=task_id, error=str(e))
             return None
 
-    async def get_tasks_by_user(self, user_id: int, limit: int = 50) -> List[TaskMetadata]:
+    async def get_tasks_by_user(
+        self, user_id: int, limit: int = 50
+    ) -> List[TaskMetadata]:
         """Get tasks for a specific user."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
                     "SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-                    (user_id, limit)
+                    (user_id, limit),
                 )
                 rows = cursor.fetchall()
 
@@ -200,21 +229,25 @@ class PersistentTaskRegistry:
             logger.error("Failed to get tasks by user", user_id=user_id, error=str(e))
             return []
 
-    async def get_tasks_by_status(self, status: TaskStatus, limit: int = 100) -> List[TaskMetadata]:
+    async def get_tasks_by_status(
+        self, status: TaskStatus, limit: int = 100
+    ) -> List[TaskMetadata]:
         """Get tasks by status."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
                     "SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC LIMIT ?",
-                    (status.value, limit)
+                    (status.value, limit),
                 )
                 rows = cursor.fetchall()
 
                 return [self._row_to_task(row) for row in rows]
 
         except Exception as e:
-            logger.error("Failed to get tasks by status", status=status.value, error=str(e))
+            logger.error(
+                "Failed to get tasks by status", status=status.value, error=str(e)
+            )
             return []
 
     async def delete_task(self, task_id: str) -> bool:
@@ -222,7 +255,9 @@ class PersistentTaskRegistry:
         async with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
-                    cursor = conn.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+                    cursor = conn.execute(
+                        "DELETE FROM tasks WHERE task_id = ?", (task_id,)
+                    )
                     conn.commit()
 
                     if cursor.rowcount > 0:
@@ -238,18 +273,24 @@ class PersistentTaskRegistry:
         """Clean up tasks older than specified days."""
         async with self._lock:
             try:
-                cutoff_date = datetime.now(timezone.utc).timestamp() - (days_old * 24 * 60 * 60)
+                cutoff_date = datetime.now(timezone.utc).timestamp() - (
+                    days_old * 24 * 60 * 60
+                )
 
                 with sqlite3.connect(self.db_path) as conn:
                     cursor = conn.execute(
                         "DELETE FROM tasks WHERE created_at < ? AND status IN ('completed', 'failed', 'cancelled')",
-                        (cutoff_date,)
+                        (cutoff_date,),
                     )
                     conn.commit()
 
                     deleted_count = cursor.rowcount
                     if deleted_count > 0:
-                        logger.info("Cleaned up old tasks", count=deleted_count, days_old=days_old)
+                        logger.info(
+                            "Cleaned up old tasks",
+                            count=deleted_count,
+                            days_old=days_old,
+                        )
 
                     return deleted_count
 
@@ -264,30 +305,36 @@ class PersistentTaskRegistry:
                 conn.row_factory = sqlite3.Row
 
                 # Get counts by status
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT status, COUNT(*) as count
                     FROM tasks
                     GROUP BY status
-                """)
-                status_counts = {row['status']: row['count'] for row in cursor.fetchall()}
+                """
+                )
+                status_counts = {
+                    row["status"]: row["count"] for row in cursor.fetchall()
+                }
 
                 # Get total count
                 cursor = conn.execute("SELECT COUNT(*) as total FROM tasks")
-                total_tasks = cursor.fetchone()['total']
+                total_tasks = cursor.fetchone()["total"]
 
                 # Get recent activity (last 24 hours)
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT COUNT(*) as recent
                     FROM tasks
                     WHERE created_at > datetime('now', '-1 day')
-                """)
-                recent_tasks = cursor.fetchone()['recent']
+                """
+                )
+                recent_tasks = cursor.fetchone()["recent"]
 
                 return {
-                    'total_tasks': total_tasks,
-                    'recent_tasks_24h': recent_tasks,
-                    'status_counts': status_counts,
-                    'database_path': self.db_path
+                    "total_tasks": total_tasks,
+                    "recent_tasks_24h": recent_tasks,
+                    "status_counts": status_counts,
+                    "database_path": self.db_path,
                 }
 
         except Exception as e:
@@ -298,39 +345,47 @@ class PersistentTaskRegistry:
         """Convert database row to TaskMetadata object."""
         try:
             # Parse datetime fields
-            created_at = datetime.fromisoformat(row['created_at'].replace('Z', '+00:00'))
+            created_at = datetime.fromisoformat(
+                row["created_at"].replace("Z", "+00:00")
+            )
             started_at = None
-            if row['started_at']:
-                started_at = datetime.fromisoformat(row['started_at'].replace('Z', '+00:00'))
+            if row["started_at"]:
+                started_at = datetime.fromisoformat(
+                    row["started_at"].replace("Z", "+00:00")
+                )
             completed_at = None
-            if row['completed_at']:
-                completed_at = datetime.fromisoformat(row['completed_at'].replace('Z', '+00:00'))
+            if row["completed_at"]:
+                completed_at = datetime.fromisoformat(
+                    row["completed_at"].replace("Z", "+00:00")
+                )
 
             # Parse result data
             result_data = None
-            if row['result_data']:
+            if row["result_data"]:
                 try:
-                    result_data = json.loads(row['result_data'])
+                    result_data = json.loads(row["result_data"])
                 except json.JSONDecodeError:
-                    logger.warning("Failed to parse result_data", task_id=row['task_id'])
+                    logger.warning(
+                        "Failed to parse result_data", task_id=row["task_id"]
+                    )
 
             return TaskMetadata(
-                task_id=row['task_id'],
-                status=TaskStatus(row['status']),
-                progress=row['progress'],
-                status_message=row['status_message'],
-                filename=row['filename'],
-                user_id=row['user_id'],
-                discipline=row['discipline'],
-                analysis_mode=row['analysis_mode'],
-                strictness=row['strictness'],
+                task_id=row["task_id"],
+                status=TaskStatus(row["status"]),
+                progress=row["progress"],
+                status_message=row["status_message"],
+                filename=row["filename"],
+                user_id=row["user_id"],
+                discipline=row["discipline"],
+                analysis_mode=row["analysis_mode"],
+                strictness=row["strictness"],
                 created_at=created_at,
                 started_at=started_at,
                 completed_at=completed_at,
-                error_message=row['error_message'],
-                retry_count=row['retry_count'],
-                max_retries=row['max_retries'],
-                result_data=result_data
+                error_message=row["error_message"],
+                retry_count=row["retry_count"],
+                max_retries=row["max_retries"],
+                result_data=result_data,
             )
 
         except Exception as e:

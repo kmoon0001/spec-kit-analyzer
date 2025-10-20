@@ -75,7 +75,11 @@ class PerformanceManager:
             try:
                 profile = PerformanceProfile(profile.lower())
             except ValueError:
-                logger.warning("Unknown performance profile '%s', keeping %s", profile, self.current_profile.value)
+                logger.warning(
+                    "Unknown performance profile '%s', keeping %s",
+                    profile,
+                    self.current_profile.value,
+                )
                 return
         self.current_profile = profile
         logger.info("Performance profile set to %s", profile.value)

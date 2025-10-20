@@ -7,21 +7,20 @@ import logging
 from datetime import timedelta
 
 import sqlalchemy
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...config import get_settings
-from ...core.security_validator import SecurityValidator
 from ...core.enhanced_session_manager import get_session_manager
-from ...database import crud, models, schemas
-from ...database import get_async_db
+from ...core.security_validator import SecurityValidator
+from ...database import crud, get_async_db, models, schemas
 from ..error_handling import (
     AuthenticationError,
     AuthorizationError,
-    ValidationError,
     ErrorCode,
+    ValidationError,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,42 +40,50 @@ async def _authenticate_user(
         raise ValidationError(ErrorCode.VALIDATION_INVALID_INPUT, error_msg)
 
     user = await crud.get_user_by_username(db, username=form_data.username)
-    if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
+    if not user or not auth_service.verify_password(
+        form_data.password, user.hashed_password
+    ):
         raise AuthenticationError(
-            ErrorCode.AUTH_INVALID_CREDENTIALS,
-            "Incorrect username or password"
+            ErrorCode.AUTH_INVALID_CREDENTIALS, "Incorrect username or password"
         )
 
     if not user.is_active:
         raise AuthorizationError(
             ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS,
-            "Account is inactive or license has expired. Please contact support."
+            "Account is inactive or license has expired. Please contact support.",
         )
 
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
-    access_token = auth_service.create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    access_token = auth_service.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
 
     # Create session if request context is available
     if request:
         session_manager = get_session_manager()
         client_info = {
-            'ip': request.client.host if request.client else 'unknown',
-            'user_agent': request.headers.get('user-agent', 'unknown'),
-            'login_method': 'password',
+            "ip": request.client.host if request.client else "unknown",
+            "user_agent": request.headers.get("user-agent", "unknown"),
+            "login_method": "password",
         }
 
         session_id = session_manager.create_session(user, client_info)
 
-        logger.info(f"User {user.username} logged in successfully", extra={
-            'user_id': user.id,
-            'session_id': session_id,
-            'client_ip': client_info['ip'],
-        })
+        logger.info(
+            f"User {user.username} logged in successfully",
+            extra={
+                "user_id": user.id,
+                "session_id": session_id,
+                "client_ip": client_info["ip"],
+            },
+        )
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.User)
+@router.post(
+    "/register", status_code=status.HTTP_201_CREATED, response_model=schemas.User
+)
 async def register_user(
     user_data: schemas.UserCreate,
     db: AsyncSession = Depends(get_async_db),
@@ -89,7 +96,9 @@ async def register_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     # Validate password strength
-    is_valid, error_msg = SecurityValidator.validate_password_strength(user_data.password)
+    is_valid, error_msg = SecurityValidator.validate_password_strength(
+        user_data.password
+    )
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
@@ -98,13 +107,19 @@ async def register_user(
         created_user = await crud.create_user(db, user_data, hashed_password)
     except sqlalchemy.exc.IntegrityError as exc:
         if "UNIQUE constraint failed: users.username" in str(exc):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists") from exc
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Username already exists"
+            ) from exc
         raise HTTPException(status_code=400, detail="Registration failed") from exc
-    except Exception as exc:  # pragma: no cover - errors handled by global exception handler in practice
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - errors handled by global exception handler in practice
         logger.exception("User registration failed: %s", exc)
         raise HTTPException(status_code=400, detail="Registration failed") from exc
 
-    logger.info(f"User registered successfully: {user_data.username}", user_id=created_user.id)
+    logger.info(
+        f"User registered successfully: {user_data.username}", user_id=created_user.id
+    )
     return schemas.User.model_validate(created_user)
 
 
@@ -116,7 +131,9 @@ async def login_for_access_token(
     request: Request = None,
 ) -> dict[str, str]:
     """Authenticate user and generate JWT access token (OAuth2 compatible) with session creation."""
-    return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service, request=request)
+    return await _authenticate_user(
+        form_data=form_data, db=db, auth_service=auth_service, request=request
+    )
 
 
 # REMOVED: Legacy /login endpoint - redundant with OAuth2 /token endpoint
@@ -136,13 +153,20 @@ async def change_password(
         raise HTTPException(status_code=400, detail="New password required")
 
     # Validate new password strength
-    is_valid, error_msg = SecurityValidator.validate_password_strength(password_data.new_password)
+    is_valid, error_msg = SecurityValidator.validate_password_strength(
+        password_data.new_password
+    )
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     # Verify current password
-    if not auth_service.verify_password(password_data.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    if not auth_service.verify_password(
+        password_data.current_password, current_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
 
     # Hash new password
     new_hash = auth_service.get_password_hash(password_data.new_password)
@@ -152,9 +176,14 @@ async def change_password(
 
     # Invalidate all existing sessions for security
     session_manager = get_session_manager()
-    invalidated_count = session_manager.invalidate_password_change_sessions(current_user.id)
+    invalidated_count = session_manager.invalidate_password_change_sessions(
+        current_user.id
+    )
 
-    logger.info(f"Password changed for user {current_user.username}",
-               user_id=current_user.id, sessions_invalidated=invalidated_count)
+    logger.info(
+        f"Password changed for user {current_user.username}",
+        user_id=current_user.id,
+        sessions_invalidated=invalidated_count,
+    )
 
     return {"status": "ok", "sessions_invalidated": invalidated_count}

@@ -3,7 +3,12 @@ from collections.abc import Iterable
 from dataclasses import asdict
 from typing import Any
 
-from .domain_models import ComplianceFinding, ComplianceResult, ComplianceRule, TherapyDocument
+from .domain_models import (
+    ComplianceFinding,
+    ComplianceResult,
+    ComplianceRule,
+    TherapyDocument,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +17,10 @@ class ComplianceService:
     """Keyword-driven compliance evaluation with injectable rule sets."""
 
     def __init__(
-        self, rules: Iterable[ComplianceRule] | None = None, analysis_service: Any | None = None, **_unused: Any
+        self,
+        rules: Iterable[ComplianceRule] | None = None,
+        analysis_service: Any | None = None,
+        **_unused: Any
     ) -> None:
         """Initializes the ComplianceService.
 
@@ -66,11 +74,21 @@ class ComplianceService:
 
             if self._violates_rule(rule, normalized_text):
                 findings.append(
-                    ComplianceFinding(rule=rule, text_snippet=self._build_snippet(rule), risk_level=rule.severity)
+                    ComplianceFinding(
+                        rule=rule,
+                        text_snippet=self._build_snippet(rule),
+                        risk_level=rule.severity,
+                    )
                 )
 
-        result = ComplianceResult(document=document, findings=findings, is_compliant=not findings)
-        logger.info("Compliance evaluation for %s finished with %d findings", document.id, len(findings))
+        result = ComplianceResult(
+            document=document, findings=findings, is_compliant=not findings
+        )
+        logger.info(
+            "Compliance evaluation for %s finished with %d findings",
+            document.id,
+            len(findings),
+        )
         return result
 
     def _default_rules(self) -> list[ComplianceRule]:
@@ -112,7 +130,12 @@ class ComplianceService:
                 suggestion="Document specific skilled interventions, link treatments to functional limitations, and explain why therapy expertise is required.",
                 financial_impact=100,
                 positive_keywords=["treatment", "therapy", "intervention"],
-                negative_keywords=["skilled", "medical necessity", "professional", "expertise"],
+                negative_keywords=[
+                    "skilled",
+                    "medical necessity",
+                    "professional",
+                    "expertise",
+                ],
             ),
             ComplianceRule(
                 uri="rule://medicare/goals",
@@ -126,7 +149,13 @@ class ComplianceService:
                 suggestion="Use objective measurements, functional outcomes, and specific timeframes. Example: 'Patient will increase right shoulder flexion from 90° to 120° within 3 weeks.'",
                 financial_impact=50,
                 positive_keywords=["goal", "objective", "outcome"],
-                negative_keywords=["measurable", "specific", "timeframe", "weeks", "days"],
+                negative_keywords=[
+                    "measurable",
+                    "specific",
+                    "timeframe",
+                    "weeks",
+                    "days",
+                ],
             ),
             ComplianceRule(
                 uri="rule://medicare/plan_of_care",
@@ -140,7 +169,12 @@ class ComplianceService:
                 suggestion="Ensure physician plan of care includes specific frequency (e.g., 3x/week), duration (e.g., 4 weeks), and treatment focus areas.",
                 financial_impact=100,
                 positive_keywords=["therapy", "treatment"],
-                negative_keywords=["physician", "plan of care", "frequency", "duration"],
+                negative_keywords=[
+                    "physician",
+                    "plan of care",
+                    "frequency",
+                    "duration",
+                ],
             ),
             ComplianceRule(
                 uri="rule://medicare/progress_documentation",
@@ -154,7 +188,12 @@ class ComplianceService:
                 suggestion="Include objective measurements, functional improvements, patient response to treatment, and any barriers to progress.",
                 financial_impact=40,
                 positive_keywords=["progress", "improvement", "response"],
-                negative_keywords=["objective", "measurement", "functional", "improvement"],
+                negative_keywords=[
+                    "objective",
+                    "measurement",
+                    "functional",
+                    "improvement",
+                ],
             ),
             ComplianceRule(
                 uri="rule://medicare/functional_outcomes",
@@ -186,7 +225,8 @@ class ComplianceService:
         """
         # Check if rule applies to this discipline
         discipline_ok = (
-            rule.discipline.lower() in {"any", "*", "all"} or rule.discipline.lower() == document.discipline.lower()
+            rule.discipline.lower() in {"any", "*", "all"}
+            or rule.discipline.lower() == document.discipline.lower()
         )
 
         # Check if rule applies to this document type
@@ -228,7 +268,9 @@ class ComplianceService:
         """
         has_positive_context = True
         if rule.positive_keywords:
-            has_positive_context = self._contains_any(rule.positive_keywords, normalized_text)
+            has_positive_context = self._contains_any(
+                rule.positive_keywords, normalized_text
+            )
 
         if not has_positive_context:
             return False
@@ -251,9 +293,13 @@ class ComplianceService:
 
         """
         if rule.negative_keywords:
-            return "Required documentation terms were not detected: " + ", ".join(rule.negative_keywords)
+            return "Required documentation terms were not detected: " + ", ".join(
+                rule.negative_keywords
+            )
         if rule.positive_keywords:
-            return "Expected keywords were missing: " + ", ".join(rule.positive_keywords)
+            return "Expected keywords were missing: " + ", ".join(
+                rule.positive_keywords
+            )
         return "Rule conditions not met by the document content."
 
     @staticmethod

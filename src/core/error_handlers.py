@@ -68,7 +68,9 @@ def handle_security_error(func: F) -> F:
     return cast(F, wrapper)
 
 
-def log_and_suppress_error(error_message: str, return_value: Any = None, log_level: int = logging.ERROR) -> Callable[[F], F]:
+def log_and_suppress_error(
+    error_message: str, return_value: Any = None, log_level: int = logging.ERROR
+) -> Callable[[F], F]:
     """Decorator to log errors and return a default value instead of raising.
 
     Useful for non-critical operations where graceful degradation is preferred.
@@ -80,7 +82,9 @@ def log_and_suppress_error(error_message: str, return_value: Any = None, log_lev
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger.log(log_level, "%s in %s: %s", error_message, func.__name__, str(e))
+                logger.log(
+                    log_level, "%s in %s: %s", error_message, func.__name__, str(e)
+                )
                 return return_value
 
         return cast(F, wrapper)

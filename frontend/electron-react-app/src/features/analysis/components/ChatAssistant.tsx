@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
+import React, { useState, useRef, useEffect } from "react";
+import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
 
-import styles from './ChatAssistant.module.css';
+import styles from "./ChatAssistant.module.css";
 
 interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
@@ -18,14 +18,18 @@ interface ChatAssistantProps {
 
 const THINKING_MESSAGE = "🤔 Thinking...";
 
-export function ChatAssistant({ initialContext, onClose, className }: ChatAssistantProps) {
+export function ChatAssistant({
+  initialContext,
+  onClose,
+  className,
+}: ChatAssistantProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -36,23 +40,25 @@ export function ChatAssistant({ initialContext, onClose, className }: ChatAssist
     if (initialContext) {
       setMessages([
         {
-          role: 'assistant',
-          content: "Hello! I'm your AI compliance assistant. How can I help you today?",
-          timestamp: new Date()
+          role: "assistant",
+          content:
+            "Hello! I'm your AI compliance assistant. How can I help you today?",
+          timestamp: new Date(),
         },
         {
-          role: 'user',
+          role: "user",
           content: initialContext,
-          timestamp: new Date()
-        }
+          timestamp: new Date(),
+        },
       ]);
     } else {
       setMessages([
         {
-          role: 'assistant',
-          content: "Hello! I'm your AI compliance assistant. How can I help you today?",
-          timestamp: new Date()
-        }
+          role: "assistant",
+          content:
+            "Hello! I'm your AI compliance assistant. How can I help you today?",
+          timestamp: new Date(),
+        },
       ]);
     }
   }, [initialContext]);
@@ -61,46 +67,47 @@ export function ChatAssistant({ initialContext, onClose, className }: ChatAssist
     if (!inputValue.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
-      role: 'user',
+      role: "user",
       content: inputValue.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
     setIsLoading(true);
 
     // Add thinking message
     const thinkingMessage: ChatMessage = {
-      role: 'assistant',
+      role: "assistant",
       content: THINKING_MESSAGE,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    setMessages(prev => [...prev, thinkingMessage]);
+    setMessages((prev) => [...prev, thinkingMessage]);
 
     try {
       // Simulate API call - replace with actual chat API
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const aiResponse: ChatMessage = {
-        role: 'assistant',
+        role: "assistant",
         content: generateMockResponse(userMessage.content),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
-      setMessages(prev => {
+      setMessages((prev) => {
         const newMessages = [...prev];
         newMessages[newMessages.length - 1] = aiResponse;
         return newMessages;
       });
     } catch (error) {
       const errorMessage: ChatMessage = {
-        role: 'assistant',
-        content: "I apologize, but I'm having trouble processing your request right now. Please try again.",
-        timestamp: new Date()
+        role: "assistant",
+        content:
+          "I apologize, but I'm having trouble processing your request right now. Please try again.",
+        timestamp: new Date(),
       };
 
-      setMessages(prev => {
+      setMessages((prev) => {
         const newMessages = [...prev];
         newMessages[newMessages.length - 1] = errorMessage;
         return newMessages;
@@ -113,23 +120,23 @@ export function ChatAssistant({ initialContext, onClose, className }: ChatAssist
   const generateMockResponse = (userInput: string): string => {
     const input = userInput.toLowerCase();
 
-    if (input.includes('compliance') || input.includes('medicare')) {
+    if (input.includes("compliance") || input.includes("medicare")) {
       return "Based on Medicare guidelines, compliance documentation should include specific, measurable goals, objective findings, and clear medical necessity justification. Each visit should document progress toward functional outcomes.";
     }
 
-    if (input.includes('documentation') || input.includes('note')) {
+    if (input.includes("documentation") || input.includes("note")) {
       return "Effective therapy documentation follows the SOAP format: Subjective (patient report), Objective (measurable findings), Assessment (clinical judgment), and Plan (next steps). Include functional outcome measures and patient response to treatment.";
     }
 
-    if (input.includes('goal') || input.includes('objective')) {
+    if (input.includes("goal") || input.includes("objective")) {
       return "Goals should be SMART: Specific, Measurable, Achievable, Relevant, and Time-bound. Examples: 'Patient will ambulate 100 feet independently within 4 weeks' or 'Patient will improve grip strength by 20% in 6 weeks'.";
     }
 
-    if (input.includes('billing') || input.includes('claim')) {
+    if (input.includes("billing") || input.includes("claim")) {
       return "For billing compliance, ensure documentation supports the CPT codes used, includes proper modifiers when applicable, and demonstrates medical necessity for each service provided. Document time spent and specific interventions.";
     }
 
-    if (input.includes('progress') || input.includes('improvement')) {
+    if (input.includes("progress") || input.includes("improvement")) {
       return "Progress notes should clearly demonstrate functional improvement or maintenance. Use objective measures like ROM, strength, balance scores, or functional assessments. Document setbacks and plan modifications.";
     }
 
@@ -137,18 +144,25 @@ export function ChatAssistant({ initialContext, onClose, className }: ChatAssist
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
 
   return (
-    <Card title="🤖 AI Compliance Assistant" subtitle="Ask questions about documentation, compliance, and best practices" className={className}>
+    <Card
+      title="🤖 AI Compliance Assistant"
+      subtitle="Ask questions about documentation, compliance, and best practices"
+      className={className}
+    >
       <div className={styles.chatContainer}>
         <div className={styles.messagesContainer}>
           {messages.map((message, index) => (
-            <div key={index} className={`${styles.message} ${styles[message.role]}`}>
+            <div
+              key={index}
+              className={`${styles.message} ${styles[message.role]}`}
+            >
               <div className={styles.messageContent}>
                 {message.content === THINKING_MESSAGE ? (
                   <div className={styles.thinkingMessage}>
@@ -157,13 +171,16 @@ export function ChatAssistant({ initialContext, onClose, className }: ChatAssist
                   </div>
                 ) : (
                   <div className={styles.messageText}>
-                    {message.content.split('\n').map((line, i) => (
+                    {message.content.split("\n").map((line, i) => (
                       <p key={i}>{line}</p>
                     ))}
                   </div>
                 )}
                 <div className={styles.messageTime}>
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </div>
               </div>
             </div>
@@ -187,26 +204,34 @@ export function ChatAssistant({ initialContext, onClose, className }: ChatAssist
               disabled={!inputValue.trim() || isLoading}
               className={styles.sendButton}
             >
-              {isLoading ? 'Sending...' : 'Send'}
+              {isLoading ? "Sending..." : "Send"}
             </Button>
           </div>
 
           <div className={styles.quickActions}>
             <Button
               variant="ghost"
-              onClick={() => setInputValue("What are the key Medicare documentation requirements?")}
+              onClick={() =>
+                setInputValue(
+                  "What are the key Medicare documentation requirements?",
+                )
+              }
             >
               Medicare Requirements
             </Button>
             <Button
               variant="ghost"
-              onClick={() => setInputValue("How should I write effective therapy goals?")}
+              onClick={() =>
+                setInputValue("How should I write effective therapy goals?")
+              }
             >
               Writing Goals
             </Button>
             <Button
               variant="ghost"
-              onClick={() => setInputValue("What makes documentation compliant for billing?")}
+              onClick={() =>
+                setInputValue("What makes documentation compliant for billing?")
+              }
             >
               Billing Compliance
             </Button>

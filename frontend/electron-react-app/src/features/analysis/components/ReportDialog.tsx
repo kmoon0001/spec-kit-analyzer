@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
-import { StatusChip } from '../../../components/ui/StatusChip';
-import { ChatAssistant } from './ChatAssistant';
+import React, { useState, useRef } from "react";
+import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
+import { StatusChip } from "../../../components/ui/StatusChip";
+import { ChatAssistant } from "./ChatAssistant";
 
-import styles from './ReportDialog.module.css';
+import styles from "./ReportDialog.module.css";
 
 interface ReportDialogProps {
   reportHtml: string;
@@ -20,8 +20,13 @@ interface ReportDialogProps {
   className?: string;
 }
 
-export function ReportDialog({ reportHtml, reportData, onClose, className }: ReportDialogProps) {
-  const [activeTab, setActiveTab] = useState<'report' | 'chat'>('report');
+export function ReportDialog({
+  reportHtml,
+  reportData,
+  onClose,
+  className,
+}: ReportDialogProps) {
+  const [activeTab, setActiveTab] = useState<"report" | "chat">("report");
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -30,9 +35,9 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
 
     try {
       // Create a new window for printing
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open("", "_blank");
       if (!printWindow) {
-        throw new Error('Unable to open print window');
+        throw new Error("Unable to open print window");
       }
 
       // Write the HTML content to the new window
@@ -162,7 +167,9 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
             <div class="report-subtitle">AI-Powered Documentation Review</div>
           </div>
 
-          ${reportData ? `
+          ${
+            reportData
+              ? `
             <div class="report-meta">
               <div class="meta-item">
                 <div class="meta-label">Document</div>
@@ -181,20 +188,28 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
                 <div class="meta-value">${new Date(reportData.analysisDate).toLocaleDateString()}</div>
               </div>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
 
           <div class="findings-section">
             <div class="findings-title">Compliance Findings</div>
-            ${reportData?.findings?.map((finding: any, index: number) => `
+            ${
+              reportData?.findings
+                ?.map(
+                  (finding: any, index: number) => `
               <div class="finding-item">
-                <div class="finding-severity severity-${(finding.severity || 'low').toLowerCase()}">
-                  ${(finding.severity || 'Low').toUpperCase()}
+                <div class="finding-severity severity-${(finding.severity || "low").toLowerCase()}">
+                  ${(finding.severity || "Low").toUpperCase()}
                 </div>
                 <div class="finding-description">
-                  ${finding.description || finding.summary || 'See detailed report for more information.'}
+                  ${finding.description || finding.summary || "See detailed report for more information."}
                 </div>
               </div>
-            `).join('') || '<p>No specific findings to report.</p>'}
+            `,
+                )
+                .join("") || "<p>No specific findings to report.</p>"
+            }
           </div>
 
           <div class="recommendations">
@@ -222,21 +237,20 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
         printWindow.print();
         printWindow.close();
       }, 500);
-
     } catch (error) {
-      console.error('Error printing to PDF:', error);
-      alert('Unable to print report. Please try again.');
+      console.error("Error printing to PDF:", error);
+      alert("Unable to print report. Please try again.");
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleExportHTML = () => {
-    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const blob = new Blob([reportHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `compliance-report-${new Date().toISOString().split('T')[0]}.html`;
+    a.download = `compliance-report-${new Date().toISOString().split("T")[0]}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -244,21 +258,25 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
   };
 
   const tabs = [
-    { key: 'report', label: 'Report', icon: '📄' },
-    { key: 'chat', label: 'Chat Assistant', icon: '💬' }
+    { key: "report", label: "Report", icon: "📄" },
+    { key: "chat", label: "Chat Assistant", icon: "💬" },
   ];
 
   return (
     <div className={styles.reportDialog}>
-      <Card title="📊 Analysis Report" subtitle="Detailed compliance analysis with interactive features" className={className}>
+      <Card
+        title="📊 Analysis Report"
+        subtitle="Detailed compliance analysis with interactive features"
+        className={className}
+      >
         <div className={styles.reportContainer}>
           {/* Tab Navigation */}
           <div className={styles.tabNav}>
             {tabs.map((tab) => (
               <button
                 key={tab.key}
-                className={`${styles.tabButton} ${activeTab === tab.key ? styles.active : ''}`}
-                onClick={() => setActiveTab(tab.key as 'report' | 'chat')}
+                className={`${styles.tabButton} ${activeTab === tab.key ? styles.active : ""}`}
+                onClick={() => setActiveTab(tab.key as "report" | "chat")}
               >
                 <span className={styles.tabIcon}>{tab.icon}</span>
                 <span className={styles.tabLabel}>{tab.label}</span>
@@ -268,7 +286,7 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
 
           {/* Content Area */}
           <div className={styles.contentArea}>
-            {activeTab === 'report' ? (
+            {activeTab === "report" ? (
               <div className={styles.reportContent}>
                 {/* Report Actions */}
                 <div className={styles.reportActions}>
@@ -278,7 +296,7 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
                       disabled={isExporting}
                       className={styles.exportButton}
                     >
-                      {isExporting ? '🔄 Exporting...' : '📄 Export PDF'}
+                      {isExporting ? "🔄 Exporting..." : "📄 Export PDF"}
                     </Button>
                     <Button
                       variant="outline"
@@ -293,11 +311,17 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
                     <div className={styles.reportSummary}>
                       <StatusChip
                         label={`${reportData.complianceScore.toFixed(1)}% Compliant`}
-                        status={reportData.complianceScore > 85 ? 'ready' :
-                          reportData.complianceScore > 70 ? 'warming' : 'warning'}
+                        status={
+                          reportData.complianceScore > 85
+                            ? "ready"
+                            : reportData.complianceScore > 70
+                              ? "warming"
+                              : "warning"
+                        }
                       />
                       <span className={styles.reportMeta}>
-                        {reportData.findings?.length || 0} findings • {reportData.discipline.toUpperCase()}
+                        {reportData.findings?.length || 0} findings •{" "}
+                        {reportData.discipline.toUpperCase()}
                       </span>
                     </div>
                   )}
@@ -313,9 +337,10 @@ export function ReportDialog({ reportHtml, reportData, onClose, className }: Rep
             ) : (
               <div className={styles.chatContent}>
                 <ChatAssistant
-                  initialContext={reportData ?
-                    `I just analyzed a ${reportData.discipline.toUpperCase()} document with a compliance score of ${reportData.complianceScore.toFixed(1)}%. Can you help me understand the findings and suggest improvements?`
-                    : "I need help understanding compliance findings and improving documentation."
+                  initialContext={
+                    reportData
+                      ? `I just analyzed a ${reportData.discipline.toUpperCase()} document with a compliance score of ${reportData.complianceScore.toFixed(1)}%. Can you help me understand the findings and suggest improvements?`
+                      : "I need help understanding compliance findings and improving documentation."
                   }
                 />
               </div>

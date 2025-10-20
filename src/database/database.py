@@ -37,6 +37,7 @@ async def test_connection() -> bool:
         logger.error("Database connection test failed: %s", e)
         return False
 
+
 # Ensure the URL is async-compatible for SQLite
 if "sqlite" in DATABASE_URL and "aiosqlite" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
@@ -52,12 +53,20 @@ def _get_performance_config() -> Any | None:
 
 # Use performance manager if available, otherwise fall back to config settings
 perf_config = _get_performance_config()
-POOL_SIZE = perf_config.connection_pool_size if perf_config else settings.database.pool_size
-MAX_OVERFLOW = perf_config.connection_pool_size * 2 if perf_config else settings.database.max_overflow
+POOL_SIZE = (
+    perf_config.connection_pool_size if perf_config else settings.database.pool_size
+)
+MAX_OVERFLOW = (
+    perf_config.connection_pool_size * 2
+    if perf_config
+    else settings.database.max_overflow
+)
 POOL_TIMEOUT = settings.database.pool_timeout
 POOL_RECYCLE = settings.database.pool_recycle
 
-logger.info("Database URL: %s", DATABASE_URL.split("///")[0] + "///<path>")  # Log without exposing full path
+logger.info(
+    "Database URL: %s", DATABASE_URL.split("///")[0] + "///<path>"
+)  # Log without exposing full path
 logger.info("Connection pool size: %s", POOL_SIZE)
 
 # --- Engine Configuration ---
@@ -127,7 +136,9 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             await session.commit()
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             # Log the error for debugging (without PHI)
-            logger.exception("Database transaction failed, rolling back: %s", type(e).__name__)
+            logger.exception(
+                "Database transaction failed, rolling back: %s", type(e).__name__
+            )
             await session.rollback()
             raise
         finally:
@@ -160,18 +171,32 @@ async def init_db() -> None:
             columns = [row[1] for row in result.fetchall()]
             if "preferences" not in columns:
                 logger.info("Adding preferences column to users table")
-                await conn.execute(text("ALTER TABLE users ADD COLUMN preferences JSON"))
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN preferences JSON")
+                )
 
         # Apply SQLite-specific optimizations if enabled
         if "sqlite" in DATABASE_URL and settings.database.sqlite_optimizations:
             logger.info("Applying SQLite performance optimizations")
 
-            await conn.execute(text("PRAGMA journal_mode=WAL"))  # Write-Ahead Logging for better concurrency
-            await conn.execute(text("PRAGMA synchronous=NORMAL"))  # Balance between safety and performance
-            await conn.execute(text("PRAGMA cache_size=10000"))  # Increase cache size (10MB)
-            await conn.execute(text("PRAGMA temp_store=MEMORY"))  # Store temp tables in memory
-            await conn.execute(text("PRAGMA mmap_size=268435456"))  # Use memory mapping (256MB)
-            await conn.execute(text("PRAGMA foreign_keys=ON"))  # Enable foreign key constraints
+            await conn.execute(
+                text("PRAGMA journal_mode=WAL")
+            )  # Write-Ahead Logging for better concurrency
+            await conn.execute(
+                text("PRAGMA synchronous=NORMAL")
+            )  # Balance between safety and performance
+            await conn.execute(
+                text("PRAGMA cache_size=10000")
+            )  # Increase cache size (10MB)
+            await conn.execute(
+                text("PRAGMA temp_store=MEMORY")
+            )  # Store temp tables in memory
+            await conn.execute(
+                text("PRAGMA mmap_size=268435456")
+            )  # Use memory mapping (256MB)
+            await conn.execute(
+                text("PRAGMA foreign_keys=ON")
+            )  # Enable foreign key constraints
 
     logger.info("Database initialization complete")
 

@@ -1,8 +1,8 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { tokenManager } from '../lib/security/secureTokenStorage';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { tokenManager } from "../lib/security/secureTokenStorage";
 
-type ThemeMode = 'light' | 'dark';
+type ThemeMode = "light" | "dark";
 
 interface ThemeState {
   theme: ThemeMode;
@@ -13,7 +13,10 @@ interface ThemeState {
 interface AuthState {
   token: string | null;
   username: string | null;
-  setCredentials: (payload: { username: string; token: string }) => Promise<void>;
+  setCredentials: (payload: {
+    username: string;
+    token: string;
+  }) => Promise<void>;
   clear: () => Promise<void>;
   isAuthenticated: () => Promise<boolean>;
 }
@@ -27,7 +30,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       theme: {
-        theme: 'dark' as ThemeMode,
+        theme: "dark" as ThemeMode,
         setTheme: (theme) =>
           set((state) => ({
             ...state,
@@ -38,7 +41,7 @@ export const useAppStore = create<AppState>()(
             ...state,
             theme: {
               ...state.theme,
-              theme: state.theme.theme === 'dark' ? 'light' : 'dark',
+              theme: state.theme.theme === "dark" ? "light" : "dark",
             },
           })),
       },
@@ -77,13 +80,13 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'tca-app-store',
+      name: "tca-app-store",
       partialize: (state) => ({
         auth: {
           username: state.auth.username,
-          token: null // Don't persist token in localStorage, use secure storage
+          token: null, // Don't persist token in localStorage, use secure storage
         },
-        theme: state.theme
+        theme: state.theme,
       }),
     },
   ),

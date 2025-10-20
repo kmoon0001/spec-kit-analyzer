@@ -8,21 +8,23 @@ This module provides comprehensive rate limiting including:
 - Rate limit headers
 """
 
+import logging
 import time
-from typing import Dict, Optional, Tuple
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from fastapi import Request, HTTPException, status
+from typing import Dict, Optional, Tuple
+
+from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-import logging
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class RateLimit:
     """Rate limit configuration for an endpoint."""
+
     requests_per_minute: int
     requests_per_hour: int
     burst_limit: int = 10
@@ -38,30 +40,46 @@ class EnhancedRateLimiter:
             requests_per_minute=60,
             requests_per_hour=1000,
             burst_limit=20,
-            burst_window_seconds=60
+            burst_window_seconds=60,
         )
 
         # Per-endpoint rate limits
         self.endpoint_limits: Dict[str, RateLimit] = {
             # Authentication endpoints - stricter limits
-            "/auth/token": RateLimit(requests_per_minute=10, requests_per_hour=100, burst_limit=5),
-            "/auth/register": RateLimit(requests_per_minute=5, requests_per_hour=20, burst_limit=3),
-            "/auth/users/change-password": RateLimit(requests_per_minute=3, requests_per_hour=10, burst_limit=2),
-
+            "/auth/token": RateLimit(
+                requests_per_minute=10, requests_per_hour=100, burst_limit=5
+            ),
+            "/auth/register": RateLimit(
+                requests_per_minute=5, requests_per_hour=20, burst_limit=3
+            ),
+            "/auth/users/change-password": RateLimit(
+                requests_per_minute=3, requests_per_hour=10, burst_limit=2
+            ),
             # Analysis endpoints - moderate limits
-            "/analysis/analyze": RateLimit(requests_per_minute=20, requests_per_hour=200, burst_limit=10),
-            "/analysis/upload": RateLimit(requests_per_minute=15, requests_per_hour=150, burst_limit=8),
-
+            "/analysis/analyze": RateLimit(
+                requests_per_minute=20, requests_per_hour=200, burst_limit=10
+            ),
+            "/analysis/upload": RateLimit(
+                requests_per_minute=15, requests_per_hour=150, burst_limit=8
+            ),
             # Admin endpoints - strict limits
-            "/admin/settings": RateLimit(requests_per_minute=5, requests_per_hour=50, burst_limit=3),
-            "/admin/users": RateLimit(requests_per_minute=10, requests_per_hour=100, burst_limit=5),
-
+            "/admin/settings": RateLimit(
+                requests_per_minute=5, requests_per_hour=50, burst_limit=3
+            ),
+            "/admin/users": RateLimit(
+                requests_per_minute=10, requests_per_hour=100, burst_limit=5
+            ),
             # File operations - moderate limits
-            "/analysis/export-pdf": RateLimit(requests_per_minute=10, requests_per_hour=100, burst_limit=5),
-
+            "/analysis/export-pdf": RateLimit(
+                requests_per_minute=10, requests_per_hour=100, burst_limit=5
+            ),
             # Health and metrics - lenient limits
-            "/health": RateLimit(requests_per_minute=120, requests_per_hour=2000, burst_limit=50),
-            "/metrics": RateLimit(requests_per_minute=60, requests_per_hour=1000, burst_limit=30),
+            "/health": RateLimit(
+                requests_per_minute=120, requests_per_hour=2000, burst_limit=50
+            ),
+            "/metrics": RateLimit(
+                requests_per_minute=60, requests_per_hour=1000, burst_limit=30
+            ),
         }
 
         # Request tracking: identifier -> deque of timestamps
@@ -70,7 +88,9 @@ class EnhancedRateLimiter:
         # Burst tracking: identifier -> deque of timestamps
         self._burst_history: Dict[str, deque] = defaultdict(lambda: deque())
 
-    def is_rate_limited(self, request: Request) -> Tuple[bool, Optional[str], Dict[str, int]]:
+    def is_rate_limited(
+        self, request: Request
+    ) -> Tuple[bool, Optional[str], Dict[str, int]]:
         """
         Check if request should be rate limited.
 
@@ -94,14 +114,22 @@ class EnhancedRateLimiter:
                 client_id, rate_limit, now
             )
             if burst_limited:
-                return True, burst_reason, self._get_rate_limit_headers(rate_limit, 0, 0)
+                return (
+                    True,
+                    burst_reason,
+                    self._get_rate_limit_headers(rate_limit, 0, 0),
+                )
 
             # Check minute limit
             minute_limited, minute_reason = self._check_minute_limit(
                 client_id, rate_limit, now
             )
             if minute_limited:
-                return True, minute_reason, self._get_rate_limit_headers(rate_limit, 0, 0)
+                return (
+                    True,
+                    minute_reason,
+                    self._get_rate_limit_headers(rate_limit, 0, 0),
+                )
 
             # Check hour limit
             hour_limited, hour_reason = self._check_hour_limit(
@@ -114,10 +142,18 @@ class EnhancedRateLimiter:
             self._record_request(client_id, now)
 
             # Calculate remaining requests
-            remaining_minute = self._calculate_remaining_minute(client_id, rate_limit, now)
+            remaining_minute = self._calculate_remaining_minute(
+                client_id, rate_limit, now
+            )
             remaining_hour = self._calculate_remaining_hour(client_id, rate_limit, now)
 
-            return False, None, self._get_rate_limit_headers(rate_limit, remaining_minute, remaining_hour)
+            return (
+                False,
+                None,
+                self._get_rate_limit_headers(
+                    rate_limit, remaining_minute, remaining_hour
+                ),
+            )
 
         except Exception as e:
             logger.error(f"Rate limiting error: {e}")
@@ -130,7 +166,7 @@ class EnhancedRateLimiter:
         ip_address = request.client.host if request.client else "unknown"
 
         # Try to get user ID from request state (set by auth middleware)
-        user_id = getattr(request.state, 'user_id', None)
+        user_id = getattr(request.state, "user_id", None)
 
         if user_id:
             return f"user:{user_id}"
@@ -140,13 +176,15 @@ class EnhancedRateLimiter:
     def _get_endpoint_path(self, request: Request) -> str:
         """Get endpoint path for rate limiting."""
         # Use the route path if available
-        if hasattr(request, 'route') and request.route:
+        if hasattr(request, "route") and request.route:
             return request.route.path
 
         # Fallback to URL path
         return request.url.path
 
-    def _check_burst_limit(self, client_id: str, rate_limit: RateLimit, now: float) -> Tuple[bool, Optional[str]]:
+    def _check_burst_limit(
+        self, client_id: str, rate_limit: RateLimit, now: float
+    ) -> Tuple[bool, Optional[str]]:
         """Check burst rate limit."""
         burst_window_start = now - rate_limit.burst_window_seconds
 
@@ -157,13 +195,18 @@ class EnhancedRateLimiter:
 
         # Check if burst limit exceeded
         if len(burst_history) >= rate_limit.burst_limit:
-            return True, f"Burst limit exceeded: {rate_limit.burst_limit} requests per {rate_limit.burst_window_seconds} seconds"
+            return (
+                True,
+                f"Burst limit exceeded: {rate_limit.burst_limit} requests per {rate_limit.burst_window_seconds} seconds",
+            )
 
         # Record burst request
         burst_history.append(now)
         return False, None
 
-    def _check_minute_limit(self, client_id: str, rate_limit: RateLimit, now: float) -> Tuple[bool, Optional[str]]:
+    def _check_minute_limit(
+        self, client_id: str, rate_limit: RateLimit, now: float
+    ) -> Tuple[bool, Optional[str]]:
         """Check requests per minute limit."""
         minute_start = now - 60
 
@@ -174,21 +217,31 @@ class EnhancedRateLimiter:
 
         # Check if limit exceeded
         if len(request_history) >= rate_limit.requests_per_minute:
-            return True, f"Rate limit exceeded: {rate_limit.requests_per_minute} requests per minute"
+            return (
+                True,
+                f"Rate limit exceeded: {rate_limit.requests_per_minute} requests per minute",
+            )
 
         return False, None
 
-    def _check_hour_limit(self, client_id: str, rate_limit: RateLimit, now: float) -> Tuple[bool, Optional[str]]:
+    def _check_hour_limit(
+        self, client_id: str, rate_limit: RateLimit, now: float
+    ) -> Tuple[bool, Optional[str]]:
         """Check requests per hour limit."""
         hour_start = now - 3600
 
         # Count requests in the last hour
         request_history = self._request_history[client_id]
-        hour_requests = sum(1 for timestamp in request_history if timestamp >= hour_start)
+        hour_requests = sum(
+            1 for timestamp in request_history if timestamp >= hour_start
+        )
 
         # Check if limit exceeded
         if hour_requests >= rate_limit.requests_per_hour:
-            return True, f"Rate limit exceeded: {rate_limit.requests_per_hour} requests per hour"
+            return (
+                True,
+                f"Rate limit exceeded: {rate_limit.requests_per_hour} requests per hour",
+            )
 
         return False, None
 
@@ -196,21 +249,31 @@ class EnhancedRateLimiter:
         """Record a request."""
         self._request_history[client_id].append(now)
 
-    def _calculate_remaining_minute(self, client_id: str, rate_limit: RateLimit, now: float) -> int:
+    def _calculate_remaining_minute(
+        self, client_id: str, rate_limit: RateLimit, now: float
+    ) -> int:
         """Calculate remaining requests in current minute."""
         minute_start = now - 60
         request_history = self._request_history[client_id]
-        minute_requests = sum(1 for timestamp in request_history if timestamp >= minute_start)
+        minute_requests = sum(
+            1 for timestamp in request_history if timestamp >= minute_start
+        )
         return max(0, rate_limit.requests_per_minute - minute_requests)
 
-    def _calculate_remaining_hour(self, client_id: str, rate_limit: RateLimit, now: float) -> int:
+    def _calculate_remaining_hour(
+        self, client_id: str, rate_limit: RateLimit, now: float
+    ) -> int:
         """Calculate remaining requests in current hour."""
         hour_start = now - 3600
         request_history = self._request_history[client_id]
-        hour_requests = sum(1 for timestamp in request_history if timestamp >= hour_start)
+        hour_requests = sum(
+            1 for timestamp in request_history if timestamp >= hour_start
+        )
         return max(0, rate_limit.requests_per_hour - hour_requests)
 
-    def _get_rate_limit_headers(self, rate_limit: RateLimit, remaining_minute: int, remaining_hour: int) -> Dict[str, int]:
+    def _get_rate_limit_headers(
+        self, rate_limit: RateLimit, remaining_minute: int, remaining_hour: int
+    ) -> Dict[str, int]:
         """Get rate limit headers."""
         return {
             "X-RateLimit-Limit-Minute": rate_limit.requests_per_minute,
@@ -240,17 +303,19 @@ class EnhancedRateLimitMiddleware(BaseHTTPMiddleware):
             is_limited, reason, headers = self.rate_limiter.is_rate_limited(request)
 
             if is_limited:
-                logger.warning(f"Rate limit exceeded: {reason}",
-                             client_ip=request.client.host if request.client else "unknown",
-                             path=request.url.path)
+                logger.warning(
+                    f"Rate limit exceeded: {reason}",
+                    client_ip=request.client.host if request.client else "unknown",
+                    path=request.url.path,
+                )
 
                 response = JSONResponse(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     content={
                         "error": "RATE_LIMIT_EXCEEDED",
                         "message": reason,
-                        "retry_after": 60  # Retry after 60 seconds
-                    }
+                        "retry_after": 60,  # Retry after 60 seconds
+                    },
                 )
 
                 # Add rate limit headers

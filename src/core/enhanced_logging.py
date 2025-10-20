@@ -46,13 +46,15 @@ class PerformanceLogger:
                 "operation": operation,
                 "duration_ms": round(duration * 1000, 2),
                 "duration_seconds": round(duration, 3),
-                **context
-            }
+                **context,
+            },
         )
 
         return duration
 
-    def log_metric(self, metric_name: str, value: float, unit: str = "", **context) -> None:
+    def log_metric(
+        self, metric_name: str, value: float, unit: str = "", **context
+    ) -> None:
         """Log a performance metric."""
         self.logger.info(
             f"Metric: {metric_name}",
@@ -60,8 +62,8 @@ class PerformanceLogger:
                 "metric_name": metric_name,
                 "metric_value": value,
                 "metric_unit": unit,
-                **context
-            }
+                **context,
+            },
         )
 
 
@@ -71,8 +73,14 @@ class RequestLogger:
     def __init__(self, logger_name: str = "requests"):
         self.logger = logging.getLogger(logger_name)
 
-    def log_request(self, method: str, path: str, user_id: Optional[int] = None,
-                   ip_address: Optional[str] = None, **context) -> None:
+    def log_request(
+        self,
+        method: str,
+        path: str,
+        user_id: Optional[int] = None,
+        ip_address: Optional[str] = None,
+        **context,
+    ) -> None:
         """Log incoming request."""
         self.logger.info(
             f"Request: {method} {path}",
@@ -82,12 +90,19 @@ class RequestLogger:
                 "path": path,
                 "user_id": user_id,
                 "ip_address": ip_address,
-                **context
-            }
+                **context,
+            },
         )
 
-    def log_response(self, method: str, path: str, status_code: int,
-                    duration_ms: float, user_id: Optional[int] = None, **context) -> None:
+    def log_response(
+        self,
+        method: str,
+        path: str,
+        status_code: int,
+        duration_ms: float,
+        user_id: Optional[int] = None,
+        **context,
+    ) -> None:
         """Log response."""
         self.logger.info(
             f"Response: {method} {path} -> {status_code}",
@@ -98,8 +113,8 @@ class RequestLogger:
                 "status_code": status_code,
                 "duration_ms": duration_ms,
                 "user_id": user_id,
-                **context
-            }
+                **context,
+            },
         )
 
 
@@ -110,8 +125,13 @@ class ErrorTracker:
         self.logger = logging.getLogger(logger_name)
         self._error_counts: Dict[str, int] = {}
 
-    def log_error(self, error: Exception, context: Optional[Dict[str, Any]] = None,
-                 user_id: Optional[int] = None, request_id: Optional[str] = None) -> None:
+    def log_error(
+        self,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None,
+        user_id: Optional[int] = None,
+        request_id: Optional[str] = None,
+    ) -> None:
         """Log an error with context."""
         error_key = f"{type(error).__name__}:{str(error)[:100]}"
         self._error_counts[error_key] = self._error_counts.get(error_key, 0) + 1
@@ -127,7 +147,7 @@ class ErrorTracker:
                 "request_id": request_id,
                 "context": context or {},
             },
-            exc_info=True
+            exc_info=True,
         )
 
         # Alert on repeated errors
@@ -138,8 +158,8 @@ class ErrorTracker:
                     "event_type": "error_alert",
                     "error_key": error_key,
                     "count": self._error_counts[error_key],
-                    "threshold": 5
-                }
+                    "threshold": 5,
+                },
             )
 
     def get_error_stats(self) -> Dict[str, int]:
@@ -160,13 +180,31 @@ class JSONFormatter(logging.Formatter):
         }
 
         # Add extra fields
-        if hasattr(record, '__dict__'):
+        if hasattr(record, "__dict__"):
             for key, value in record.__dict__.items():
-                if key not in {'name', 'msg', 'args', 'levelname', 'levelno',
-                              'pathname', 'filename', 'module', 'lineno',
-                              'funcName', 'created', 'msecs', 'relativeCreated',
-                              'thread', 'threadName', 'processName', 'process',
-                              'getMessage', 'exc_info', 'exc_text', 'stack_info'}:
+                if key not in {
+                    "name",
+                    "msg",
+                    "args",
+                    "levelname",
+                    "levelno",
+                    "pathname",
+                    "filename",
+                    "module",
+                    "lineno",
+                    "funcName",
+                    "created",
+                    "msecs",
+                    "relativeCreated",
+                    "thread",
+                    "threadName",
+                    "processName",
+                    "process",
+                    "getMessage",
+                    "exc_info",
+                    "exc_text",
+                    "stack_info",
+                }:
                     log_entry[key] = value
 
         # Add exception info
@@ -182,7 +220,7 @@ def setup_enhanced_logging(
     max_file_size_mb: int = 10,
     backup_count: int = 5,
     enable_json: bool = False,
-    enable_console: bool = True
+    enable_console: bool = True,
 ) -> None:
     """Setup enhanced logging configuration."""
 
@@ -202,7 +240,7 @@ def setup_enhanced_logging(
             console_handler.setFormatter(JSONFormatter())
         else:
             console_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
             console_handler.setFormatter(console_formatter)
 
@@ -217,7 +255,7 @@ def setup_enhanced_logging(
             log_file,
             maxBytes=max_file_size_mb * 1024 * 1024,
             backupCount=backup_count,
-            encoding='utf-8'
+            encoding="utf-8",
         )
         file_handler.setLevel(getattr(logging, log_level.upper()))
 
@@ -225,7 +263,7 @@ def setup_enhanced_logging(
             file_handler.setFormatter(JSONFormatter())
         else:
             file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
             file_handler.setFormatter(file_formatter)
 
@@ -279,7 +317,7 @@ def initialize_logging() -> None:
         max_file_size_mb=settings.logging.max_file_size_mb,
         backup_count=settings.logging.backup_count,
         enable_json=settings.is_production(),
-        enable_console=settings.logging.console_enabled
+        enable_console=settings.logging.console_enabled,
     )
 
     logger = logging.getLogger(__name__)

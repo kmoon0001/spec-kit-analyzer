@@ -20,7 +20,6 @@ except Exception:  # pragma: no cover - environment dependent
 import joblib
 import numpy as np
 
-
 logger = logging.getLogger(__name__)
 
 # Lazy-load the SentenceTransformer to avoid importing it at startup
@@ -52,7 +51,12 @@ def _get_sentence_transformer_cls():
                 def __init__(self, _model_name: str) -> None:  # signature-compatible
                     self.model_name = _model_name
 
-                def encode(self, texts, convert_to_numpy: bool | None = None, convert_to_tensor: bool | None = None):
+                def encode(
+                    self,
+                    texts,
+                    convert_to_numpy: bool | None = None,
+                    convert_to_tensor: bool | None = None,
+                ):
                     if isinstance(texts, str):
                         texts = [texts]
                     embeds = np.stack([_fallback_hash_embed(t) for t in texts], axis=0)
@@ -155,7 +159,9 @@ class GuidelineService:
                 texts = [text for text, _ in self.guideline_chunks]
                 self._fallback_embeddings = self._encode_texts(texts)
             self.is_index_ready = True
-            logger.info("Loaded %d guideline chunks from cache", len(self.guideline_chunks))
+            logger.info(
+                "Loaded %d guideline chunks from cache", len(self.guideline_chunks)
+            )
             return True
         except (FileNotFoundError, PermissionError, OSError) as exc:
             logger.warning("Failed to load guideline cache: %s", exc)
@@ -202,7 +208,11 @@ class GuidelineService:
             logger.warning("Guideline source %s does not exist", path)
             return []
         if path.suffix.lower() == ".txt":
-            return [(line.strip(), path.name) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            return [
+                (line.strip(), path.name)
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
         logger.warning("Unsupported guideline format for %s", path)
         return []
 
@@ -213,7 +223,9 @@ class GuidelineService:
                 embeddings = np.asarray(embeddings)
             return embeddings.astype(np.float32)
         # Should not happen; fallback
-        return np.stack([_fallback_hash_embed(t) for t in texts], axis=0).astype(np.float32)
+        return np.stack([_fallback_hash_embed(t) for t in texts], axis=0).astype(
+            np.float32
+        )
 
     def search(self, query: str, top_k: int = 5) -> list[dict]:
         if not self.is_index_ready:
@@ -229,7 +241,9 @@ class GuidelineService:
             for i, dist in zip(indices[0], distances[0], strict=False):
                 if i != -1:
                     text, source = self.guideline_chunks[i]
-                    results.append({"text": text, "source": source, "score": float(dist)})
+                    results.append(
+                        {"text": text, "source": source, "score": float(dist)}
+                    )
             return results
 
         if self._fallback_embeddings is None or len(self._fallback_embeddings) == 0:
@@ -239,7 +253,9 @@ class GuidelineService:
         fallback_results: list[dict] = []
         for idx in order:
             text, source = self.guideline_chunks[int(idx)]
-            fallback_results.append({"text": text, "source": source, "score": float(dists[int(idx)])})
+            fallback_results.append(
+                {"text": text, "source": source, "score": float(dists[int(idx)])}
+            )
         return fallback_results
 
 

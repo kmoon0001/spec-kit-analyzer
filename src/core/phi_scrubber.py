@@ -40,20 +40,27 @@ class PhiScrubberService:
             try:
                 registry = RecognizerRegistry()
             except Exception as exc:
-                logger.warning("Failed to initialize Presidio recognizer registry: %s", exc)
+                logger.warning(
+                    "Failed to initialize Presidio recognizer registry: %s", exc
+                )
         if analyzer is None and AnalyzerEngine is not None:
             try:
                 analyzer = AnalyzerEngine(
-                    registry=registry if registry is not None else RecognizerRegistry(), supported_languages=["en"]
+                    registry=registry if registry is not None else RecognizerRegistry(),
+                    supported_languages=["en"],
                 )
             except Exception as exc:
-                logger.exception("Failed to initialize Presidio AnalyzerEngine: %s", exc)
+                logger.exception(
+                    "Failed to initialize Presidio AnalyzerEngine: %s", exc
+                )
                 analyzer = None
         if anonymizer is None and AnonymizerEngine is not None:
             try:
                 anonymizer = AnonymizerEngine()
             except Exception as exc:
-                logger.exception("Failed to initialize Presidio AnonymizerEngine: %s", exc)
+                logger.exception(
+                    "Failed to initialize Presidio AnonymizerEngine: %s", exc
+                )
                 anonymizer = None
 
         self.analyzer = analyzer
@@ -72,7 +79,9 @@ class PhiScrubberService:
 
         try:
             if not self.analyzer or not self.anonymizer:
-                logger.warning("Analyzer or anonymizer not available, returning original text")
+                logger.warning(
+                    "Analyzer or anonymizer not available, returning original text"
+                )
                 return text
 
             if self._custom_wrapper:

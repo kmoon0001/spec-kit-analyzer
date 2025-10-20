@@ -29,7 +29,13 @@ class EHRConnector:
         self.error_count = 0
 
     async def connect(
-        self, system_type: str, endpoint_url: str, client_id: str, client_secret: str, scope: str, facility_id: str
+        self,
+        system_type: str,
+        endpoint_url: str,
+        client_id: str,
+        client_secret: str,
+        scope: str,
+        facility_id: str,
     ) -> dict[str, Any]:
         """Connect to an EHR system.
 
@@ -49,7 +55,14 @@ class EHRConnector:
             logger.info("Attempting to connect to %s EHR system", system_type)
 
             # Validate system type
-            supported_systems = ["epic", "cerner", "allscripts", "athenahealth", "nethealth", "generic_fhir"]
+            supported_systems = [
+                "epic",
+                "cerner",
+                "allscripts",
+                "athenahealth",
+                "nethealth",
+                "generic_fhir",
+            ]
             if system_type not in supported_systems:
                 return {
                     "success": False,
@@ -87,11 +100,11 @@ class EHRConnector:
                 "system_info": {
                     "system_type": system_type,
                     "facility_id": facility_id,
-                    "fhir_version": "R4"
-                    if system_type in ["epic", "cerner", "generic_fhir"]
-                    else "Proprietary"
-                    if system_type == "nethealth"
-                    else "N/A",
+                    "fhir_version": (
+                        "R4"
+                        if system_type in ["epic", "cerner", "generic_fhir"]
+                        else "Proprietary" if system_type == "nethealth" else "N/A"
+                    ),
                 },
             }
 
@@ -133,13 +146,19 @@ class EHRConnector:
             "facility_id": self.connection_config.get("facility_id"),
             "last_sync": self.last_sync.isoformat() if self.last_sync else None,
             "health": health,
-            "capabilities": self._get_system_capabilities(self.connection_config.get("system_type", "")),
+            "capabilities": self._get_system_capabilities(
+                self.connection_config.get("system_type", "")
+            ),
             "error_count": self.error_count,
             "connection_id": self.connection_id,
         }
 
     async def list_synced_documents(
-        self, limit: int = 50, offset: int = 0, document_type: str | None = None, analyzed_only: bool = False
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        document_type: str | None = None,
+        analyzed_only: bool = False,
     ) -> dict[str, Any]:
         """List documents synchronized from the EHR system."""
         if not self.is_connected:
@@ -156,14 +175,16 @@ class EHRConnector:
                 {
                     "document_id": f"doc_{i:03d}",
                     "patient_id": f"patient_{i % 10:03d}",
-                    "document_type": "progress_note"
-                    if i % 3 == 0
-                    else "evaluation"
-                    if i % 3 == 1
-                    else "treatment_plan",
+                    "document_type": (
+                        "progress_note"
+                        if i % 3 == 0
+                        else "evaluation" if i % 3 == 1 else "treatment_plan"
+                    ),
                     "created_date": datetime.now().isoformat(),
                     "author": f"Dr. Smith {i % 5}",
-                    "department": "Physical Therapy" if i % 2 == 0 else "Occupational Therapy",
+                    "department": (
+                        "Physical Therapy" if i % 2 == 0 else "Occupational Therapy"
+                    ),
                     "status": "final",
                     "compliance_analyzed": i % 4 == 0,  # 25% analyzed
                 }
@@ -173,9 +194,15 @@ class EHRConnector:
             # Apply filters
             filtered_docs = sample_documents
             if document_type:
-                filtered_docs = [doc for doc in filtered_docs if doc["document_type"] == document_type]
+                filtered_docs = [
+                    doc
+                    for doc in filtered_docs
+                    if doc["document_type"] == document_type
+                ]
             if analyzed_only:
-                filtered_docs = [doc for doc in filtered_docs if doc["compliance_analyzed"]]
+                filtered_docs = [
+                    doc for doc in filtered_docs if doc["compliance_analyzed"]
+                ]
 
             # Apply pagination
             total_count = len(filtered_docs)
@@ -247,10 +274,33 @@ class EHRConnector:
     def _get_system_capabilities(self, system_type: str) -> list[str]:
         """Get capabilities for a specific EHR system type."""
         capabilities_map = {
-            "epic": ["patient_data", "clinical_notes", "orders", "results", "medications", "allergies"],
-            "cerner": ["patient_data", "clinical_notes", "medications", "allergies", "vitals"],
-            "allscripts": ["patient_data", "clinical_notes", "prescriptions", "appointments"],
-            "athenahealth": ["patient_data", "clinical_notes", "appointments", "billing"],
+            "epic": [
+                "patient_data",
+                "clinical_notes",
+                "orders",
+                "results",
+                "medications",
+                "allergies",
+            ],
+            "cerner": [
+                "patient_data",
+                "clinical_notes",
+                "medications",
+                "allergies",
+                "vitals",
+            ],
+            "allscripts": [
+                "patient_data",
+                "clinical_notes",
+                "prescriptions",
+                "appointments",
+            ],
+            "athenahealth": [
+                "patient_data",
+                "clinical_notes",
+                "appointments",
+                "billing",
+            ],
             "nethealth": [
                 "patient_data",
                 "clinical_notes",
@@ -260,7 +310,12 @@ class EHRConnector:
                 "outcomes",
                 "scheduling",
             ],
-            "generic_fhir": ["patient_data", "clinical_notes", "observations", "conditions"],
+            "generic_fhir": [
+                "patient_data",
+                "clinical_notes",
+                "observations",
+                "conditions",
+            ],
         }
 
         return capabilities_map.get(system_type, ["patient_data", "clinical_notes"])

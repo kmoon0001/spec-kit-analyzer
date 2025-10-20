@@ -34,7 +34,10 @@ class MixtureOfExpertsRouter:
                 "prompt": BILLING_EXPERT,
                 "keywords": ["cpt", "code", "billing", "charge", "timed", "un-timed"],
             },
-            "soap": {"prompt": SOAP_NOTE_EXPERT, "keywords": ["soap", "subjective", "objective", "assessment", "plan"]},
+            "soap": {
+                "prompt": SOAP_NOTE_EXPERT,
+                "keywords": ["soap", "subjective", "objective", "assessment", "plan"],
+            },
         }
 
     def route(self, query: str) -> str:
@@ -86,7 +89,9 @@ class ChatService:
     def _build_prompt(self, history: list[dict[str, str]], system_prompt: str) -> str:
         lines = [system_prompt, "", "Conversation log:"]
         for message in history:
-            role = sanitize_human_text((message.get("role") or "user").strip()) or "user"
+            role = (
+                sanitize_human_text((message.get("role") or "user").strip()) or "user"
+            )
             content = sanitize_human_text((message.get("content") or "").strip())
             if not content:
                 continue

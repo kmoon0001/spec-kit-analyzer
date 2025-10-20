@@ -67,7 +67,9 @@ class FileCleanupService:
                 continue
 
             try:
-                cleaned_count, size_freed = await self._cleanup_directory(temp_dir, cutoff_time)
+                cleaned_count, size_freed = await self._cleanup_directory(
+                    temp_dir, cutoff_time
+                )
                 total_cleaned += cleaned_count
                 total_size_freed += size_freed
 
@@ -75,9 +77,13 @@ class FileCleanupService:
                 logger.error(f"Error cleaning directory {temp_dir}: {e}")
 
         if total_cleaned > 0:
-            logger.info(f"Cleaned {total_cleaned} files, freed {total_size_freed / 1024 / 1024:.2f} MB")
+            logger.info(
+                f"Cleaned {total_cleaned} files, freed {total_size_freed / 1024 / 1024:.2f} MB"
+            )
 
-    async def _cleanup_directory(self, directory: Path, cutoff_time: float) -> tuple[int, int]:
+    async def _cleanup_directory(
+        self, directory: Path, cutoff_time: float
+    ) -> tuple[int, int]:
         """Clean up files in a specific directory."""
         cleaned_count = 0
         size_freed = 0
@@ -118,7 +124,9 @@ class FileCleanupService:
         for temp_dir in self.temp_dirs:
             if temp_dir.exists():
                 try:
-                    total_size = sum(f.stat().st_size for f in temp_dir.rglob('*') if f.is_file())
+                    total_size = sum(
+                        f.stat().st_size for f in temp_dir.rglob("*") if f.is_file()
+                    )
                     usage[str(temp_dir)] = total_size / 1024 / 1024  # MB
                 except Exception as e:
                     logger.error(f"Error calculating disk usage for {temp_dir}: {e}")

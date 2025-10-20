@@ -168,7 +168,12 @@ class SystemValidator:
                 )
             )
 
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            HTTPError,
+        ) as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             results.append(
                 ValidationResult(

@@ -89,7 +89,9 @@ class FeatureConfig:
 
                 # Merge user config with defaults
                 self._merge_config(self.features, user_config)
-                logger.info("Loaded user feature configuration from %s", self.config_file)
+                logger.info(
+                    "Loaded user feature configuration from %s", self.config_file
+                )
             else:
                 logger.info("No user feature configuration found, using defaults")
 
@@ -218,7 +220,10 @@ class FeatureConfig:
         # Check Excel export dependencies
         if self.is_feature_enabled("data_export.excel_support"):
             try:
-                if importlib.util.find_spec("pandas") is None or importlib.util.find_spec("openpyxl") is None:
+                if (
+                    importlib.util.find_spec("pandas") is None
+                    or importlib.util.find_spec("openpyxl") is None
+                ):
                     raise ImportError("Required libraries not found") from None
             except ImportError:
                 issues["excel_export"] = "Pandas or OpenPyXL library not installed"

@@ -147,12 +147,16 @@ class HabitsFrameworkSettings(BaseModel):
     enabled: bool = False
     visibility_level: str = "moderate"
     ai_features: HabitAISettings = HabitAISettings()
-    report_integration: HabitReportIntegrationSettings = HabitReportIntegrationSettings()
+    report_integration: HabitReportIntegrationSettings = (
+        HabitReportIntegrationSettings()
+    )
     education: HabitEducationSettings = HabitEducationSettings()
     advanced: HabitAdvancedSettings = HabitAdvancedSettings()
     gamification: HabitGamificationSettings = HabitGamificationSettings()
     privacy: HabitPrivacySettings = HabitPrivacySettings()
-    dashboard_integration: HabitDashboardIntegrationSettings = HabitDashboardIntegrationSettings()
+    dashboard_integration: HabitDashboardIntegrationSettings = (
+        HabitDashboardIntegrationSettings()
+    )
 
     def is_prominent(self) -> bool:
         return self.visibility_level.lower() == "prominent"
@@ -199,13 +203,21 @@ class EHRIntegrationSettings(BaseModel):
     connection_timeout_seconds: int = 30
     max_retry_attempts: int = 3
     sync_batch_size: int = 100
-    supported_systems: list[str] = ["epic", "cerner", "allscripts", "athenahealth", "nethealth"]
+    supported_systems: list[str] = [
+        "epic",
+        "cerner",
+        "allscripts",
+        "athenahealth",
+        "nethealth",
+    ]
 
 
 class Settings(BaseSettings):
     """Top-level application settings composed from config.yaml and environment."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="allow"
+    )
 
     use_ai_mocks: bool = False
     enable_director_dashboard: bool = True
@@ -244,7 +256,12 @@ def get_settings() -> Settings:
 
     env_use_ai_mocks = os.getenv("USE_AI_MOCKS")
     if env_use_ai_mocks is not None:
-        settings.use_ai_mocks = env_use_ai_mocks.strip().lower() in {"1", "true", "yes", "on"}
+        settings.use_ai_mocks = env_use_ai_mocks.strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
 
     # --- CRITICAL SECURITY VALIDATION ---
     validate_environment_security()
@@ -254,12 +271,21 @@ def get_settings() -> Settings:
     secret_key_value = os.environ.get("SECRET_KEY")
     if not secret_key_value:
         # Only allow fallback in development/testing environments
-        if os.getenv("ENVIRONMENT", "production").lower() in ["development", "testing", "dev", "test"]:
+        if os.getenv("ENVIRONMENT", "production").lower() in [
+            "development",
+            "testing",
+            "dev",
+            "test",
+        ]:
             secret_key_value = (
-                settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else None
+                settings.auth.secret_key.get_secret_value()
+                if settings.auth.secret_key
+                else None
             )
             logger = logging.getLogger(__name__)
-            logger.warning("SECRET_KEY not found in environment; using fallback value for development/testing only.")
+            logger.warning(
+                "SECRET_KEY not found in environment; using fallback value for development/testing only."
+            )
         else:
             raise ValueError(
                 "CRITICAL: SECRET_KEY must be set in environment variables for production. Application will not start."
@@ -282,9 +308,9 @@ def validate_environment_security():
 
     # Required security environment variables
     required_vars = {
-        'SECRET_KEY': 'JWT signing key',
-        'DATABASE_ENCRYPTION_KEY': 'Database field encryption key',
-        'FILE_ENCRYPTION_KEY': 'File encryption key'
+        "SECRET_KEY": "JWT signing key",
+        "DATABASE_ENCRYPTION_KEY": "Database field encryption key",
+        "FILE_ENCRYPTION_KEY": "File encryption key",
     }
 
     # Check for required variables
@@ -294,9 +320,11 @@ def validate_environment_security():
             missing_vars.append(f"{var} ({description})")
 
     if missing_vars:
-        error_msg = f"CRITICAL SECURITY ERROR: Missing required environment variables:\n" + \
-                   "\n".join(f"  - {var}" for var in missing_vars) + \
-                   "\n\nApplication cannot start without these security variables."
+        error_msg = (
+            f"CRITICAL SECURITY ERROR: Missing required environment variables:\n"
+            + "\n".join(f"  - {var}" for var in missing_vars)
+            + "\n\nApplication cannot start without these security variables."
+        )
         logger.error(error_msg)
         raise ValueError(error_msg)
 
@@ -307,16 +335,18 @@ def validate_environment_security():
 
     # Check for default/insecure values
     insecure_defaults = {
-        'DATABASE_ENCRYPTION_PASSWORD': 'default-db-password-change-in-production',
-        'DATABASE_ENCRYPTION_SALT': 'default-db-salt-change-in-production',
-        'FILE_ENCRYPTION_PASSWORD': 'default-password-change-in-production',
-        'FILE_ENCRYPTION_SALT': 'default-salt-change-in-production'
+        "DATABASE_ENCRYPTION_PASSWORD": "default-db-password-change-in-production",
+        "DATABASE_ENCRYPTION_SALT": "default-db-salt-change-in-production",
+        "FILE_ENCRYPTION_PASSWORD": "default-password-change-in-production",
+        "FILE_ENCRYPTION_SALT": "default-salt-change-in-production",
     }
 
     for var, default_value in insecure_defaults.items():
         if os.getenv(var) == default_value:
             logger.error(f"CRITICAL: {var} is using insecure default value!")
-            raise ValueError(f"CRITICAL: {var} must be changed from default value for security")
+            raise ValueError(
+                f"CRITICAL: {var} must be changed from default value for security"
+            )
 
     logger.info("Environment security validation passed")
 

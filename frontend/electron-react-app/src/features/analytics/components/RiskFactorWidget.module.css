@@ -4,7 +4,9 @@
   border-radius: 5px;
   padding: 12px;
   margin: 5px 0;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .widget:hover {

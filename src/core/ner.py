@@ -22,7 +22,11 @@ if "file_utils" not in dir(transformers):
 
     sys.modules["transformers.file_utils"] = transformers.utils
 
-from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline  # type: ignore[import-untyped]
+from transformers import (  # type: ignore[import-untyped]
+    AutoModelForTokenClassification,
+    AutoTokenizer,
+    pipeline,
+)
 
 from src.core.cache_service import NERCache
 
@@ -78,12 +82,17 @@ class ClinicalNERService:
                 model = AutoModelForTokenClassification.from_pretrained(model_name)
                 pipelines.append(
                     pipeline(  # type: ignore[call-overload]
-                        "ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"
+                        "ner",
+                        model=model,
+                        tokenizer=tokenizer,
+                        aggregation_strategy="simple",
                     )
                 )
                 logger.info("Successfully loaded clinical NER model: %s", model_name)
             except Exception:
-                logger.error("Failed to load NER model %s: {e}", model_name, exc_info=True)
+                logger.error(
+                    "Failed to load NER model %s: {e}", model_name, exc_info=True
+                )
         return pipelines
 
     def extract_entities(self, text: str) -> list[dict[str, Any]]:
@@ -98,7 +107,9 @@ class ClinicalNERService:
         """
         # Allow performance flag to skip advanced NER entirely (for CPU-friendly runs)
         try:
-            from src.config import get_settings  # lazy import to avoid cycles at module import
+            from src.config import (
+                get_settings,  # lazy import to avoid cycles at module import
+            )
 
             if bool(get_settings().performance.get("skip_advanced_ner", False)):
                 return []
@@ -109,7 +120,9 @@ class ClinicalNERService:
             return []
 
         # Check cache first for performance optimization
-        model_identifier = "_".join(self.model_names) if self.model_names else "default_ner"
+        model_identifier = (
+            "_".join(self.model_names) if self.model_names else "default_ner"
+        )
         cached_results = NERCache.get_ner_results(text, model_identifier)
         if cached_results is not None:
             logger.debug("Cache hit for NER results (model: %s)", model_identifier)
@@ -129,10 +142,15 @@ class ClinicalNERService:
 
         # Cache the results for future use
         processing_time = time.time() - start_time
-        ttl_hours = 24.0 if processing_time > 2.0 else 48.0  # Longer TTL for quick processing
+        ttl_hours = (
+            24.0 if processing_time > 2.0 else 48.0
+        )  # Longer TTL for quick processing
         NERCache.set_ner_results(text, model_identifier, merged_entities, ttl_hours)
 
-        logger.debug("NER processing completed in %ss, cached with TTL {ttl_hours}h", processing_time)
+        logger.debug(
+            "NER processing completed in %ss, cached with TTL {ttl_hours}h",
+            processing_time,
+        )
         return merged_entities
 
     def _merge_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -163,7 +181,9 @@ class ClinicalNERService:
                     if entity["score"] > last_entity["score"]:
                         merged[-1] = entity
                 # Otherwise, if scores are comparable, prefer the longer entity
-                elif (entity["end"] - entity["start"]) > (last_entity["end"] - last_entity["start"]):
+                elif (entity["end"] - entity["start"]) > (
+                    last_entity["end"] - last_entity["start"]
+                ):
                     if entity["score"] > (last_entity["score"] * 0.8):
                         merged[-1] = entity
 
@@ -182,14 +202,18 @@ class ClinicalNERService:
             return []
 
         titles_regex = re.compile(self.clinical_patterns["titles"], re.IGNORECASE)
-        signature_regex = re.compile(self.clinical_patterns["signature_keywords"], re.IGNORECASE)
+        signature_regex = re.compile(
+            self.clinical_patterns["signature_keywords"], re.IGNORECASE
+        )
         name_regex = re.compile(self.clinical_patterns["name_pattern"])
 
         matches = []
         for match in name_regex.finditer(text):
             window_start = max(0, match.start() - 64)
             context_window = text[window_start : match.start()]
-            if titles_regex.search(context_window) or signature_regex.search(context_window):
+            if titles_regex.search(context_window) or signature_regex.search(
+                context_window
+            ):
                 matches.append(match.group("name").strip())
         return matches
 
@@ -230,7 +254,9 @@ class ClinicalNERService:
                 continue
             if "drug" in group or "med" in group:
                 categories["medications"].append(word)
-            elif any(keyword in group for keyword in ("disease", "condition", "diagnosis")):
+            elif any(
+                keyword in group for keyword in ("disease", "condition", "diagnosis")
+            ):
                 categories["conditions"].append(word)
             elif "procedure" in group or "treatment" in group:
                 categories["procedures"].append(word)
@@ -244,7 +270,9 @@ class ClinicalNERService:
                 categories["other"].append(word)
         return categories
 
-    def _deduplicate_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _deduplicate_entities(
+        self, entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Deduplicate entities based on position and content.
 
         Args:
@@ -256,7 +284,12 @@ class ClinicalNERService:
         seen = set()
         deduped: list[dict[str, Any]] = []
         for entity in entities:
-            key = (entity.get("start"), entity.get("end"), entity.get("word"), entity.get("entity_group"))
+            key = (
+                entity.get("start"),
+                entity.get("end"),
+                entity.get("word"),
+                entity.get("entity_group"),
+            )
             if key in seen:
                 continue
             seen.add(key)

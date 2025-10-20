@@ -38,7 +38,9 @@ class IndividualHabitTracker:
         self.user_id = user_id
         self.habits_framework = habits_framework
 
-    async def get_personal_habit_profile(self, db_session, days_back: int = 90) -> dict[str, Any]:
+    async def get_personal_habit_profile(
+        self, db_session, days_back: int = 90
+    ) -> dict[str, Any]:
         """Get comprehensive personal habit profile for the user.
 
         Args:
@@ -85,10 +87,14 @@ class IndividualHabitTracker:
                 )
 
         # Calculate progression metrics
-        progression_metrics = self.habits_framework.get_habit_progression_metrics(all_findings)
+        progression_metrics = self.habits_framework.get_habit_progression_metrics(
+            all_findings
+        )
 
         # Calculate personal insights
-        personal_insights = await self._calculate_personal_insights(db_session, all_findings, user_reports)
+        personal_insights = await self._calculate_personal_insights(
+            db_session, all_findings, user_reports
+        )
 
         # Get achievement status
         achievements = await self._calculate_achievements(db_session, all_findings)
@@ -97,7 +103,9 @@ class IndividualHabitTracker:
         streaks = self._calculate_streaks(user_reports)
 
         # Generate personalized recommendations
-        recommendations = self._generate_personal_recommendations(progression_metrics, personal_insights)
+        recommendations = self._generate_personal_recommendations(
+            progression_metrics, personal_insights
+        )
 
         return {
             "user_id": self.user_id,
@@ -116,7 +124,9 @@ class IndividualHabitTracker:
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    async def get_habit_timeline(self, db_session, habit_id: str, days_back: int = 30) -> dict[str, Any]:
+    async def get_habit_timeline(
+        self, db_session, habit_id: str, days_back: int = 30
+    ) -> dict[str, Any]:
         """Get detailed timeline for a specific habit.
 
         Args:
@@ -180,15 +190,26 @@ class IndividualHabitTracker:
             "timeline": sorted_timeline,
             "summary": {
                 "total_days": len(sorted_timeline),
-                "days_with_findings": len([d for d in sorted_timeline if int(d["habit_findings"]) > 0]),
-                "total_habit_findings": sum(d["habit_findings"] for d in sorted_timeline),
-                "avg_findings_per_day": sum(d["habit_findings"] for d in sorted_timeline)
+                "days_with_findings": len(
+                    [d for d in sorted_timeline if int(d["habit_findings"]) > 0]
+                ),
+                "total_habit_findings": sum(
+                    d["habit_findings"] for d in sorted_timeline
+                ),
+                "avg_findings_per_day": sum(
+                    d["habit_findings"] for d in sorted_timeline
+                )
                 / max(len(sorted_timeline), 1),
             },
         }
 
     async def set_personal_goal(
-        self, db_session, habit_id: str, goal_type: str, target_value: float, target_date: datetime
+        self,
+        db_session,
+        habit_id: str,
+        goal_type: str,
+        target_value: float,
+        target_date: datetime,
     ) -> dict[str, Any]:
         """Set a personal habit improvement goal.
 
@@ -264,7 +285,9 @@ class IndividualHabitTracker:
         older_cutoff = now - timedelta(days=60)
 
         recent_findings = [f for f in findings if f["date"] >= recent_cutoff]
-        older_findings = [f for f in findings if older_cutoff <= f["date"] < recent_cutoff]
+        older_findings = [
+            f for f in findings if older_cutoff <= f["date"] < recent_cutoff
+        ]
 
         trend = "stable"
         if len(older_findings) > 0:
@@ -293,7 +316,9 @@ class IndividualHabitTracker:
                     "habit_id": habit_id,
                     "habit_name": habit_details["name"],
                     "finding_count": count,
-                    "strength_level": "Strong" if count < len(findings) * 0.1 else "Good",
+                    "strength_level": (
+                        "Strong" if count < len(findings) * 0.1 else "Good"
+                    ),
                 }
             )
 
@@ -318,7 +343,9 @@ class IndividualHabitTracker:
             "total_analysis_days": len(set(f["date"].date() for f in findings)),
         }
 
-    async def _calculate_achievements(self, db_session, findings: list[dict]) -> dict[str, Any]:
+    async def _calculate_achievements(
+        self, db_session, findings: list[dict]
+    ) -> dict[str, Any]:
         """Calculate user achievements and badges."""
         badges: list[dict[str, Any]] = []
         milestones: list[dict[str, Any]] = []
@@ -398,10 +425,14 @@ class IndividualHabitTracker:
             "current_streak": current_streak,
             "longest_streak": longest_streak,
             "streak_type": "Days without findings",
-            "last_analysis_date": sorted_reports[-1].analysis_date.isoformat() if sorted_reports else None,
+            "last_analysis_date": (
+                sorted_reports[-1].analysis_date.isoformat() if sorted_reports else None
+            ),
         }
 
-    def _generate_personal_recommendations(self, progression_metrics: dict, insights: dict) -> list[dict[str, Any]]:
+    def _generate_personal_recommendations(
+        self, progression_metrics: dict, insights: dict
+    ) -> list[dict[str, Any]]:
         """Generate personalized improvement recommendations."""
         recommendations = []
 

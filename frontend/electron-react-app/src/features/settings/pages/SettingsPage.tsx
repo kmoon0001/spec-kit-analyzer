@@ -1,44 +1,60 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { Card } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { StatusChip } from '../../../components/ui/StatusChip';
-import { useAppStore } from '../../../store/useAppStore';
-import { fetchPreferences, updatePreferences, PreferencesForm } from '../api';
+import { Card } from "../../../components/ui/Card";
+import { Button } from "../../../components/ui/Button";
+import { StatusChip } from "../../../components/ui/StatusChip";
+import { useAppStore } from "../../../store/useAppStore";
+import { fetchPreferences, updatePreferences, PreferencesForm } from "../api";
 
-import styles from './SettingsPage.module.css';
+import styles from "./SettingsPage.module.css";
 
 const TOGGLES = [
-  { key: 'enableBetaWidgets', label: 'Enable beta mission-control widgets' },
-  { key: 'autoStartBackend', label: 'Auto-start FastAPI backend with Electron shell' },
-  { key: 'streamAnalysisLogs', label: 'Stream analysis logs to dashboard' },
+  { key: "enableBetaWidgets", label: "Enable beta mission-control widgets" },
+  {
+    key: "autoStartBackend",
+    label: "Auto-start FastAPI backend with Electron shell",
+  },
+  { key: "streamAnalysisLogs", label: "Stream analysis logs to dashboard" },
 ] as const;
 
 const PERFORMANCE_FLAGS = [
-  { label: 'GPU acceleration', status: 'ready' as const, hint: 'Auto-detected NVidia runtime' },
-  { label: 'Meditron-7B quantization', status: 'ready' as const, hint: 'Running Q4_K_M clinical profile' },
-  { label: 'Deep fact checker', status: 'warming' as const, hint: 'Disabled for speed mode' },
+  {
+    label: "GPU acceleration",
+    status: "ready" as const,
+    hint: "Auto-detected NVidia runtime",
+  },
+  {
+    label: "TinyLlama quantization",
+    status: "ready" as const,
+    hint: "Running Q4_K_M clinical profile",
+  },
+  {
+    label: "Deep fact checker",
+    status: "warming" as const,
+    hint: "Disabled for speed mode",
+  },
 ];
 
-const strictnessLabels: Record<PreferencesForm['defaultStrictness'], string> = {
-  ultra_fast: 'Ultra Fast',
-  balanced: 'Balanced',
-  thorough: 'Thorough',
-  clinical_grade: 'Clinical Grade',
+const strictnessLabels: Record<PreferencesForm["defaultStrictness"], string> = {
+  ultra_fast: "Ultra Fast",
+  balanced: "Balanced",
+  thorough: "Thorough",
+  clinical_grade: "Clinical Grade",
 };
 
-const exportFormatLabels: Record<PreferencesForm['autoExportFormat'], string> = {
-  pdf: 'Medical PDF',
-  pdf_html: 'Medical PDF + HTML',
-};
+const exportFormatLabels: Record<PreferencesForm["autoExportFormat"], string> =
+  {
+    pdf: "Medical PDF",
+    pdf_html: "Medical PDF + HTML",
+  };
 
 export default function SettingsPage() {
   const token = useAppStore((state) => state.auth.token);
   const [formState, setFormState] = useState<PreferencesForm | null>(null);
 
   const preferencesQuery = useQuery({
-    queryKey: ['user-preferences'],
+    queryKey: ["user-preferences"],
     queryFn: fetchPreferences,
     enabled: Boolean(token),
   });
@@ -58,13 +74,29 @@ export default function SettingsPage() {
 
   const isSaving = saveMutation.isPending;
 
-  const handleSelectChange = useCallback(<K extends keyof PreferencesForm>(key: K) => (event: ChangeEvent<HTMLSelectElement>) => {
-    setFormState((prev) => (prev ? { ...prev, [key]: event.target.value as PreferencesForm[K] } : prev));
-  }, []);
+  const handleSelectChange = useCallback(
+    <K extends keyof PreferencesForm>(key: K) =>
+      (event: ChangeEvent<HTMLSelectElement>) => {
+        setFormState((prev) =>
+          prev
+            ? { ...prev, [key]: event.target.value as PreferencesForm[K] }
+            : prev,
+        );
+      },
+    [],
+  );
 
-  const handleToggleChange = useCallback(<K extends keyof PreferencesForm>(key: K) => (event: ChangeEvent<HTMLInputElement>) => {
-    setFormState((prev) => (prev ? { ...prev, [key]: event.target.checked as PreferencesForm[K] } : prev));
-  }, []);
+  const handleToggleChange = useCallback(
+    <K extends keyof PreferencesForm>(key: K) =>
+      (event: ChangeEvent<HTMLInputElement>) => {
+        setFormState((prev) =>
+          prev
+            ? { ...prev, [key]: event.target.checked as PreferencesForm[K] }
+            : prev,
+        );
+      },
+    [],
+  );
 
   const handleSave = useCallback(() => {
     if (!formState || isSaving) {
@@ -75,12 +107,12 @@ export default function SettingsPage() {
 
   const saveLabel = useMemo(() => {
     if (isSaving) {
-      return 'Saving...';
+      return "Saving...";
     }
     if (saveMutation.isSuccess) {
-      return 'Preferences saved';
+      return "Preferences saved";
     }
-    return 'Save Preferences';
+    return "Save Preferences";
   }, [isSaving, saveMutation.isSuccess]);
 
   return (
@@ -88,22 +120,33 @@ export default function SettingsPage() {
       <header>
         <h2>Application Settings</h2>
         <p>
-          Maps to the PySide settings tab—user preferences, report customization, and advanced administrator tooling.
+          Maps to the PySide settings tab—user preferences, report
+          customization, and advanced administrator tooling.
         </p>
       </header>
 
       <section className={styles.gridTwo}>
-        <Card title="User Preferences" subtitle="Appearance, notifications, and session defaults">
-          {preferencesQuery.isLoading && <p className={styles.helperText}>Loading preferences...</p>}
+        <Card
+          title="User Preferences"
+          subtitle="Appearance, notifications, and session defaults"
+        >
+          {preferencesQuery.isLoading && (
+            <p className={styles.helperText}>Loading preferences...</p>
+          )}
           {preferencesQuery.isError && (
-            <p className={styles.errorText}>Unable to load preferences. Ensure the API is available.</p>
+            <p className={styles.errorText}>
+              Unable to load preferences. Ensure the API is available.
+            </p>
           )}
           {formState && (
             <>
               <div className={styles.preferenceGroup}>
                 <label>
                   <span>Default theme</span>
-                  <select value={formState.themeMode} onChange={handleSelectChange('themeMode')}>
+                  <select
+                    value={formState.themeMode}
+                    onChange={handleSelectChange("themeMode")}
+                  >
                     <option value="system">Adaptive (System)</option>
                     <option value="light">Always Light</option>
                     <option value="dark">Always Dark</option>
@@ -111,7 +154,10 @@ export default function SettingsPage() {
                 </label>
                 <label>
                   <span>Startup screen</span>
-                  <select value={formState.startupScreen} onChange={handleSelectChange('startupScreen')}>
+                  <select
+                    value={formState.startupScreen}
+                    onChange={handleSelectChange("startupScreen")}
+                  >
                     <option value="analysis">Analysis workspace</option>
                     <option value="dashboard">Dashboard</option>
                     <option value="mission_control">Mission Control</option>
@@ -132,43 +178,73 @@ export default function SettingsPage() {
               </div>
             </>
           )}
-          <Button variant="outline" disabled={!formState || isSaving} onClick={handleSave}>
+          <Button
+            variant="outline"
+            disabled={!formState || isSaving}
+            onClick={handleSave}
+          >
             {saveLabel}
           </Button>
-          {saveMutation.isError && <p className={styles.errorText}>Failed to save preferences. Try again.</p>}
+          {saveMutation.isError && (
+            <p className={styles.errorText}>
+              Failed to save preferences. Try again.
+            </p>
+          )}
         </Card>
 
-        <Card title="Report & Compliance Settings" subtitle="Backed by ReportGenerator and guideline services">
+        <Card
+          title="Report & Compliance Settings"
+          subtitle="Backed by ReportGenerator and guideline services"
+        >
           {formState ? (
             <>
               <div className={styles.settingItem}>
                 <span>Default rubric strictness</span>
-                <select value={formState.defaultStrictness} onChange={handleSelectChange('defaultStrictness')}>
-                  <option value="ultra_fast">{strictnessLabels.ultra_fast}</option>
+                <select
+                  value={formState.defaultStrictness}
+                  onChange={handleSelectChange("defaultStrictness")}
+                >
+                  <option value="ultra_fast">
+                    {strictnessLabels.ultra_fast}
+                  </option>
                   <option value="balanced">{strictnessLabels.balanced}</option>
                   <option value="thorough">{strictnessLabels.thorough}</option>
-                  <option value="clinical_grade">{strictnessLabels.clinical_grade}</option>
+                  <option value="clinical_grade">
+                    {strictnessLabels.clinical_grade}
+                  </option>
                 </select>
               </div>
               <div className={styles.settingItem}>
                 <span>Auto-export format</span>
-                <select value={formState.autoExportFormat} onChange={handleSelectChange('autoExportFormat')}>
+                <select
+                  value={formState.autoExportFormat}
+                  onChange={handleSelectChange("autoExportFormat")}
+                >
                   <option value="pdf">{exportFormatLabels.pdf}</option>
-                  <option value="pdf_html">{exportFormatLabels.pdf_html}</option>
+                  <option value="pdf_html">
+                    {exportFormatLabels.pdf_html}
+                  </option>
                 </select>
               </div>
             </>
           ) : (
-            <p className={styles.helperText}>Preferences will appear once loaded.</p>
+            <p className={styles.helperText}>
+              Preferences will appear once loaded.
+            </p>
           )}
           <p className={styles.helperText}>
-            These options map directly to <code>src/core/report_generator.py</code> and <code>src/gui/components/settings_tab_builder.py</code> behaviours.
+            These options map directly to{" "}
+            <code>src/core/report_generator.py</code> and{" "}
+            <code>src/gui/components/settings_tab_builder.py</code> behaviours.
           </p>
         </Card>
       </section>
 
       <section className={styles.gridTwo}>
-        <Card title="Performance" subtitle="Parallels the PySide settings performance tab">
+        <Card
+          title="Performance"
+          subtitle="Parallels the PySide settings performance tab"
+        >
           <ul className={styles.flagList}>
             {PERFORMANCE_FLAGS.map((flag) => (
               <li key={flag.label}>
@@ -180,9 +256,14 @@ export default function SettingsPage() {
           {/* TODO: Wire profiler launcher once the diagnostics window ships to Electron. */}
           <Button variant="ghost">Open Profiler</Button>
         </Card>
-        <Card title="Administrative Controls" subtitle="SettingsEditorWidget parity">
+        <Card
+          title="Administrative Controls"
+          subtitle="SettingsEditorWidget parity"
+        >
           <p className={styles.helperText}>
-            The Electron frontend will call the same configuration endpoints exposed by <code>src/api/routers/admin.py</code> for persistent updates.
+            The Electron frontend will call the same configuration endpoints
+            exposed by <code>src/api/routers/admin.py</code> for persistent
+            updates.
           </p>
           <Button variant="primary">Open Advanced Editor</Button>
         </Card>
