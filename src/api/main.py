@@ -41,12 +41,16 @@ from src.api.routers import (
     health,
     individual_habits,
     meta_analytics,
+    ml_model_management,
     performance,
+    performance_monitoring,
     preferences,
     rubric_router,
     security,
+    security_analysis,
     sessions,
     strictness,
+    unified_ml_api,
     users,
 )
 from src.api.routers import websocket as websocket_routes
@@ -439,10 +443,9 @@ if ENHANCED_FEATURES_AVAILABLE:
 else:
     logger.warning("Enhanced middleware not available, using basic setup")
 
-# Add security middleware
-app.add_middleware(SecurityMiddleware, enable_threat_detection=True)
-app.add_middleware(AuthenticationMiddleware)
-app.add_middleware(DataProtectionMiddleware)
+# Add comprehensive security middleware stack
+from src.api.middleware.security_middleware import setup_security_middleware
+setup_security_middleware(app)
 
 # Initialize enhanced logging
 initialize_logging()
@@ -543,8 +546,10 @@ app.include_router(users.router, tags=["Users"])
 app.include_router(preferences.router)
 app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
 app.include_router(individual_habits.router)
-app.include_router(websocket_routes.router, tags=["WebSocket"])
-app.include_router(strictness.router, tags=["Strictness"])
+app.include_router(unified_ml_api.router, tags=["Unified ML API"])
+app.include_router(performance_monitoring.router, tags=["Performance Monitoring"])
+app.include_router(security_analysis.router, tags=["Security Analysis"])
+app.include_router(ml_model_management.router, tags=["ML Model Management"])
 
 if EHR_AVAILABLE:
     app.include_router(ehr_integration.router, tags=["EHR Integration"])
