@@ -1,11 +1,23 @@
-"""EHR Integration API Router
+"""Enhanced EHR Integration API Router
 
-Provides APIs for integrating with Electronic Health Record systems.
+Provides comprehensive APIs for integrating with Electronic Health Record systems
+with advanced features including real-time sync, data mapping, and compliance monitoring.
+
+Enhanced Features:
+- Real-time data synchronization
+- Advanced data mapping and transformation
+- Compliance monitoring and alerts
+- Data quality validation
+- Audit trail and logging
+- Performance monitoring
+- Error handling and recovery
 """
 
+import asyncio
 import logging
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from enum import Enum
 
 import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -22,46 +34,94 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ehr", tags=["EHR Integration"])
 
 
+class EHRSystemType(Enum):
+    """Supported EHR system types."""
+    EPIC = "epic"
+    CERNER = "cerner"
+    ALLSCRIPTS = "allscripts"
+    ATHENAHEALTH = "athenahealth"
+    NEXTHEALTH = "nexhealth"
+    GENERIC_FHIR = "generic_fhir"
+
+
+class SyncStatus(Enum):
+    """EHR sync status."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PARTIAL = "partial"
+
+
+class DataQualityLevel(Enum):
+    """Data quality levels."""
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    FAIR = "fair"
+    POOR = "poor"
+
+
 class EHRConnectionConfig(BaseModel):
-    """EHR connection configuration."""
+    """Enhanced EHR connection configuration."""
 
     system_type: str = Field(
         ...,
-        description="EHR system type (epic, cerner, allscripts, athenahealth, nethealth, etc.)",
+        description="EHR system type (epic, cerner, allscripts, athenahealth, nexhealth, generic_fhir)",
     )
     endpoint_url: str = Field(..., description="EHR system API endpoint")
     client_id: str = Field(..., description="OAuth client ID")
     client_secret: str = Field(..., description="OAuth client secret")
     scope: str = Field(default="patient/*.read", description="FHIR scopes")
     facility_id: str = Field(..., description="Healthcare facility identifier")
-    department_codes: list[str] = Field(
+    department_codes: List[str] = Field(
         default=[], description="Department codes to sync"
+    )
+    sync_frequency_minutes: int = Field(
+        default=60, description="Automatic sync frequency in minutes"
+    )
+    enable_real_time_sync: bool = Field(
+        default=False, description="Enable real-time data synchronization"
+    )
+    data_retention_days: int = Field(
+        default=365, description="Data retention period in days"
+    )
+    compliance_threshold: float = Field(
+        default=0.8, description="Minimum compliance score threshold for alerts"
     )
 
 
 class EHRSyncRequest(BaseModel):
-    """EHR data synchronization request."""
+    """Enhanced EHR data synchronization request."""
 
-    patient_ids: list[str] | None = Field(
+    patient_ids: Optional[List[str]] = Field(
         default=None, description="Specific patient IDs to sync"
     )
-    date_range_start: datetime | None = Field(
+    date_range_start: Optional[datetime] = Field(
         default=None, description="Start date for data sync"
     )
-    date_range_end: datetime | None = Field(
+    date_range_end: Optional[datetime] = Field(
         default=None, description="End date for data sync"
     )
-    document_types: list[str] = Field(
+    document_types: List[str] = Field(
         default=["progress_notes", "evaluations", "treatment_plans"],
         description="Types of documents to sync",
     )
     auto_analyze: bool = Field(
         default=False, description="Automatically analyze synced documents"
     )
+    sync_mode: str = Field(
+        default="incremental", description="Sync mode: incremental, full, or delta"
+    )
+    priority: str = Field(
+        default="normal", description="Sync priority: low, normal, high, urgent"
+    )
+    validate_data_quality: bool = Field(
+        default=True, description="Validate data quality during sync"
+    )
 
 
 class EHRDocumentMetadata(BaseModel):
-    """EHR document metadata."""
+    """Enhanced EHR document metadata."""
 
     document_id: str
     patient_id: str
@@ -71,6 +131,453 @@ class EHRDocumentMetadata(BaseModel):
     department: str
     status: str
     compliance_analyzed: bool = False
+    data_quality_score: Optional[float] = None
+    sync_timestamp: Optional[datetime] = None
+    last_modified: Optional[datetime] = None
+    version: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
+class EHRSyncResult(BaseModel):
+    """EHR synchronization result."""
+
+    sync_id: str
+    status: SyncStatus
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    documents_synced: int = 0
+    documents_failed: int = 0
+    data_quality_score: Optional[float] = None
+    errors: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    performance_metrics: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EHRComplianceAlert(BaseModel):
+    """EHR compliance alert."""
+
+    alert_id: str
+    patient_id: str
+    document_id: str
+    alert_type: str
+    severity: str
+    message: str
+    compliance_score: float
+    threshold: float
+    created_at: datetime
+    acknowledged: bool = False
+    resolved: bool = False
+
+
+class EHRDataQualityReport(BaseModel):
+    """EHR data quality report."""
+
+    report_id: str
+    generated_at: datetime
+    overall_quality_score: float
+    quality_level: DataQualityLevel
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    issues: List[Dict[str, Any]] = Field(default_factory=list)
+    recommendations: List[str] = Field(default_factory=list)
+
+
+@router.get("/sync-status/{sync_id}")
+async def get_sync_status(
+    sync_id: str,
+    current_user: User = Depends(get_current_user)
+) -> EHRSyncResult:
+    """Get detailed status of an EHR synchronization operation.
+
+    Args:
+        sync_id: Synchronization ID
+        current_user: Current authenticated user
+
+    Returns:
+        Detailed sync status and metrics
+    """
+    try:
+        # Get sync status from EHR connector
+        sync_status = await ehr_connector.get_sync_status(sync_id)
+
+        if not sync_status:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Sync operation not found: {sync_id}"
+            )
+
+        return EHRSyncResult(**sync_status)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to get sync status for %s: %s", sync_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get sync status: {str(e)}"
+        )
+
+
+@router.get("/compliance-alerts")
+async def get_compliance_alerts(
+    severity: Optional[str] = None,
+    acknowledged: Optional[bool] = None,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user)
+) -> List[EHRComplianceAlert]:
+    """Get EHR compliance alerts with optional filtering.
+
+    Args:
+        severity: Filter by alert severity
+        acknowledged: Filter by acknowledgment status
+        limit: Maximum number of alerts to return
+        current_user: Current authenticated user
+
+    Returns:
+        List of compliance alerts
+    """
+    try:
+        # Get compliance alerts from EHR connector
+        alerts = await ehr_connector.get_compliance_alerts(
+            severity=severity,
+            acknowledged=acknowledged,
+            limit=limit
+        )
+
+        return [EHRComplianceAlert(**alert) for alert in alerts]
+
+    except Exception as e:
+        logger.exception("Failed to get compliance alerts: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get compliance alerts: {str(e)}"
+        )
+
+
+@router.post("/compliance-alerts/{alert_id}/acknowledge")
+async def acknowledge_compliance_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Acknowledge a compliance alert.
+
+    Args:
+        alert_id: Alert ID to acknowledge
+        current_user: Current authenticated user
+
+    Returns:
+        Acknowledgment confirmation
+    """
+    try:
+        # Acknowledge alert
+        success = await ehr_connector.acknowledge_alert(alert_id, current_user.id)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Alert not found: {alert_id}"
+            )
+
+        return {
+            "alert_id": alert_id,
+            "acknowledged": True,
+            "acknowledged_by": current_user.username,
+            "acknowledged_at": datetime.now().isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to acknowledge alert %s: %s", alert_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to acknowledge alert: {str(e)}"
+        )
+
+
+@router.get("/data-quality-report")
+async def get_data_quality_report(
+    time_range_days: int = 30,
+    current_user: User = Depends(get_current_user)
+) -> EHRDataQualityReport:
+    """Get comprehensive EHR data quality report.
+
+    Args:
+        time_range_days: Number of days to analyze
+        current_user: Current authenticated user
+
+    Returns:
+        Data quality report
+    """
+    try:
+        # Generate data quality report
+        report = await ehr_connector.generate_data_quality_report(time_range_days)
+
+        return EHRDataQualityReport(**report)
+
+    except Exception as e:
+        logger.exception("Failed to generate data quality report: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate data quality report: {str(e)}"
+        )
+
+
+@router.get("/performance-metrics")
+async def get_ehr_performance_metrics(
+    time_range_days: int = 7,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get EHR integration performance metrics.
+
+    Args:
+        time_range_days: Number of days to analyze
+        current_user: Current authenticated user
+
+    Returns:
+        Performance metrics
+    """
+    try:
+        # Get performance metrics
+        metrics = await ehr_connector.get_performance_metrics(time_range_days)
+
+        return {
+            "time_range_days": time_range_days,
+            "metrics": metrics,
+            "generated_at": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.exception("Failed to get performance metrics: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get performance metrics: {str(e)}"
+        )
+
+
+@router.post("/real-time-sync/enable")
+async def enable_real_time_sync(
+    config: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Enable real-time EHR data synchronization.
+
+    Args:
+        config: Real-time sync configuration
+        current_user: Current authenticated user
+
+    Returns:
+        Real-time sync status
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required for real-time sync configuration"
+        )
+
+    try:
+        # Enable real-time sync
+        result = await ehr_connector.enable_real_time_sync(config)
+
+        logger.info("Real-time sync enabled by user %s", current_user.username)
+
+        return {
+            "real_time_sync_enabled": True,
+            "configuration": config,
+            "enabled_by": current_user.username,
+            "enabled_at": datetime.now().isoformat(),
+            "status": result
+        }
+
+    except Exception as e:
+        logger.exception("Failed to enable real-time sync: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to enable real-time sync: {str(e)}"
+        )
+
+
+@router.post("/real-time-sync/disable")
+async def disable_real_time_sync(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Disable real-time EHR data synchronization.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        Real-time sync status
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required for real-time sync configuration"
+        )
+
+    try:
+        # Disable real-time sync
+        result = await ehr_connector.disable_real_time_sync()
+
+        logger.info("Real-time sync disabled by user %s", current_user.username)
+
+        return {
+            "real_time_sync_enabled": False,
+            "disabled_by": current_user.username,
+            "disabled_at": datetime.now().isoformat(),
+            "status": result
+        }
+
+    except Exception as e:
+        logger.exception("Failed to disable real-time sync: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to disable real-time sync: {str(e)}"
+        )
+
+
+@router.get("/supported-systems")
+async def get_supported_ehr_systems() -> Dict[str, Any]:
+    """Get list of supported EHR systems and their capabilities.
+
+    Returns:
+        Supported EHR systems information
+    """
+    try:
+        supported_systems = {
+            "epic": {
+                "name": "Epic",
+                "version": "R4",
+                "capabilities": [
+                    "FHIR R4",
+                    "OAuth 2.0",
+                    "SMART on FHIR",
+                    "Real-time sync",
+                    "Bulk data export"
+                ],
+                "document_types": [
+                    "progress_notes",
+                    "evaluations",
+                    "treatment_plans",
+                    "discharge_summaries"
+                ]
+            },
+            "cerner": {
+                "name": "Cerner",
+                "version": "R4",
+                "capabilities": [
+                    "FHIR R4",
+                    "OAuth 2.0",
+                    "SMART on FHIR",
+                    "Real-time sync"
+                ],
+                "document_types": [
+                    "progress_notes",
+                    "evaluations",
+                    "treatment_plans"
+                ]
+            },
+            "allscripts": {
+                "name": "Allscripts",
+                "version": "R4",
+                "capabilities": [
+                    "FHIR R4",
+                    "OAuth 2.0",
+                    "Bulk data export"
+                ],
+                "document_types": [
+                    "progress_notes",
+                    "evaluations"
+                ]
+            },
+            "athenahealth": {
+                "name": "athenahealth",
+                "version": "R4",
+                "capabilities": [
+                    "FHIR R4",
+                    "OAuth 2.0",
+                    "SMART on FHIR"
+                ],
+                "document_types": [
+                    "progress_notes",
+                    "evaluations",
+                    "treatment_plans"
+                ]
+            },
+            "generic_fhir": {
+                "name": "Generic FHIR",
+                "version": "R4",
+                "capabilities": [
+                    "FHIR R4",
+                    "OAuth 2.0"
+                ],
+                "document_types": [
+                    "progress_notes",
+                    "evaluations",
+                    "treatment_plans"
+                ]
+            }
+        }
+
+        return {
+            "supported_systems": supported_systems,
+            "total_systems": len(supported_systems),
+            "last_updated": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.exception("Failed to get supported EHR systems: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get supported systems: {str(e)}"
+        )
+
+
+@router.get("/audit-trail")
+async def get_ehr_audit_trail(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    action_type: Optional[str] = None,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get EHR integration audit trail.
+
+    Args:
+        start_date: Start date for audit trail
+        end_date: End date for audit trail
+        action_type: Filter by action type
+        limit: Maximum number of entries
+        current_user: Current authenticated user
+
+    Returns:
+        Audit trail entries
+    """
+    try:
+        # Get audit trail
+        audit_entries = await ehr_connector.get_audit_trail(
+            start_date=start_date,
+            end_date=end_date,
+            action_type=action_type,
+            limit=limit
+        )
+
+        return {
+            "audit_entries": audit_entries,
+            "total_entries": len(audit_entries),
+            "filters": {
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None,
+                "action_type": action_type
+            },
+            "generated_at": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.exception("Failed to get audit trail: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get audit trail: {str(e)}"
+        )
 
 
 @router.post("/connect")

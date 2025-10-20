@@ -63,6 +63,7 @@ class ClinicalNERService:
         """
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
+        self.models = self.pipelines  # Alias for compatibility
         self.presidio_wrapper = get_presidio_wrapper()
 
         # Clinical patterns for clinician name extraction

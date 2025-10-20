@@ -35,6 +35,7 @@ from src.api.routers import (
     cleanup,
     compliance,
     dashboard,
+    education,
     feedback,
     habits,
     health,
@@ -43,6 +44,7 @@ from src.api.routers import (
     performance,
     preferences,
     rubric_router,
+    security,
     sessions,
     strictness,
     users,
@@ -66,6 +68,7 @@ from src.api.middleware.csrf_protection import CSRFProtectionMiddleware
 from src.api.middleware.enhanced_rate_limiting import EnhancedRateLimitMiddleware
 from src.api.middleware.performance_monitoring import PerformanceMonitoringMiddleware
 from src.api.middleware.request_tracking import RequestIdMiddleware, get_request_tracker
+from src.api.middleware.security_middleware import SecurityMiddleware, AuthenticationMiddleware, DataProtectionMiddleware
 from src.config import get_settings
 from src.core.cleanup_services import start_cleanup_services, stop_cleanup_services
 from src.core.document_cleanup_service import start_cleanup_service as start_doc_cleanup
@@ -436,6 +439,11 @@ if ENHANCED_FEATURES_AVAILABLE:
 else:
     logger.warning("Enhanced middleware not available, using basic setup")
 
+# Add security middleware
+app.add_middleware(SecurityMiddleware, enable_threat_detection=True)
+app.add_middleware(AuthenticationMiddleware)
+app.add_middleware(DataProtectionMiddleware)
+
 # Initialize enhanced logging
 initialize_logging()
 
@@ -529,6 +537,8 @@ app.include_router(habits.router, tags=["Habits"])
 app.include_router(advanced_analytics.router, tags=["Advanced Analytics"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
 app.include_router(feedback.router)
+app.include_router(education.router)
+app.include_router(security.router)
 app.include_router(users.router, tags=["Users"])
 app.include_router(preferences.router)
 app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])

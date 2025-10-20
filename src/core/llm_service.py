@@ -214,8 +214,18 @@ class LLMService:
 
     def _load_transformers_model(self) -> None:
         model_id, _ = self._resolve_model_source()
-        # Guard against invalid placeholders when falling back from GGUF
-        if not model_id or model_id in {"llama", "llama-local", "local", "gguf"}:
+        # Guard against invalid placeholders or local GGUF directories
+        try:
+            from pathlib import Path as _Path
+            is_bad_local = False
+            if model_id and _Path(model_id).exists():
+                p = _Path(model_id)
+                if p.is_dir() and not (p / "config.json").exists():
+                    # Likely a local GGUF folder, not a HF Transformers repo
+                    is_bad_local = True
+            if (not model_id) or (model_id in {"llama", "llama-local", "local", "gguf"}) or is_bad_local:
+                model_id = "google/flan-t5-small"
+        except Exception:
             model_id = "google/flan-t5-small"
 
         try:

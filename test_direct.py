@@ -4,6 +4,7 @@
 import asyncio
 import sys
 import os
+import time
 
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -55,7 +56,7 @@ async def test_analysis_progress():
             document_text=test_content,
             discipline="pt",
             strictness="standard",
-            analysis_mode="llama_test",
+            analysis_mode=f"test_real_models_{int(time.time())}",
             progress_callback=progress_callback
         )
 

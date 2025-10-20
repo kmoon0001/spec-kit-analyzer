@@ -53,19 +53,19 @@ rag_system:
     cache_knowledge: true
     ttl_hours: 24
 llm:
-  context_length: 512
+  context_length: 1024
   gpu_layers: 0
   threads: 2
   hf_model_type: llama
-  model_type: llama_cpp
+  model_type: ctransformers
   model_repo_id: llama
   generation_params:
-    max_new_tokens: 128
+    max_new_tokens: 256
     repeat_penalty: 1.1
     stop_sequences:
     - </analysis>
     - \n\n---
-    temperature: 0.1
+    temperature: 0.05
     top_p: 0.9
 maintenance:
   purge_interval_days: 1
@@ -78,12 +78,12 @@ models:
   fact_checker: google/flan-t5-small
   fact_checker_backend: llm
   generator: llama-local
-  generator_filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
-  generator_local_path: models/llama32-3b
+  generator_filename: tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
+  generator_local_path: models/tinyllama
   generator_profiles:
     cpu_llama32_q4:
       repo: llama
-      filename: Llama-3.2-3B-Instruct-Q4_K_M.gguf
+      filename: tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
       max_system_gb: 64.0
       optimize_for_speed: true
       fast_mode: true
