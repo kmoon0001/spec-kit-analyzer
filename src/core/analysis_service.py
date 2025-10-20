@@ -271,8 +271,8 @@ class AnalysisService:
 
             _update_progress(5, "Parsing document content...")
             if file_content:
-                temp_dir = Path(_get_settings().paths.temp_upload_dir)
-                temp_dir.mkdir(exist_ok=True)
+                temp_dir = Path(self._settings.paths.temp_upload_dir)
+                temp_dir.mkdir(parents=True, exist_ok=True)
                 temp_file_path = temp_dir / f"temp_{uuid.uuid4().hex}_{original_filename or 'file'}"
                 try:
                     temp_file_path.write_bytes(file_content)
@@ -503,16 +503,31 @@ class AnalysisService:
                 }
 
             if not self.use_mocks:
-                cache_service.set_to_disk(cache_key, final_report)
+                should_cache = True
+                analysis_section = final_report.get("analysis")
+                if isinstance(analysis_section, dict):
+                    has_error = bool(analysis_section.get("error")) or bool(analysis_section.get("exception"))
+                    if has_error:
+                        should_cache = False
+                if final_report.get("error") or final_report.get("exception"):
+                    should_cache = False
+                if should_cache:
+                    cache_service.set_to_disk(cache_key, final_report)
+                else:
+                    logger.info("Skipping cache for key %s due to incomplete analysis result", cache_key)
             _update_progress(100, "Analysis complete.")
             return AnalysisOutput(final_report)
 
         finally:
-            if temp_file_path and temp_file_path.exists():
-                temp_file_path.unlink()
-
-            logger.info("Cleaned up temporary file: %s", temp_file_path)
-
+            if temp_file_path:
+                try:
+                    if temp_file_path.exists():
+                        temp_file_path.unlink()
+                        logger.info("Cleaned up temporary file: %s", temp_file_path)
+                    else:
+                        logger.debug("Temporary file already removed: %s", temp_file_path)
+                except Exception as exc:
+                    logger.warning("Failed to remove temporary file %s: %s", temp_file_path, exc)
             # Clean up task files
             cleanup_service = get_cleanup_service()
             await cleanup_service.cleanup_task_files(task_id if 'task_id' in locals() else "unknown")
@@ -736,3 +751,4 @@ class AnalysisService:
                 "compliance_score": 0.0,
                 "error": str(e)
             }
+
