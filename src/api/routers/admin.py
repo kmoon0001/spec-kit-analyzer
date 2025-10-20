@@ -108,7 +108,7 @@ async def create_user(
 
 @router.put("/users/{user_id}/activate", response_model=schemas.User)
 async def activate_user(
-    user_id: int, db: AsyncSession = Depends(get_db), admin_user: models.User = Depends(get_current_admin_user)
+    user_id: int, db: AsyncSession = Depends(get_async_db), admin_user: models.User = Depends(get_current_admin_user)
 ):
     # Assuming crud.get_user is an async function that gets a user by ID
     db_user = await crud.get_user(db, user_id=user_id)
@@ -123,7 +123,7 @@ async def activate_user(
 
 @router.put("/users/{user_id}/deactivate", response_model=schemas.User)
 async def deactivate_user(
-    user_id: int, db: AsyncSession = Depends(get_db), admin_user: models.User = Depends(get_current_admin_user)
+    user_id: int, db: AsyncSession = Depends(get_async_db), admin_user: models.User = Depends(get_current_admin_user)
 ):
     # Assuming crud.get_user is an async function that gets a user by ID
     db_user = await crud.get_user(db, user_id=user_id)

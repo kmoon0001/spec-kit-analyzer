@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
 from ...database import crud, models, schemas
-from ...database import get_async_db as get_db
+from ...database import get_async_db
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 @router.post("/", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
 async def submit_feedback(
     feedback: schemas.FeedbackAnnotationCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
     """Submit feedback for an AI-generated finding. This is a critical part of the

@@ -73,6 +73,9 @@ from src.database import crud, get_async_db, models
 from src.database import init_db
 from src.database.database import AsyncSessionLocal
 from src.logging_config import CorrelationIdMiddleware, configure_logging
+from src.core.service_manager import service_manager, create_default_services
+from src.core.persistent_task_registry import persistent_task_registry
+from src.core.enhanced_worker_manager import enhanced_worker_manager
 
 settings = get_settings()
 
@@ -318,6 +321,18 @@ async def lifespan(app: FastAPI):
     error_handler = get_error_handler()
     logger.info("Error handling initialized")
 
+    # Initialize enhanced services
+    await enhanced_worker_manager.start()
+    logger.info("Enhanced worker manager started")
+
+    # Initialize persistent task registry
+    await persistent_task_registry.cleanup_old_tasks(days_old=7)
+    logger.info("Persistent task registry initialized")
+
+    # Initialize service manager
+    default_services = create_default_services()
+    logger.info("Service manager initialized")
+
     yield
 
     await api_shutdown()
@@ -326,6 +341,13 @@ async def lifespan(app: FastAPI):
     stop_cleanup_service()
     await stop_doc_cleanup()
     await stop_cleanup_services()
+
+    # Shutdown enhanced services
+    await enhanced_worker_manager.stop()
+    logger.info("Enhanced worker manager stopped")
+
+    await persistent_task_registry.close()
+    logger.info("Persistent task registry closed")
 
 
 # --- FastAPI App Initialization --- #

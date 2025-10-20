@@ -33,12 +33,12 @@ class HealthChecker:
         self.settings = get_settings()
         self.start_time = time.time()
 
-    async def check_database(self, db: Session) -> Dict[str, Any]:
+    async def check_database(self, db: AsyncSession) -> Dict[str, Any]:
         """Check database connectivity and performance."""
         try:
             start_time = time.time()
-            result = db.execute(text("SELECT 1 as health_check"))
-            result.fetchone()
+            result = await db.execute(text("SELECT 1 as health_check"))
+            await result.fetchone()
             response_time = time.time() - start_time
 
             return {
@@ -160,7 +160,7 @@ class HealthChecker:
 
         return dependencies
 
-    async def get_overall_health(self, db: Session) -> Dict[str, Any]:
+    async def get_overall_health(self, db: AsyncSession) -> Dict[str, Any]:
         """Get comprehensive health status."""
         checks = await asyncio.gather(
             self.check_database(db),

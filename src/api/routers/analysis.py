@@ -28,11 +28,14 @@ from ...database.database import get_async_db
 from ..task_registry import analysis_task_registry
 from ..dependencies import get_analysis_service
 from ..deps.request_tracking import RequestId, log_with_request_id
+from ...core.persistent_task_registry import persistent_task_registry, TaskStatus
+from ...core.enhanced_worker_manager import enhanced_worker_manager, TaskPriority
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
-tasks = analysis_task_registry.metadata
+# Use persistent task registry instead of in-memory
+tasks = {}  # Keep for backward compatibility
 
 # Secure document storage (replaces in-memory storage)
 secure_storage = get_secure_storage()
@@ -56,24 +59,56 @@ async def run_analysis_and_save(
     analysis_service: AnalysisService,
     user_id: int,
 ) -> None:
-    """Background task coordinator that schedules the async analysis workflow."""
+    """Background task coordinator that schedules the async analysis workflow using persistent task registry."""
+
+    # Create task in persistent registry
+    await persistent_task_registry.create_task(
+        task_id=task_id,
+        status=TaskStatus.PENDING,
+        filename=original_filename,
+        user_id=user_id,
+        discipline=discipline,
+        analysis_mode=analysis_mode,
+        strictness=strictness,
+        max_retries=3
+    )
 
     def _update_progress(percentage: int, message: str | None) -> None:
+        # Update both legacy in-memory and persistent registry
         state = tasks.setdefault(task_id, {})
         state["progress"] = percentage
         state["status_message"] = message
+
+        # Determine status based on progress
         if percentage >= 100:
-            state["status"] = "completed"
+            status = TaskStatus.COMPLETED
         elif percentage >= 60:
-            state["status"] = "analyzing"
+            status = TaskStatus.RUNNING
         else:
-            state["status"] = "processing"
+            status = TaskStatus.RUNNING
+
+        # Update persistent registry
+        asyncio.create_task(persistent_task_registry.update_task(
+            task_id,
+            status=status,
+            progress=percentage,
+            status_message=message or ""
+        ))
+
         logger.info("Task %s progress: %d%% - %s", task_id, percentage, message)
 
     async def _async_analysis() -> None:
         try:
+            # Update task status to running
+            await persistent_task_registry.update_task(
+                task_id,
+                status=TaskStatus.RUNNING,
+                started_at=datetime.datetime.now(datetime.UTC)
+            )
+
             logger.info("Starting analysis for task %s", task_id)
             _update_progress(0, "Analysis started.")
+
             result = await analysis_service.analyze_document(
                 file_content=file_content,
                 original_filename=original_filename,
@@ -82,6 +117,7 @@ async def run_analysis_and_save(
                 strictness=strictness,
                 progress_callback=_update_progress,
             )
+
             # The result from analyze_document has nested structure: {analysis: {...}, report_html: ...}
             analysis_payload = result if isinstance(result, dict) else {}
 
@@ -97,12 +133,16 @@ async def run_analysis_and_save(
             logger.info("Analysis result structure: %s", list(analysis_payload.keys()) if isinstance(analysis_payload, dict) else "Not a dict")
             logger.info("Found %d findings, compliance score: %s", len(findings), compliance_score)
 
+            # Update both legacy and persistent storage
             task_entry = tasks[task_id]
             task_entry["status"] = "analyzing"
             task_entry["status_message"] = "Finalizing analysis results..."
             task_entry["progress"] = max(task_entry.get("progress", 90), 95)
             task_entry["user_id"] = user_id  # Track user ownership
+
             await asyncio.sleep(0.2)
+
+            # Update legacy storage
             task_entry.update(
                 {
                     "status": "completed",
@@ -119,9 +159,30 @@ async def run_analysis_and_save(
                     "strictness": strictness,
                 }
             )
+
+            # Update persistent registry
+            await persistent_task_registry.update_task(
+                task_id,
+                status=TaskStatus.COMPLETED,
+                progress=100,
+                status_message="Analysis complete.",
+                completed_at=datetime.datetime.now(datetime.UTC),
+                result_data={
+                    "analysis": analysis_payload,
+                    "findings": findings,
+                    "overall_score": compliance_score,
+                    "document_type": document_type,
+                    "report_html": report_html,
+                    "strictness": strictness,
+                }
+            )
+
             logger.info("Analysis completed for task %s", task_id)
+
         except Exception as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
+
+            # Update legacy storage
             tasks[task_id] = {
                 "status": "failed",
                 "error": str(exc),
@@ -135,9 +196,25 @@ async def run_analysis_and_save(
                 "document_type": "Unknown",
                 "report_html": None,
             }
-            # Task failure is already handled by the task registry cleanup
 
-    await analysis_task_registry.start(task_id, _async_analysis())
+            # Update persistent registry
+            await persistent_task_registry.update_task(
+                task_id,
+                status=TaskStatus.FAILED,
+                progress=0,
+                status_message=f"Analysis failed: {exc}",
+                completed_at=datetime.datetime.now(datetime.UTC),
+                error_message=str(exc)
+            )
+
+    # Use enhanced worker manager for better process isolation
+    await enhanced_worker_manager.submit_task(
+        _async_analysis,
+        task_id=task_id,
+        priority=TaskPriority.NORMAL,
+        timeout=300,  # 5 minute timeout
+        max_retries=3
+    )
 
 
 @legacy_router.post("/upload-document")
