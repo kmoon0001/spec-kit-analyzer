@@ -167,7 +167,7 @@ class SessionCleanupService(CleanupService):
 
             # Clean up expired sessions
             await asyncio.get_event_loop().run_in_executor(
-                None, self.session_manager.cleanup_expired_documents, self.max_age_hours
+                None, self.session_manager._cleanup_expired_sessions
             )
 
             # Get updated statistics

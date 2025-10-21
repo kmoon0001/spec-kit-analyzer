@@ -98,10 +98,7 @@ class EnhancedSessionManager:
             self._cleanup_if_needed()
 
             logger.info(
-                f"Session created for user {username}",
-                user_id=user_id,
-                session_id=session_id,
-                ip=ip_address,
+                f"Session created for user {username} (user_id={user_id}, session_id={session_id}, ip={ip_address})"
             )
 
             return session_id
@@ -127,9 +124,7 @@ class EnhancedSessionManager:
             # Check IP address (basic security check)
             if session_info.ip_address != ip_address:
                 logger.warning(
-                    f"Session IP mismatch: {session_id}",
-                    expected=session_info.ip_address,
-                    actual=ip_address,
+                    f"Session IP mismatch: {session_id} (expected={session_info.ip_address}, actual={ip_address})"
                 )
                 # Don't invalidate immediately, but log for monitoring
 

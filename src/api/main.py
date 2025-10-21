@@ -330,10 +330,10 @@ async def lifespan(app: FastAPI):
     # Initialize core services synchronously (MUST complete before server starts)
     # Database must be ready for all DB-dependent operations
     await init_db()
-    
+
     # Core API services (analysis service, etc.) must be available immediately
     await api_startup()
-    
+
     # Vector store initialization can happen in background (improves startup time)
     asyncio.create_task(initialize_vector_store())
     logger.info("Vector store initialization started in background")
@@ -458,6 +458,7 @@ app.add_middleware(
 
 # Add enhanced middleware stack (if available)
 if ENHANCED_FEATURES_AVAILABLE:
+    # Re-enabled: InputValidationMiddleware has been fixed to not consume form data
     app.add_middleware(InputValidationMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
 else:

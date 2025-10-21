@@ -61,20 +61,23 @@ async def _authenticate_user(
     # Create session if request context is available
     if request:
         session_manager = get_session_manager()
-        client_info = {
-            "ip": request.client.host if request.client else "unknown",
-            "user_agent": request.headers.get("user-agent", "unknown"),
-            "login_method": "password",
-        }
+        ip_address = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "unknown")
 
-        session_id = session_manager.create_session(user, client_info)
+        session_id = session_manager.create_session(
+            user_id=user.id,
+            username=user.username,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            login_method="password"
+        )
 
         logger.info(
             f"User {user.username} logged in successfully",
             extra={
                 "user_id": user.id,
                 "session_id": session_id,
-                "client_ip": client_info["ip"],
+                "client_ip": ip_address,
             },
         )
 
