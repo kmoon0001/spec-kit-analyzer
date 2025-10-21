@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test API Connection</title>
+</head>
+
+<body>
+    <h1>API Connection Test</h1>
+    <button onclick="testAPI()">Test API Connection</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8001/', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                resultEl.textContent = 'SUCCESS!\n' + JSON.stringify(data, null, 2);
+                resultEl.style.color = 'green';
+            } catch (error) {
+                resultEl.textContent = 'ERROR: ' + error.message;
+                resultEl.style.color = 'red';
+                console.error('Full error:', error);
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(testAPI, 1000);
+        });
+    </script>
+</body>
+
+</html>
