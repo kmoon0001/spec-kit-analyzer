@@ -216,16 +216,21 @@ class ErrorContextManager:
     def _collect_request_context(self, request: Request) -> Dict[str, Any]:
         """Collect relevant request context."""
         try:
+            # Build headers with redaction of sensitive entries
+            redacted_headers: Dict[str, Any] = {}
+            sensitive = {"authorization", "cookie", "x-api-key"}
+            for key, value in request.headers.items():
+                if key.lower() in sensitive:
+                    redacted_headers[key] = "***REDACTED***"
+                else:
+                    redacted_headers[key] = value
+
             return {
                 "method": request.method,
                 "url": str(request.url),
                 "path": request.url.path,
                 "query_params": dict(request.query_params),
-                "headers": {
-                    key: value
-                    for key, value in request.headers.items()
-                    if key.lower() not in ["authorization", "cookie", "x-api-key"]
-                },
+                "headers": redacted_headers,
                 "client_ip": request.client.host if request.client else None,
                 "user_agent": request.headers.get("user-agent", "unknown"),
             }

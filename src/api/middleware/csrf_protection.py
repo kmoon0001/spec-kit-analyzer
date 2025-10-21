@@ -89,10 +89,21 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         if request.method in ["GET", "HEAD", "OPTIONS"]:
             return True
 
-        # Skip during automated tests: httpx TestClient uses host "test"
-        # This allows API login and POST actions in tests without CSRF tokens
+        # Skip CSRF when using Authorization Bearer token (stateless API auth)
+        # CSRF primarily protects cookie-based auth; Bearer tokens are not subject to CSRF
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            return True
+
+        # Skip during automated tests ONLY for auth endpoints: httpx TestClient uses hosts
+        # like "test" / "testserver". Allow login/token flows without CSRF in tests.
         try:
-            if request.headers.get("host", "").startswith("test"):
+            host = (request.headers.get("host") or "").lower()
+            path = request.url.path
+            if (host.startswith("test") or host.startswith("testserver")) and path in (
+                "/auth/login",
+                "/auth/token",
+            ):
                 return True
         except Exception:
             # Be conservative if header access fails

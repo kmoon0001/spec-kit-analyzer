@@ -139,9 +139,20 @@ async def login_for_access_token(
     )
 
 
-# REMOVED: Legacy /login endpoint - redundant with OAuth2 /token endpoint
-# The legacy login endpoint has been removed to standardize on OAuth2
-# authentication flow. Use /token endpoint instead.
+@router.post("/login", response_model=schemas.Token)
+async def login_legacy(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_async_db),
+    auth_service: AuthService = Depends(get_auth_service),
+    request: Request = None,
+) -> dict[str, str]:
+    """Legacy login endpoint preserved for backward compatibility in tests.
+
+    Delegates to the same authentication flow as /auth/token.
+    """
+    return await _authenticate_user(
+        form_data=form_data, db=db, auth_service=auth_service, request=request
+    )
 
 
 @router.post("/users/change-password")

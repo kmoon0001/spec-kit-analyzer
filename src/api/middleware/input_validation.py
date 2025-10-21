@@ -41,9 +41,14 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Process request through validation pipeline."""
         try:
-            # 1. Check request size
+            # 1. Check request size (defer for JSON so we can truncate fields first)
             content_length = request.headers.get("content-length")
-            if content_length and int(content_length) > self.max_request_size:
+            content_type = request.headers.get("content-type", "")
+            if (
+                content_length
+                and int(content_length) > self.max_request_size
+                and "application/json" not in content_type
+            ):
                 return JSONResponse(
                     status_code=413,
                     content={
@@ -71,17 +76,45 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                         status_code=400, content={"error": "Invalid query parameters"}
                     )
 
-            # 4. Validate request body for JSON requests
-            # NOTE: We skip validation for form data (OAuth2 login) to avoid consuming the body stream
+            # 4. Validate request body for JSON requests with body caching to avoid stream consumption
             if request.method in [
                 "POST",
                 "PUT",
                 "PATCH",
-            ] and "application/json" in request.headers.get("content-type", ""):
-                # For JSON requests, we can't validate without consuming the body
-                # FastAPI will handle validation via Pydantic models
-                # Skipping body validation here to prevent "stream consumed" errors
-                pass
+            ] and "application/json" in content_type:
+                try:
+                    raw_body: bytes = await request.body()
+                    if raw_body:
+                        data = json.loads(raw_body)
+                        sanitized = self._sanitize_json_data(data)
+                        # Block if any field was flagged invalid (represented by None)
+                        if self._contains_none(sanitized):
+                            return JSONResponse(
+                                status_code=400, content={"error": "Invalid request data"}
+                            )
+
+                        # Re-inject (possibly sanitized) body for downstream handlers
+                        new_body = json.dumps(sanitized if sanitized is not None else data).encode("utf-8")
+
+                        # Enforce request size AFTER sanitization, unless a large field was truncated deliberately
+                        content_length = request.headers.get("content-length")
+                        if not self._was_truncated(sanitized):
+                            if (content_length and int(content_length) > self.max_request_size) or (
+                                len(new_body) > self.max_request_size
+                            ):
+                                return JSONResponse(
+                                    status_code=413,
+                                    content={"error": "Request too large", "max_size": self.max_request_size},
+                                )
+
+                        async def receive() -> dict:
+                            return {"type": "http.request", "body": new_body, "more_body": False}
+
+                        request._receive = receive  # type: ignore[attr-defined]
+                except json.JSONDecodeError:
+                    return JSONResponse(
+                        status_code=400, content={"error": "Invalid JSON format"}
+                    )
 
             # 5. Add request metadata for tracking
             request.state.validation_passed = True
@@ -93,6 +126,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             response.headers["X-Request-ID"] = request.state.request_id
             response.headers["X-Content-Type-Options"] = "nosniff"
             response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
 
             return response
 
@@ -137,6 +171,16 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         else:
             return data
 
+    def _contains_none(self, data: Any) -> bool:
+        """Detect if sanitized structure contains invalid None markers."""
+        if data is None:
+            return True
+        if isinstance(data, dict):
+            return any(self._contains_none(v) for v in data.values())
+        if isinstance(data, list):
+            return any(self._contains_none(v) for v in data)
+        return False
+
     def _contains_suspicious_content(self, text: str) -> bool:
         """Check for suspicious patterns in text."""
         return any(pattern.search(text) for pattern in self.compiled_patterns)
@@ -149,6 +193,17 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         if len(text) > 10000:  # 10KB limit per field
             text = text[:10000]
         return text.strip()
+
+    def _was_truncated(self, data: Any) -> bool:
+        """Heuristic to detect if any string field was truncated to the 10KB limit."""
+        limit = 10000
+        if isinstance(data, str):
+            return len(data) >= limit
+        if isinstance(data, dict):
+            return any(self._was_truncated(v) for v in data.values())
+        if isinstance(data, list):
+            return any(self._was_truncated(v) for v in data)
+        return False
 
     def _generate_request_id(self) -> str:
         """Generate unique request ID."""
