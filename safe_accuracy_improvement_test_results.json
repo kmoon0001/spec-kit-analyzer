@@ -1,0 +1,327 @@
+{
+  "test_summary": {
+    "total_strategies_tested": 10,
+    "total_test_cases": 3,
+    "test_timestamp": "2025-10-21T00:13:20.907572+00:00",
+    "overall_status": "completed"
+  },
+  "strategy_tests": {
+    "context_augmentation": {
+      "strategy": "context_augmentation",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "semantic_similarity_matching": {
+      "strategy": "semantic_similarity_matching",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "progressive_refinement": {
+      "strategy": "progressive_refinement",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "confidence_thresholding": {
+      "strategy": "confidence_thresholding",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "multi_pass_validation": {
+      "strategy": "multi_pass_validation",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "knowledge_graph_enhancement": {
+      "strategy": "knowledge_graph_enhancement",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "temporal_consistency_checking": {
+      "strategy": "temporal_consistency_checking",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "cross_reference_validation": {
+      "strategy": "cross_reference_validation",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "adaptive_ensemble_weighting": {
+      "strategy": "adaptive_ensemble_weighting",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    },
+    "contextual_prompt_optimization": {
+      "strategy": "contextual_prompt_optimization",
+      "test_cases": [
+        {
+          "test_case": "Simple Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Complex Clinical Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        },
+        {
+          "test_case": "Low Confidence Document",
+          "success": false,
+          "error": "'Result' object has no attribute 'data'"
+        }
+      ],
+      "overall_performance": {},
+      "safety_score": 0.0,
+      "improvement_score": 0.0
+    }
+  },
+  "integration_tests": {
+    "integration_tests": [
+      {
+        "test_case": "Simple Clinical Document",
+        "success": false,
+        "error": "'Result' object has no attribute 'data'"
+      },
+      {
+        "test_case": "Complex Clinical Document",
+        "success": false,
+        "error": "'Result' object has no attribute 'data'"
+      },
+      {
+        "test_case": "Low Confidence Document",
+        "success": false,
+        "error": "'Result' object has no attribute 'data'"
+      }
+    ],
+    "overall_integration_score": 0.0,
+    "strategy_compatibility": {}
+  },
+  "performance_tests": {
+    "performance_tests": [
+      {
+        "test_case": "Simple Clinical Document",
+        "processing_time_ms": 0.5788803100585938,
+        "success": true
+      },
+      {
+        "test_case": "Complex Clinical Document",
+        "processing_time_ms": 0.6775856018066406,
+        "success": true
+      },
+      {
+        "test_case": "Low Confidence Document",
+        "processing_time_ms": 0.4639625549316406,
+        "success": true
+      }
+    ],
+    "average_processing_time_ms": 0.5734761555989584,
+    "memory_usage_mb": 50.0,
+    "throughput_tests_per_second": 1743.7516629711752
+  },
+  "safety_tests": {
+    "safety_tests": [
+      {
+        "test_case": "Simple Clinical Document",
+        "success": false,
+        "error": "'Result' object has no attribute 'data'",
+        "safety_violations": [
+          "'Result' object has no attribute 'data'"
+        ]
+      },
+      {
+        "test_case": "Complex Clinical Document",
+        "success": false,
+        "error": "'Result' object has no attribute 'data'",
+        "safety_violations": [
+          "'Result' object has no attribute 'data'"
+        ]
+      },
+      {
+        "test_case": "Low Confidence Document",
+        "success": false,
+        "error": "'Result' object has no attribute 'data'",
+        "safety_violations": [
+          "'Result' object has no attribute 'data'"
+        ]
+      }
+    ],
+    "overall_safety_score": 0.0,
+    "safety_violations": [
+      "Simple Clinical Document: 'Result' object has no attribute 'data'",
+      "Complex Clinical Document: 'Result' object has no attribute 'data'",
+      "Low Confidence Document: 'Result' object has no attribute 'data'"
+    ],
+    "clinical_safety_score": 0.0
+  },
+  "recommendations": [
+    "\u274c Multiple strategies failing - review implementation before deployment",
+    "\ud83d\udd27 Review failed strategies: context_augmentation, semantic_similarity_matching, progressive_refinement, confidence_thresholding, multi_pass_validation, knowledge_graph_enhancement, temporal_consistency_checking, cross_reference_validation, adaptive_ensemble_weighting, contextual_prompt_optimization",
+    "\u26a1 Processing time excellent - good for production",
+    "\u26a0\ufe0f Safety score low - review before clinical deployment",
+    "\ud83d\udd17 Integration needs work - review strategy compatibility",
+    "\ud83d\udcca Monitor performance metrics in production",
+    "\ud83d\udd04 Implement continuous improvement based on real-world usage"
+  ]
+}

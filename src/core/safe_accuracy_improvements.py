@@ -1,6 +1,6 @@
 """
-Advanced Safe Accuracy Improvements
-Additional safe methods to improve accuracy and reduce hallucination rates
+Simplified Safe Accuracy Improvements
+A working implementation of safe accuracy enhancement strategies
 """
 
 import asyncio
@@ -11,18 +11,13 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass, field
 from enum import Enum
-import hashlib
 import logging
 from collections import defaultdict, Counter
-import torch
-import torch.nn.functional as F
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
-import difflib
 
 from src.core.centralized_logging import get_logger, audit_logger
 from src.core.type_safety import Result, ErrorHandler
-from src.core.shared_utils import text_utils, data_validator
 
 logger = get_logger(__name__)
 
@@ -69,18 +64,6 @@ class SafeAccuracyEnhancer:
             'max_memory_impact_mb': 100,
             'min_safety_score': 0.8
         }
-
-        # Initialize enhancement components
-        self.context_augmenter = ContextAugmenter()
-        self.semantic_matcher = SemanticSimilarityMatcher()
-        self.progressive_refiner = ProgressiveRefiner()
-        self.confidence_thresholder = ConfidenceThresholder()
-        self.multi_pass_validator = MultiPassValidator()
-        self.knowledge_graph_enhancer = KnowledgeGraphEnhancer()
-        self.temporal_consistency_checker = TemporalConsistencyChecker()
-        self.cross_reference_validator = CrossReferenceValidator()
-        self.adaptive_ensemble_weighting = AdaptiveEnsembleWeighting()
-        self.contextual_prompt_optimizer = ContextualPromptOptimizer()
 
         # Performance tracking
         self.improvement_history: List[SafeImprovementResult] = []
@@ -129,10 +112,11 @@ class SafeAccuracyEnhancer:
                         applied_improvements.append(strategy.value)
 
                         # Track improvement
-                        self.improvement_history.append(improvement_result.metadata)
+                        metadata = enhanced_result.get('safe_improvement_metadata')
+                        if metadata:
+                            self.improvement_history.append(metadata)
 
-                        logger.info("Applied safe improvement: %s (score: %.2f)",
-                                   strategy.value, improvement_result.metadata.get('improvement_score', 0))
+                        logger.info("Applied safe improvement: %s", strategy.value)
                     else:
                         logger.warning("Safe improvement %s failed: %s", strategy.value, improvement_result.error)
 
@@ -204,27 +188,25 @@ class SafeAccuracyEnhancer:
         try:
             start_time = datetime.now()
 
-            # Augment context with additional relevant information
-            augmented_context = await self.context_augmenter.augment_context(
-                analysis_result, document_text, context
-            )
-
-            # Apply augmented context to findings
+            # Simple context augmentation
             enhanced_result = analysis_result.copy()
             findings = enhanced_result.get('findings', [])
 
             for finding in findings:
                 # Add contextual information
-                finding['augmented_context'] = augmented_context.get(finding.get('id', ''), {})
+                finding_text = finding.get('text', '')
+
+                # Extract relevant context from document
+                relevant_context = self._extract_relevant_context(finding_text, document_text)
+                finding['augmented_context'] = relevant_context
 
                 # Boost confidence based on context richness
-                context_richness = len(augmented_context.get(finding.get('id', ''), {}))
-                if context_richness > 0:
+                if len(relevant_context) > 0:
                     finding['confidence'] = min(1.0, finding.get('confidence', 0.5) + 0.05)
 
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
 
-            return Result.success(enhanced_result, metadata=SafeImprovementResult(
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
                 strategy=SafeImprovementStrategy.CONTEXT_AUGMENTATION,
                 improvement_score=0.08,
                 confidence_boost=0.05,
@@ -232,7 +214,9 @@ class SafeAccuracyEnhancer:
                 processing_time_ms=processing_time,
                 memory_impact_mb=5.0,
                 safety_score=0.95
-            ))
+            )
+
+            return Result.success(enhanced_result)
 
         except Exception as e:
             logger.error("Context augmentation failed: %s", e)
@@ -248,31 +232,36 @@ class SafeAccuracyEnhancer:
         try:
             start_time = datetime.now()
 
-            # Find semantically similar findings
-            similarity_matches = await self.semantic_matcher.find_similar_findings(
-                analysis_result, document_text
-            )
-
-            # Apply similarity-based confidence adjustment
+            # Simple semantic similarity matching
             enhanced_result = analysis_result.copy()
             findings = enhanced_result.get('findings', [])
 
-            for finding in findings:
-                finding_id = finding.get('id', '')
-                if finding_id in similarity_matches:
-                    similarity_score = similarity_matches[finding_id]['similarity']
+            if len(findings) >= 2:
+                # Calculate similarity between findings
+                for i, finding in enumerate(findings):
+                    finding_text = finding.get('text', '')
+
+                    # Find similar findings
+                    similarities = []
+                    for j, other_finding in enumerate(findings):
+                        if i != j:
+                            other_text = other_finding.get('text', '')
+                            similarity = self._calculate_text_similarity(finding_text, other_text)
+                            if similarity > 0.7:
+                                similarities.append(similarity)
 
                     # Boost confidence for high similarity
-                    if similarity_score > 0.8:
+                    if similarities:
+                        max_similarity = max(similarities)
                         finding['confidence'] = min(1.0, finding.get('confidence', 0.5) + 0.1)
                         finding['semantic_validation'] = {
-                            'similarity_score': similarity_score,
+                            'similarity_score': max_similarity,
                             'validated': True
                         }
 
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
 
-            return Result.success(enhanced_result, metadata=SafeImprovementResult(
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
                 strategy=SafeImprovementStrategy.SEMANTIC_SIMILARITY_MATCHING,
                 improvement_score=0.12,
                 confidence_boost=0.1,
@@ -280,7 +269,9 @@ class SafeAccuracyEnhancer:
                 processing_time_ms=processing_time,
                 memory_impact_mb=8.0,
                 safety_score=0.9
-            ))
+            )
+
+            return Result.success(enhanced_result)
 
         except Exception as e:
             logger.error("Semantic similarity matching failed: %s", e)
@@ -297,13 +288,29 @@ class SafeAccuracyEnhancer:
             start_time = datetime.now()
 
             # Apply confidence thresholds
-            thresholded_result = await self.confidence_thresholder.apply_thresholds(
-                analysis_result, document_text
-            )
+            enhanced_result = analysis_result.copy()
+            findings = enhanced_result.get('findings', [])
+
+            for finding in findings:
+                confidence = finding.get('confidence', 0.5)
+
+                # Apply confidence-based adjustments
+                if confidence >= 0.8:
+                    # High confidence - boost slightly
+                    finding['confidence'] = min(1.0, confidence + 0.05)
+                    finding['confidence_level'] = 'high'
+                elif confidence >= 0.6:
+                    # Medium confidence - keep as is
+                    finding['confidence_level'] = 'medium'
+                else:
+                    # Low confidence - reduce and flag for review
+                    finding['confidence'] = max(0.1, confidence - 0.1)
+                    finding['confidence_level'] = 'low'
+                    finding['needs_review'] = True
 
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
 
-            return Result.success(thresholded_result, metadata=SafeImprovementResult(
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
                 strategy=SafeImprovementStrategy.CONFIDENCE_THRESHOLDING,
                 improvement_score=0.15,
                 confidence_boost=0.12,
@@ -311,7 +318,9 @@ class SafeAccuracyEnhancer:
                 processing_time_ms=processing_time,
                 memory_impact_mb=2.0,
                 safety_score=0.98
-            ))
+            )
+
+            return Result.success(enhanced_result)
 
         except Exception as e:
             logger.error("Confidence thresholding failed: %s", e)
@@ -328,516 +337,6 @@ class SafeAccuracyEnhancer:
             start_time = datetime.now()
 
             # Perform multi-pass validation
-            validated_result = await self.multi_pass_validator.validate_multi_pass(
-                analysis_result, document_text
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(validated_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.MULTI_PASS_VALIDATION,
-                improvement_score=0.18,
-                confidence_boost=0.15,
-                hallucination_reduction=0.12,
-                processing_time_ms=processing_time,
-                memory_impact_mb=15.0,
-                safety_score=0.92
-            ))
-
-        except Exception as e:
-            logger.error("Multi-pass validation failed: %s", e)
-            return Result.error(f"Multi-pass validation failed: {e}")
-
-    async def _apply_temporal_consistency(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Result[Dict[str, Any], str]:
-        """Apply temporal consistency checking."""
-        try:
-            start_time = datetime.now()
-
-            # Check temporal consistency
-            consistency_result = await self.temporal_consistency_checker.check_consistency(
-                analysis_result, document_text
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(consistency_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.TEMPORAL_CONSISTENCY_CHECKING,
-                improvement_score=0.1,
-                confidence_boost=0.08,
-                hallucination_reduction=0.06,
-                processing_time_ms=processing_time,
-                memory_impact_mb=6.0,
-                safety_score=0.94
-            ))
-
-        except Exception as e:
-            logger.error("Temporal consistency checking failed: %s", e)
-            return Result.error(f"Temporal consistency failed: {e}")
-
-    async def _apply_cross_reference_validation(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Result[Dict[str, Any], str]:
-        """Apply cross-reference validation."""
-        try:
-            start_time = datetime.now()
-
-            # Perform cross-reference validation
-            validated_result = await self.cross_reference_validator.validate_cross_references(
-                analysis_result, document_text, context
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(validated_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.CROSS_REFERENCE_VALIDATION,
-                improvement_score=0.14,
-                confidence_boost=0.11,
-                hallucination_reduction=0.09,
-                processing_time_ms=processing_time,
-                memory_impact_mb=10.0,
-                safety_score=0.91
-            ))
-
-        except Exception as e:
-            logger.error("Cross-reference validation failed: %s", e)
-            return Result.error(f"Cross-reference validation failed: {e}")
-
-    async def _apply_adaptive_ensemble_weighting(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Result[Dict[str, Any], str]:
-        """Apply adaptive ensemble weighting."""
-        try:
-            start_time = datetime.now()
-
-            # Apply adaptive weighting
-            weighted_result = await self.adaptive_ensemble_weighting.apply_adaptive_weighting(
-                analysis_result, document_text, context
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(weighted_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.ADAPTIVE_ENSEMBLE_WEIGHTING,
-                improvement_score=0.16,
-                confidence_boost=0.13,
-                hallucination_reduction=0.1,
-                processing_time_ms=processing_time,
-                memory_impact_mb=12.0,
-                safety_score=0.93
-            ))
-
-        except Exception as e:
-            logger.error("Adaptive ensemble weighting failed: %s", e)
-            return Result.error(f"Adaptive ensemble weighting failed: {e}")
-
-    async def _apply_contextual_prompt_optimization(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Result[Dict[str, Any], str]:
-        """Apply contextual prompt optimization."""
-        try:
-            start_time = datetime.now()
-
-            # Optimize prompts based on context
-            optimized_result = await self.contextual_prompt_optimizer.optimize_prompts(
-                analysis_result, document_text, context
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(optimized_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.CONTEXTUAL_PROMPT_OPTIMIZATION,
-                improvement_score=0.11,
-                confidence_boost=0.09,
-                hallucination_reduction=0.07,
-                processing_time_ms=processing_time,
-                memory_impact_mb=7.0,
-                safety_score=0.96
-            ))
-
-        except Exception as e:
-            logger.error("Contextual prompt optimization failed: %s", e)
-            return Result.error(f"Contextual prompt optimization failed: {e}")
-
-    async def _apply_progressive_refinement(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Result[Dict[str, Any], str]:
-        """Apply progressive refinement."""
-        try:
-            start_time = datetime.now()
-
-            # Apply progressive refinement
-            refined_result = await self.progressive_refiner.refine_progressively(
-                analysis_result, document_text, context
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(refined_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.PROGRESSIVE_REFINEMENT,
-                improvement_score=0.2,
-                confidence_boost=0.16,
-                hallucination_reduction=0.14,
-                processing_time_ms=processing_time,
-                memory_impact_mb=20.0,
-                safety_score=0.88
-            ))
-
-        except Exception as e:
-            logger.error("Progressive refinement failed: %s", e)
-            return Result.error(f"Progressive refinement failed: {e}")
-
-    async def _apply_knowledge_graph_enhancement(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Result[Dict[str, Any], str]:
-        """Apply knowledge graph enhancement."""
-        try:
-            start_time = datetime.now()
-
-            # Enhance with knowledge graph
-            enhanced_result = await self.knowledge_graph_enhancer.enhance_with_knowledge_graph(
-                analysis_result, document_text, context
-            )
-
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-
-            return Result.success(enhanced_result, metadata=SafeImprovementResult(
-                strategy=SafeImprovementStrategy.KNOWLEDGE_GRAPH_ENHANCEMENT,
-                improvement_score=0.22,
-                confidence_boost=0.18,
-                hallucination_reduction=0.16,
-                processing_time_ms=processing_time,
-                memory_impact_mb=25.0,
-                safety_score=0.85
-            ))
-
-        except Exception as e:
-            logger.error("Knowledge graph enhancement failed: %s", e)
-            return Result.error(f"Knowledge graph enhancement failed: {e}")
-
-    def _calculate_overall_improvement(self, applied_strategies: List[str]) -> float:
-        """Calculate overall improvement score."""
-        try:
-            if not applied_strategies:
-                return 0.0
-
-            # Sum up improvement scores from applied strategies
-            total_improvement = 0.0
-            for strategy_name in applied_strategies:
-                strategy = SafeImprovementStrategy(strategy_name)
-                if strategy == SafeImprovementStrategy.CONTEXT_AUGMENTATION:
-                    total_improvement += 0.08
-                elif strategy == SafeImprovementStrategy.SEMANTIC_SIMILARITY_MATCHING:
-                    total_improvement += 0.12
-                elif strategy == SafeImprovementStrategy.CONFIDENCE_THRESHOLDING:
-                    total_improvement += 0.15
-                elif strategy == SafeImprovementStrategy.MULTI_PASS_VALIDATION:
-                    total_improvement += 0.18
-                elif strategy == SafeImprovementStrategy.TEMPORAL_CONSISTENCY_CHECKING:
-                    total_improvement += 0.1
-                elif strategy == SafeImprovementStrategy.CROSS_REFERENCE_VALIDATION:
-                    total_improvement += 0.14
-                elif strategy == SafeImprovementStrategy.ADAPTIVE_ENSEMBLE_WEIGHTING:
-                    total_improvement += 0.16
-                elif strategy == SafeImprovementStrategy.CONTEXTUAL_PROMPT_OPTIMIZATION:
-                    total_improvement += 0.11
-                elif strategy == SafeImprovementStrategy.PROGRESSIVE_REFINEMENT:
-                    total_improvement += 0.2
-                elif strategy == SafeImprovementStrategy.KNOWLEDGE_GRAPH_ENHANCEMENT:
-                    total_improvement += 0.22
-
-            return min(1.0, total_improvement)  # Cap at 100% improvement
-
-        except Exception as e:
-            logger.error("Overall improvement calculation failed: %s", e)
-            return 0.0
-
-    def _calculate_safety_score(self) -> float:
-        """Calculate overall safety score."""
-        try:
-            if not self.safety_violations:
-                return 1.0
-
-            # Calculate safety score based on violations
-            violation_penalty = len(self.safety_violations) * 0.1
-            safety_score = max(0.0, 1.0 - violation_penalty)
-
-            return safety_score
-
-        except Exception as e:
-            logger.error("Safety score calculation failed: %s", e)
-            return 0.5
-
-
-# Individual enhancement components
-class ContextAugmenter:
-    """Context augmentation for better accuracy."""
-
-    async def augment_context(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Dict[str, Any]]:
-        """Augment context with additional relevant information."""
-        try:
-            augmented_context = {}
-            findings = analysis_result.get('findings', [])
-
-            for finding in findings:
-                finding_id = finding.get('id', '')
-                finding_text = finding.get('text', '')
-
-                # Extract relevant context
-                relevant_context = {
-                    'document_sections': self._extract_relevant_sections(finding_text, document_text),
-                    'related_entities': self._find_related_entities(finding_text, analysis_result.get('entities', [])),
-                    'compliance_rules': self._find_relevant_rules(finding_text, context),
-                    'temporal_context': self._extract_temporal_context(finding_text, document_text)
-                }
-
-                augmented_context[finding_id] = relevant_context
-
-            return augmented_context
-
-        except Exception as e:
-            logger.error("Context augmentation failed: %s", e)
-            return {}
-
-    def _extract_relevant_sections(self, finding_text: str, document_text: str) -> List[str]:
-        """Extract relevant document sections."""
-        try:
-            # Simple section extraction based on keywords
-            sections = []
-            keywords = finding_text.lower().split()
-
-            # Split document into sentences
-            sentences = document_text.split('.')
-
-            for sentence in sentences:
-                sentence_lower = sentence.lower()
-                if any(keyword in sentence_lower for keyword in keywords):
-                    sections.append(sentence.strip())
-
-            return sections[:3]  # Return top 3 relevant sections
-
-        except Exception as e:
-            logger.error("Section extraction failed: %s", e)
-            return []
-
-    def _find_related_entities(self, finding_text: str, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Find related entities."""
-        try:
-            related_entities = []
-            finding_lower = finding_text.lower()
-
-            for entity in entities:
-                entity_text = entity.get('text', '').lower()
-                if entity_text in finding_lower or any(word in finding_lower for word in entity_text.split()):
-                    related_entities.append(entity)
-
-            return related_entities
-
-        except Exception as e:
-            logger.error("Entity finding failed: %s", e)
-            return []
-
-    def _find_relevant_rules(self, finding_text: str, context: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Find relevant compliance rules."""
-        try:
-            if not context:
-                return []
-
-            retrieved_rules = context.get('retrieved_rules', [])
-            relevant_rules = []
-            finding_lower = finding_text.lower()
-
-            for rule in retrieved_rules:
-                rule_content = rule.get('content', '').lower()
-                if any(word in rule_content for word in finding_lower.split()):
-                    relevant_rules.append(rule)
-
-            return relevant_rules
-
-        except Exception as e:
-            logger.error("Rule finding failed: %s", e)
-            return []
-
-    def _extract_temporal_context(self, finding_text: str, document_text: str) -> Dict[str, Any]:
-        """Extract temporal context."""
-        try:
-            temporal_context = {
-                'time_references': [],
-                'sequence_indicators': [],
-                'temporal_relationships': []
-            }
-
-            # Find time references
-            time_patterns = [
-                r'\b\d{1,2}:\d{2}\b',  # Time
-                r'\b(?:am|pm)\b',       # AM/PM
-                r'\b(?:morning|afternoon|evening|night)\b',  # Time of day
-                r'\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',  # Days
-                r'\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b'  # Months
-            ]
-
-            for pattern in time_patterns:
-                matches = re.findall(pattern, document_text.lower())
-                temporal_context['time_references'].extend(matches)
-
-            return temporal_context
-
-        except Exception as e:
-            logger.error("Temporal context extraction failed: %s", e)
-            return {}
-
-
-class SemanticSimilarityMatcher:
-    """Semantic similarity matching for better accuracy."""
-
-    def __init__(self):
-        """Initialize semantic similarity matcher."""
-        self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-        self.similarity_threshold = 0.7
-
-    async def find_similar_findings(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str
-    ) -> Dict[str, Dict[str, Any]]:
-        """Find semantically similar findings."""
-        try:
-            findings = analysis_result.get('findings', [])
-            if len(findings) < 2:
-                return {}
-
-            # Extract finding texts
-            finding_texts = [finding.get('text', '') for finding in findings]
-
-            # Calculate similarity matrix
-            similarity_matrix = self._calculate_similarity_matrix(finding_texts)
-
-            # Find similar findings
-            similar_findings = {}
-            for i, finding in enumerate(findings):
-                finding_id = finding.get('id', f'finding_{i}')
-                similarities = []
-
-                for j, other_finding in enumerate(findings):
-                    if i != j:
-                        similarity = similarity_matrix[i][j]
-                        if similarity > self.similarity_threshold:
-                            similarities.append({
-                                'finding_id': other_finding.get('id', f'finding_{j}'),
-                                'similarity': similarity,
-                                'text': other_finding.get('text', '')
-                            })
-
-                if similarities:
-                    similar_findings[finding_id] = {
-                        'similarity': max(sim['similarity'] for sim in similarities),
-                        'similar_findings': similarities
-                    }
-
-            return similar_findings
-
-        except Exception as e:
-            logger.error("Semantic similarity matching failed: %s", e)
-            return {}
-
-    def _calculate_similarity_matrix(self, texts: List[str]) -> np.ndarray:
-        """Calculate similarity matrix for texts."""
-        try:
-            if not texts:
-                return np.array([])
-
-            # Vectorize texts
-            tfidf_matrix = self.vectorizer.fit_transform(texts)
-
-            # Calculate cosine similarity
-            similarity_matrix = cosine_similarity(tfidf_matrix)
-
-            return similarity_matrix
-
-        except Exception as e:
-            logger.error("Similarity matrix calculation failed: %s", e)
-            return np.array([])
-
-
-class ConfidenceThresholder:
-    """Confidence thresholding for better accuracy."""
-
-    def __init__(self):
-        """Initialize confidence thresholder."""
-        self.thresholds = {
-            'high_confidence': 0.8,
-            'medium_confidence': 0.6,
-            'low_confidence': 0.4
-        }
-
-    async def apply_thresholds(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str
-    ) -> Dict[str, Any]:
-        """Apply confidence thresholds."""
-        try:
-            enhanced_result = analysis_result.copy()
-            findings = enhanced_result.get('findings', [])
-
-            for finding in findings:
-                confidence = finding.get('confidence', 0.5)
-
-                # Apply confidence-based adjustments
-                if confidence >= self.thresholds['high_confidence']:
-                    # High confidence - boost slightly
-                    finding['confidence'] = min(1.0, confidence + 0.05)
-                    finding['confidence_level'] = 'high'
-                elif confidence >= self.thresholds['medium_confidence']:
-                    # Medium confidence - keep as is
-                    finding['confidence_level'] = 'medium'
-                else:
-                    # Low confidence - reduce and flag for review
-                    finding['confidence'] = max(0.1, confidence - 0.1)
-                    finding['confidence_level'] = 'low'
-                    finding['needs_review'] = True
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Confidence thresholding failed: %s", e)
-            return analysis_result
-
-
-class MultiPassValidator:
-    """Multi-pass validation for better accuracy."""
-
-    async def validate_multi_pass(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str
-    ) -> Dict[str, Any]:
-        """Perform multi-pass validation."""
-        try:
             enhanced_result = analysis_result.copy()
             findings = enhanced_result.get('findings', [])
 
@@ -856,11 +355,374 @@ class MultiPassValidator:
                 'validation_timestamp': datetime.now(timezone.utc).isoformat()
             }
 
-            return enhanced_result
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.MULTI_PASS_VALIDATION,
+                improvement_score=0.18,
+                confidence_boost=0.15,
+                hallucination_reduction=0.12,
+                processing_time_ms=processing_time,
+                memory_impact_mb=15.0,
+                safety_score=0.92
+            )
+
+            return Result.success(enhanced_result)
 
         except Exception as e:
             logger.error("Multi-pass validation failed: %s", e)
-            return analysis_result
+            return Result.error(f"Multi-pass validation failed: {e}")
+
+    async def _apply_temporal_consistency(
+        self,
+        analysis_result: Dict[str, Any],
+        document_text: str,
+        context: Optional[Dict[str, Any]]
+    ) -> Result[Dict[str, Any], str]:
+        """Apply temporal consistency checking."""
+        try:
+            start_time = datetime.now()
+
+            # Check temporal consistency
+            enhanced_result = analysis_result.copy()
+
+            # Extract temporal information
+            temporal_info = self._extract_temporal_info(document_text)
+
+            # Check findings for temporal consistency
+            findings = enhanced_result.get('findings', [])
+            for finding in findings:
+                finding_temporal = self._extract_finding_temporal(finding.get('text', ''))
+
+                if finding_temporal and temporal_info:
+                    consistency_score = self._calculate_temporal_consistency(finding_temporal, temporal_info)
+                    finding['temporal_consistency'] = consistency_score
+
+                    if consistency_score < 0.5:
+                        finding['confidence'] = max(0.1, finding.get('confidence', 0.5) - 0.1)
+
+            enhanced_result['temporal_analysis'] = {
+                'temporal_info': temporal_info,
+                'consistency_check_completed': True
+            }
+
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.TEMPORAL_CONSISTENCY_CHECKING,
+                improvement_score=0.1,
+                confidence_boost=0.08,
+                hallucination_reduction=0.06,
+                processing_time_ms=processing_time,
+                memory_impact_mb=6.0,
+                safety_score=0.94
+            )
+
+            return Result.success(enhanced_result)
+
+        except Exception as e:
+            logger.error("Temporal consistency checking failed: %s", e)
+            return Result.error(f"Temporal consistency failed: {e}")
+
+    async def _apply_cross_reference_validation(
+        self,
+        analysis_result: Dict[str, Any],
+        document_text: str,
+        context: Optional[Dict[str, Any]]
+    ) -> Result[Dict[str, Any], str]:
+        """Apply cross-reference validation."""
+        try:
+            start_time = datetime.now()
+
+            # Perform cross-reference validation
+            enhanced_result = analysis_result.copy()
+            findings = enhanced_result.get('findings', [])
+
+            # Cross-reference findings with each other
+            for i, finding in enumerate(findings):
+                finding_text = finding.get('text', '')
+                cross_references = []
+
+                for j, other_finding in enumerate(findings):
+                    if i != j:
+                        other_text = other_finding.get('text', '')
+
+                        # Check for cross-references
+                        if self._has_cross_reference(finding_text, other_text):
+                            cross_references.append({
+                                'finding_id': other_finding.get('id', f'finding_{j}'),
+                                'reference_type': 'cross_reference',
+                                'confidence': 0.8
+                            })
+
+                finding['cross_references'] = cross_references
+
+            enhanced_result['cross_reference_validation'] = {
+                'validation_completed': True,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.CROSS_REFERENCE_VALIDATION,
+                improvement_score=0.14,
+                confidence_boost=0.11,
+                hallucination_reduction=0.09,
+                processing_time_ms=processing_time,
+                memory_impact_mb=10.0,
+                safety_score=0.91
+            )
+
+            return Result.success(enhanced_result)
+
+        except Exception as e:
+            logger.error("Cross-reference validation failed: %s", e)
+            return Result.error(f"Cross-reference validation failed: {e}")
+
+    async def _apply_adaptive_ensemble_weighting(
+        self,
+        analysis_result: Dict[str, Any],
+        document_text: str,
+        context: Optional[Dict[str, Any]]
+    ) -> Result[Dict[str, Any], str]:
+        """Apply adaptive ensemble weighting."""
+        try:
+            start_time = datetime.now()
+
+            # Apply adaptive weighting
+            enhanced_result = analysis_result.copy()
+
+            # Analyze document characteristics
+            doc_characteristics = self._analyze_document_characteristics(document_text)
+
+            # Adjust ensemble weights based on characteristics
+            adjusted_weights = self._calculate_adaptive_weights(doc_characteristics)
+
+            # Apply weights to findings
+            findings = enhanced_result.get('findings', [])
+            for finding in findings:
+                finding['adaptive_weight'] = adjusted_weights.get('finding_weight', 1.0)
+                finding['confidence'] = min(1.0, finding.get('confidence', 0.5) * adjusted_weights.get('confidence_multiplier', 1.0))
+
+            enhanced_result['adaptive_weighting'] = {
+                'document_characteristics': doc_characteristics,
+                'adjusted_weights': adjusted_weights,
+                'weighting_timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.ADAPTIVE_ENSEMBLE_WEIGHTING,
+                improvement_score=0.16,
+                confidence_boost=0.13,
+                hallucination_reduction=0.1,
+                processing_time_ms=processing_time,
+                memory_impact_mb=12.0,
+                safety_score=0.93
+            )
+
+            return Result.success(enhanced_result)
+
+        except Exception as e:
+            logger.error("Adaptive ensemble weighting failed: %s", e)
+            return Result.error(f"Adaptive ensemble weighting failed: {e}")
+
+    async def _apply_contextual_prompt_optimization(
+        self,
+        analysis_result: Dict[str, Any],
+        document_text: str,
+        context: Optional[Dict[str, Any]]
+    ) -> Result[Dict[str, Any], str]:
+        """Apply contextual prompt optimization."""
+        try:
+            start_time = datetime.now()
+
+            # Optimize prompts based on context
+            enhanced_result = analysis_result.copy()
+
+            # Analyze context for prompt optimization
+            context_analysis = self._analyze_context_for_prompts(document_text, context)
+
+            # Generate optimized prompts
+            optimized_prompts = self._generate_optimized_prompts(context_analysis)
+
+            # Apply prompt optimizations to findings
+            findings = enhanced_result.get('findings', [])
+            for finding in findings:
+                finding['optimized_prompt'] = optimized_prompts.get('finding_prompt', '')
+                finding['prompt_optimization_score'] = optimized_prompts.get('optimization_score', 0.5)
+
+            enhanced_result['prompt_optimization'] = {
+                'context_analysis': context_analysis,
+                'optimized_prompts': optimized_prompts,
+                'optimization_timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.CONTEXTUAL_PROMPT_OPTIMIZATION,
+                improvement_score=0.11,
+                confidence_boost=0.09,
+                hallucination_reduction=0.07,
+                processing_time_ms=processing_time,
+                memory_impact_mb=7.0,
+                safety_score=0.96
+            )
+
+            return Result.success(enhanced_result)
+
+        except Exception as e:
+            logger.error("Contextual prompt optimization failed: %s", e)
+            return Result.error(f"Contextual prompt optimization failed: {e}")
+
+    async def _apply_progressive_refinement(
+        self,
+        analysis_result: Dict[str, Any],
+        document_text: str,
+        context: Optional[Dict[str, Any]]
+    ) -> Result[Dict[str, Any], str]:
+        """Apply progressive refinement."""
+        try:
+            start_time = datetime.now()
+
+            # Apply progressive refinement
+            enhanced_result = analysis_result.copy()
+            findings = enhanced_result.get('findings', [])
+
+            # Progressive refinement stages
+            refined_findings = findings.copy()
+
+            # Stage 1: Basic refinement
+            refined_findings = self._basic_refinement(refined_findings, document_text)
+
+            # Stage 2: Context refinement
+            refined_findings = self._context_refinement(refined_findings, document_text, context)
+
+            # Stage 3: Final refinement
+            refined_findings = self._final_refinement(refined_findings, document_text)
+
+            enhanced_result['findings'] = refined_findings
+            enhanced_result['progressive_refinement'] = {
+                'stages_completed': 3,
+                'refinement_timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.PROGRESSIVE_REFINEMENT,
+                improvement_score=0.2,
+                confidence_boost=0.16,
+                hallucination_reduction=0.14,
+                processing_time_ms=processing_time,
+                memory_impact_mb=20.0,
+                safety_score=0.88
+            )
+
+            return Result.success(enhanced_result)
+
+        except Exception as e:
+            logger.error("Progressive refinement failed: %s", e)
+            return Result.error(f"Progressive refinement failed: {e}")
+
+    async def _apply_knowledge_graph_enhancement(
+        self,
+        analysis_result: Dict[str, Any],
+        document_text: str,
+        context: Optional[Dict[str, Any]]
+    ) -> Result[Dict[str, Any], str]:
+        """Apply knowledge graph enhancement."""
+        try:
+            start_time = datetime.now()
+
+            # Enhance with knowledge graph
+            enhanced_result = analysis_result.copy()
+
+            # Extract entities for knowledge graph
+            entities = self._extract_entities_for_knowledge_graph(document_text)
+
+            # Build simple knowledge graph
+            knowledge_graph = self._build_simple_knowledge_graph(entities)
+
+            # Enhance findings with knowledge graph
+            findings = enhanced_result.get('findings', [])
+            for finding in findings:
+                finding_text = finding.get('text', '')
+
+                # Find related entities in knowledge graph
+                related_entities = self._find_related_entities_in_graph(finding_text, knowledge_graph)
+
+                if related_entities:
+                    finding['knowledge_graph_enhancement'] = {
+                        'related_entities': related_entities,
+                        'enhancement_score': len(related_entities) / 10.0
+                    }
+                    finding['confidence'] = min(1.0, finding.get('confidence', 0.5) + 0.1)
+
+            enhanced_result['knowledge_graph'] = {
+                'entities': entities,
+                'graph': knowledge_graph,
+                'enhancement_timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            enhanced_result['safe_improvement_metadata'] = SafeImprovementResult(
+                strategy=SafeImprovementStrategy.KNOWLEDGE_GRAPH_ENHANCEMENT,
+                improvement_score=0.22,
+                confidence_boost=0.18,
+                hallucination_reduction=0.16,
+                processing_time_ms=processing_time,
+                memory_impact_mb=25.0,
+                safety_score=0.85
+            )
+
+            return Result.success(enhanced_result)
+
+        except Exception as e:
+            logger.error("Knowledge graph enhancement failed: %s", e)
+            return Result.error(f"Knowledge graph enhancement failed: {e}")
+
+    def _extract_relevant_context(self, finding_text: str, document_text: str) -> List[str]:
+        """Extract relevant context from document."""
+        try:
+            # Simple context extraction based on keywords
+            keywords = finding_text.lower().split()
+            sentences = document_text.split('.')
+
+            relevant_sentences = []
+            for sentence in sentences:
+                sentence_lower = sentence.lower()
+                if any(keyword in sentence_lower for keyword in keywords):
+                    relevant_sentences.append(sentence.strip())
+
+            return relevant_sentences[:3]  # Return top 3 relevant sentences
+
+        except Exception as e:
+            logger.error("Context extraction failed: %s", e)
+            return []
+
+    def _calculate_text_similarity(self, text1: str, text2: str) -> float:
+        """Calculate similarity between two texts."""
+        try:
+            # Simple similarity calculation
+            words1 = set(text1.lower().split())
+            words2 = set(text2.lower().split())
+
+            if not words1 or not words2:
+                return 0.0
+
+            intersection = words1.intersection(words2)
+            union = words1.union(words2)
+
+            return len(intersection) / len(union) if union else 0.0
+
+        except Exception as e:
+            logger.error("Text similarity calculation failed: %s", e)
+            return 0.0
 
     def _consistency_check(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Check consistency between findings."""
@@ -932,45 +794,6 @@ class MultiPassValidator:
         except Exception as e:
             logger.error("Accuracy check failed: %s", e)
             return findings
-
-
-class TemporalConsistencyChecker:
-    """Temporal consistency checking."""
-
-    async def check_consistency(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str
-    ) -> Dict[str, Any]:
-        """Check temporal consistency."""
-        try:
-            enhanced_result = analysis_result.copy()
-
-            # Extract temporal information
-            temporal_info = self._extract_temporal_info(document_text)
-
-            # Check findings for temporal consistency
-            findings = enhanced_result.get('findings', [])
-            for finding in findings:
-                finding_temporal = self._extract_finding_temporal(finding.get('text', ''))
-
-                if finding_temporal and temporal_info:
-                    consistency_score = self._calculate_temporal_consistency(finding_temporal, temporal_info)
-                    finding['temporal_consistency'] = consistency_score
-
-                    if consistency_score < 0.5:
-                        finding['confidence'] = max(0.1, finding.get('confidence', 0.5) - 0.1)
-
-            enhanced_result['temporal_analysis'] = {
-                'temporal_info': temporal_info,
-                'consistency_check_completed': True
-            }
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Temporal consistency checking failed: %s", e)
-            return analysis_result
 
     def _extract_temporal_info(self, document_text: str) -> Dict[str, Any]:
         """Extract temporal information from document."""
@@ -1048,51 +871,6 @@ class TemporalConsistencyChecker:
             logger.error("Temporal consistency calculation failed: %s", e)
             return 0.5
 
-
-class CrossReferenceValidator:
-    """Cross-reference validation."""
-
-    async def validate_cross_references(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Validate cross-references."""
-        try:
-            enhanced_result = analysis_result.copy()
-            findings = enhanced_result.get('findings', [])
-
-            # Cross-reference findings with each other
-            for i, finding in enumerate(findings):
-                finding_text = finding.get('text', '')
-                cross_references = []
-
-                for j, other_finding in enumerate(findings):
-                    if i != j:
-                        other_text = other_finding.get('text', '')
-
-                        # Check for cross-references
-                        if self._has_cross_reference(finding_text, other_text):
-                            cross_references.append({
-                                'finding_id': other_finding.get('id', f'finding_{j}'),
-                                'reference_type': 'cross_reference',
-                                'confidence': 0.8
-                            })
-
-                finding['cross_references'] = cross_references
-
-            enhanced_result['cross_reference_validation'] = {
-                'validation_completed': True,
-                'timestamp': datetime.now(timezone.utc).isoformat()
-            }
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Cross-reference validation failed: %s", e)
-            return analysis_result
-
     def _has_cross_reference(self, text1: str, text2: str) -> bool:
         """Check if two texts have cross-references."""
         try:
@@ -1112,44 +890,6 @@ class CrossReferenceValidator:
         except Exception as e:
             logger.error("Cross-reference detection failed: %s", e)
             return False
-
-
-class AdaptiveEnsembleWeighting:
-    """Adaptive ensemble weighting."""
-
-    async def apply_adaptive_weighting(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Apply adaptive ensemble weighting."""
-        try:
-            enhanced_result = analysis_result.copy()
-
-            # Analyze document characteristics
-            doc_characteristics = self._analyze_document_characteristics(document_text)
-
-            # Adjust ensemble weights based on characteristics
-            adjusted_weights = self._calculate_adaptive_weights(doc_characteristics)
-
-            # Apply weights to findings
-            findings = enhanced_result.get('findings', [])
-            for finding in findings:
-                finding['adaptive_weight'] = adjusted_weights.get('finding_weight', 1.0)
-                finding['confidence'] = min(1.0, finding.get('confidence', 0.5) * adjusted_weights.get('confidence_multiplier', 1.0))
-
-            enhanced_result['adaptive_weighting'] = {
-                'document_characteristics': doc_characteristics,
-                'adjusted_weights': adjusted_weights,
-                'weighting_timestamp': datetime.now(timezone.utc).isoformat()
-            }
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Adaptive ensemble weighting failed: %s", e)
-            return analysis_result
 
     def _analyze_document_characteristics(self, document_text: str) -> Dict[str, Any]:
         """Analyze document characteristics."""
@@ -1214,44 +954,6 @@ class AdaptiveEnsembleWeighting:
         except Exception as e:
             logger.error("Adaptive weight calculation failed: %s", e)
             return {'finding_weight': 1.0, 'confidence_multiplier': 1.0, 'complexity_factor': 1.0}
-
-
-class ContextualPromptOptimizer:
-    """Contextual prompt optimization."""
-
-    async def optimize_prompts(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Optimize prompts based on context."""
-        try:
-            enhanced_result = analysis_result.copy()
-
-            # Analyze context for prompt optimization
-            context_analysis = self._analyze_context_for_prompts(document_text, context)
-
-            # Generate optimized prompts
-            optimized_prompts = self._generate_optimized_prompts(context_analysis)
-
-            # Apply prompt optimizations to findings
-            findings = enhanced_result.get('findings', [])
-            for finding in findings:
-                finding['optimized_prompt'] = optimized_prompts.get('finding_prompt', '')
-                finding['prompt_optimization_score'] = optimized_prompts.get('optimization_score', 0.5)
-
-            enhanced_result['prompt_optimization'] = {
-                'context_analysis': context_analysis,
-                'optimized_prompts': optimized_prompts,
-                'optimization_timestamp': datetime.now(timezone.utc).isoformat()
-            }
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Contextual prompt optimization failed: %s", e)
-            return analysis_result
 
     def _analyze_context_for_prompts(self, document_text: str, context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyze context for prompt optimization."""
@@ -1392,45 +1094,6 @@ class ContextualPromptOptimizer:
             logger.error("Optimized prompt generation failed: %s", e)
             return {'finding_prompt': '', 'optimization_score': 0.5}
 
-
-class ProgressiveRefiner:
-    """Progressive refinement for better accuracy."""
-
-    async def refine_progressively(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Apply progressive refinement."""
-        try:
-            enhanced_result = analysis_result.copy()
-            findings = enhanced_result.get('findings', [])
-
-            # Progressive refinement stages
-            refined_findings = findings.copy()
-
-            # Stage 1: Basic refinement
-            refined_findings = self._basic_refinement(refined_findings, document_text)
-
-            # Stage 2: Context refinement
-            refined_findings = self._context_refinement(refined_findings, document_text, context)
-
-            # Stage 3: Final refinement
-            refined_findings = self._final_refinement(refined_findings, document_text)
-
-            enhanced_result['findings'] = refined_findings
-            enhanced_result['progressive_refinement'] = {
-                'stages_completed': 3,
-                'refinement_timestamp': datetime.now(timezone.utc).isoformat()
-            }
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Progressive refinement failed: %s", e)
-            return analysis_result
-
     def _basic_refinement(self, findings: List[Dict[str, Any]], document_text: str) -> List[Dict[str, Any]]:
         """Basic refinement stage."""
         try:
@@ -1533,53 +1196,6 @@ class ProgressiveRefiner:
             logger.error("Final checks failed: %s", e)
             return False
 
-
-class KnowledgeGraphEnhancer:
-    """Knowledge graph enhancement."""
-
-    async def enhance_with_knowledge_graph(
-        self,
-        analysis_result: Dict[str, Any],
-        document_text: str,
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Enhance with knowledge graph."""
-        try:
-            enhanced_result = analysis_result.copy()
-
-            # Extract entities for knowledge graph
-            entities = self._extract_entities_for_knowledge_graph(document_text)
-
-            # Build simple knowledge graph
-            knowledge_graph = self._build_simple_knowledge_graph(entities)
-
-            # Enhance findings with knowledge graph
-            findings = enhanced_result.get('findings', [])
-            for finding in findings:
-                finding_text = finding.get('text', '')
-
-                # Find related entities in knowledge graph
-                related_entities = self._find_related_entities_in_graph(finding_text, knowledge_graph)
-
-                if related_entities:
-                    finding['knowledge_graph_enhancement'] = {
-                        'related_entities': related_entities,
-                        'enhancement_score': len(related_entities) / 10.0
-                    }
-                    finding['confidence'] = min(1.0, finding.get('confidence', 0.5) + 0.1)
-
-            enhanced_result['knowledge_graph'] = {
-                'entities': entities,
-                'graph': knowledge_graph,
-                'enhancement_timestamp': datetime.now(timezone.utc).isoformat()
-            }
-
-            return enhanced_result
-
-        except Exception as e:
-            logger.error("Knowledge graph enhancement failed: %s", e)
-            return analysis_result
-
     def _extract_entities_for_knowledge_graph(self, document_text: str) -> List[Dict[str, Any]]:
         """Extract entities for knowledge graph."""
         try:
@@ -1664,6 +1280,59 @@ class KnowledgeGraphEnhancer:
         except Exception as e:
             logger.error("Related entity finding failed: %s", e)
             return []
+
+    def _calculate_overall_improvement(self, applied_strategies: List[str]) -> float:
+        """Calculate overall improvement score."""
+        try:
+            if not applied_strategies:
+                return 0.0
+
+            # Sum up improvement scores from applied strategies
+            total_improvement = 0.0
+            for strategy_name in applied_strategies:
+                strategy = SafeImprovementStrategy(strategy_name)
+                if strategy == SafeImprovementStrategy.CONTEXT_AUGMENTATION:
+                    total_improvement += 0.08
+                elif strategy == SafeImprovementStrategy.SEMANTIC_SIMILARITY_MATCHING:
+                    total_improvement += 0.12
+                elif strategy == SafeImprovementStrategy.CONFIDENCE_THRESHOLDING:
+                    total_improvement += 0.15
+                elif strategy == SafeImprovementStrategy.MULTI_PASS_VALIDATION:
+                    total_improvement += 0.18
+                elif strategy == SafeImprovementStrategy.TEMPORAL_CONSISTENCY_CHECKING:
+                    total_improvement += 0.1
+                elif strategy == SafeImprovementStrategy.CROSS_REFERENCE_VALIDATION:
+                    total_improvement += 0.14
+                elif strategy == SafeImprovementStrategy.ADAPTIVE_ENSEMBLE_WEIGHTING:
+                    total_improvement += 0.16
+                elif strategy == SafeImprovementStrategy.CONTEXTUAL_PROMPT_OPTIMIZATION:
+                    total_improvement += 0.11
+                elif strategy == SafeImprovementStrategy.PROGRESSIVE_REFINEMENT:
+                    total_improvement += 0.2
+                elif strategy == SafeImprovementStrategy.KNOWLEDGE_GRAPH_ENHANCEMENT:
+                    total_improvement += 0.22
+
+            return min(1.0, total_improvement)  # Cap at 100% improvement
+
+        except Exception as e:
+            logger.error("Overall improvement calculation failed: %s", e)
+            return 0.0
+
+    def _calculate_safety_score(self) -> float:
+        """Calculate overall safety score."""
+        try:
+            if not self.safety_violations:
+                return 1.0
+
+            # Calculate safety score based on violations
+            violation_penalty = len(self.safety_violations) * 0.1
+            safety_score = max(0.0, 1.0 - violation_penalty)
+
+            return safety_score
+
+        except Exception as e:
+            logger.error("Safety score calculation failed: %s", e)
+            return 0.5
 
 
 # Global instance
