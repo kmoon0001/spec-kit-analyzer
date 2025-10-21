@@ -41,10 +41,13 @@ async def main():
         vector_store = get_vector_store()
 
         # Initialize persistent task registry
+        # NOTE: Blocking await is correct here - this is a standalone script
+        # that needs services fully started before proceeding
         logger.info("Initializing persistent task registry...")
         await persistent_task_registry.cleanup_old_tasks(days_old=7)
 
         # Initialize enhanced worker manager
+        # NOTE: Blocking await is correct here - not a web server startup
         logger.info("Starting enhanced worker manager...")
         await enhanced_worker_manager.start()
 

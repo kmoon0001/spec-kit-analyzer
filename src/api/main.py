@@ -327,11 +327,16 @@ async def lifespan(app: FastAPI):
         ws_handler.setFormatter(formatter)
         logging.getLogger().addHandler(ws_handler)
 
-    # Ensure database schema is initialized before using any DB-dependent services
+    # Initialize core services synchronously (MUST complete before server starts)
+    # Database must be ready for all DB-dependent operations
     await init_db()
-
+    
+    # Core API services (analysis service, etc.) must be available immediately
     await api_startup()
-    await initialize_vector_store()
+    
+    # Vector store initialization can happen in background (improves startup time)
+    asyncio.create_task(initialize_vector_store())
+    logger.info("Vector store initialization started in background")
 
     # Start background metrics collection (if available)
     if ENHANCED_FEATURES_AVAILABLE:
@@ -346,14 +351,12 @@ async def lifespan(app: FastAPI):
     # Start the task purge service
     _ = in_memory_task_purge_service.start()
 
-    # Start file cleanup service
-    await start_cleanup_service()
-
-    # Start document cleanup service
-    await start_doc_cleanup()
-
-    # Start comprehensive cleanup services
-    await start_cleanup_services()
+    # Start cleanup services as background tasks
+    # These run continuously and don't need to complete before server starts
+    asyncio.create_task(start_cleanup_service())
+    asyncio.create_task(start_doc_cleanup())
+    asyncio.create_task(start_cleanup_services())
+    logger.info("Cleanup services started in background")
 
     # Initialize request tracker
     request_tracker = get_request_tracker()
@@ -363,13 +366,11 @@ async def lifespan(app: FastAPI):
     error_handler = get_error_handler()
     logger.info("Error handling initialized")
 
-    # Initialize enhanced services
-    await enhanced_worker_manager.start()
-    logger.info("Enhanced worker manager started")
-
-    # Initialize persistent task registry
-    await persistent_task_registry.cleanup_old_tasks(days_old=7)
-    logger.info("Persistent task registry initialized")
+    # Start worker manager and task cleanup as background tasks
+    # These are optimization services that enhance performance but aren't required for basic operation
+    asyncio.create_task(enhanced_worker_manager.start())
+    asyncio.create_task(persistent_task_registry.cleanup_old_tasks(days_old=7))
+    logger.info("Enhanced worker manager and task registry cleanup started in background")
 
     # Initialize service manager
     default_services = create_default_services()
@@ -380,16 +381,35 @@ async def lifespan(app: FastAPI):
     await api_shutdown()
     scheduler.shutdown()
     in_memory_task_purge_service.stop()
-    stop_cleanup_service()
-    await stop_doc_cleanup()
-    await stop_cleanup_services()
+
+    # Cleanup services - wrapped in try/except to handle if they didn't start
+    try:
+        stop_cleanup_service()
+    except Exception as e:
+        logger.warning(f"Error stopping cleanup service: {e}")
+
+    try:
+        await stop_doc_cleanup()
+    except Exception as e:
+        logger.warning(f"Error stopping doc cleanup: {e}")
+
+    try:
+        await stop_cleanup_services()
+    except Exception as e:
+        logger.warning(f"Error stopping cleanup services: {e}")
 
     # Shutdown enhanced services
-    await enhanced_worker_manager.stop()
-    logger.info("Enhanced worker manager stopped")
+    try:
+        await enhanced_worker_manager.stop()
+        logger.info("Enhanced worker manager stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping worker manager: {e}")
 
-    await persistent_task_registry.close()
-    logger.info("Persistent task registry closed")
+    try:
+        await persistent_task_registry.close()
+        logger.info("Persistent task registry closed")
+    except Exception as e:
+        logger.warning(f"Error closing task registry: {e}")
 
 
 # --- FastAPI App Initialization --- #

@@ -64,7 +64,7 @@ class MetricsCollector:
         # Performance thresholds
         self.thresholds = {
             "slow_request_ms": 5000,  # 5 seconds
-            "high_memory_mb": 1000,  # 1GB
+            "high_memory_mb": 2000,  # 2GB (increased for AI models)
             "high_cpu_percent": 80,  # 80%
             "slow_db_query_ms": 1000,  # 1 second
             "slow_ai_inference_ms": 10000,  # 10 seconds
