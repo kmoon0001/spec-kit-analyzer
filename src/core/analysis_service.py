@@ -148,6 +148,14 @@ class AnalysisService:
         # Human-in-the-loop feedback system
         self.feedback_system = HumanFeedbackSystem(enable_learning=True)
 
+        # Accuracy and hallucination tracking system
+        from .accuracy_hallucination_tracker import accuracy_hallucination_tracker
+        self.accuracy_tracker = accuracy_hallucination_tracker
+
+        # Safe accuracy improvements system
+        from .safe_accuracy_improvements import safe_accuracy_enhancer
+        self.safe_accuracy_enhancer = safe_accuracy_enhancer
+
         # Multi-tier caching system for performance optimization
         self.multi_tier_cache = MultiTierCacheSystem(
             l1_size_mb=200,  # 200MB L1 cache
@@ -752,6 +760,85 @@ class AnalysisService:
                             'error': 'Learning recommendations temporarily unavailable'
                         }
 
+                # Apply safe accuracy improvements
+                _update_progress(87, "Applying safe accuracy improvements...")
+
+                try:
+                    safe_improvement_result = await self.safe_accuracy_enhancer.apply_safe_improvements(
+                        analysis_result=analysis_result,
+                        document_text=scrubbed_text,
+                        context={
+                            'discipline': discipline_clean,
+                            'doc_type': doc_type_clean,
+                            'retrieved_rules': retrieved_rules,
+                            'entities': entities
+                        }
+                    )
+
+                    if safe_improvement_result.success:
+                        analysis_result = safe_improvement_result.data
+                        logger.info("Safe accuracy improvements applied: %s",
+                                   analysis_result.get('safe_accuracy_improvements', {}).get('applied_strategies', []))
+                    else:
+                        logger.warning("Safe accuracy improvements failed: %s", safe_improvement_result.error)
+
+                except Exception as e:
+                    logger.error("Safe accuracy improvements error: %s", e)
+
+                # Apply accuracy and hallucination validation
+                _update_progress(88, "Validating accuracy and detecting hallucinations...")
+
+                try:
+                    validation_result = await self.accuracy_tracker.validate_analysis(
+                        analysis_result=analysis_result,
+                        document_text=scrubbed_text,
+                        ground_truth=None,  # No ground truth available in real-time
+                        context={
+                            'discipline': discipline_clean,
+                            'doc_type': doc_type_clean,
+                            'retrieved_rules': retrieved_rules,
+                            'entities': entities
+                        }
+                    )
+
+                    if validation_result.success:
+                        validation_data = validation_result.data
+                        analysis_result['accuracy_validation'] = {
+                            'validation_status': validation_data.validation_status,
+                            'confidence_score': validation_data.confidence_score,
+                            'accuracy_metrics': {
+                                'overall_accuracy': validation_data.accuracy_metrics.overall_accuracy,
+                                'clinical_accuracy': validation_data.accuracy_metrics.clinical_accuracy,
+                                'compliance_accuracy': validation_data.accuracy_metrics.compliance_accuracy,
+                                'confidence_calibration': validation_data.accuracy_metrics.confidence_calibration
+                            },
+                            'hallucination_metrics': {
+                                'hallucination_rate': validation_data.hallucination_metrics.hallucination_rate,
+                                'total_hallucinations': validation_data.hallucination_metrics.total_hallucinations,
+                                'factual_hallucinations': validation_data.hallucination_metrics.factual_hallucinations,
+                                'clinical_hallucinations': validation_data.hallucination_metrics.clinical_hallucinations
+                            },
+                            'recommendations': validation_data.recommendations,
+                            'processing_time_ms': validation_data.processing_time_ms
+                        }
+
+                        logger.info("Accuracy validation completed: status=%s, confidence=%.2f, hallucination_rate=%.2f",
+                                   validation_data.validation_status, validation_data.confidence_score,
+                                   validation_data.hallucination_metrics.hallucination_rate)
+                    else:
+                        logger.warning("Accuracy validation failed: %s", validation_result.error)
+                        analysis_result['accuracy_validation'] = {
+                            'validation_status': 'validation_failed',
+                            'error': validation_result.error
+                        }
+
+                except Exception as e:
+                    logger.error("Accuracy validation error: %s", e)
+                    analysis_result['accuracy_validation'] = {
+                        'validation_status': 'validation_error',
+                        'error': str(e)
+                    }
+
                 logger.info("Comprehensive explanations and enhancements completed")
                 logger.info("XAI metrics: %s", analysis_result.get('xai_metrics', {}).get('decision_path', []))
                 logger.info("Bias metrics: demographic=%.2f, linguistic=%.2f, clinical=%.2f",
@@ -759,6 +846,9 @@ class AnalysisService:
                            analysis_result.get('bias_metrics', {}).get('linguistic_bias_score', 0),
                            analysis_result.get('bias_metrics', {}).get('clinical_bias_score', 0))
                 logger.info("Accuracy enhancement: %s", analysis_result.get('accuracy_enhancement', {}).get('techniques_applied', []))
+                logger.info("Accuracy validation: status=%s, confidence=%.2f",
+                           analysis_result.get('accuracy_validation', {}).get('validation_status', 'unknown'),
+                           analysis_result.get('accuracy_validation', {}).get('confidence_score', 0.0))
 
                 logger.info(
                     "Analysis result keys: %s",

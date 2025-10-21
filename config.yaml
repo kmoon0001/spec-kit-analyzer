@@ -79,14 +79,62 @@ models:
   fact_checker_backend: llm
   generator: llama-local
   generator_filename: tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
-  generator_local_path: models/tinyllama
+  generator_local_path: models/tinyllama-clinical
   generator_profiles:
-    cpu_llama32_q4:
-      repo: llama
+    # Ultra-Lightweight Clinical Models (<10GB RAM)
+    cpu_tinyllama_clinical:
+      repo: TinyLlama/TinyLlama-1.1B-Chat-v1.0
       filename: tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
-      max_system_gb: 64.0
+      max_system_gb: 2.0
       optimize_for_speed: true
       fast_mode: true
+      clinical_optimized: true
+    cpu_qwen25_05b_clinical:
+      repo: Qwen/Qwen2.5-0.5B-Instruct
+      filename: qwen2.5-0.5b-instruct.Q4_K_M.gguf
+      max_system_gb: 1.5
+      optimize_for_speed: true
+      fast_mode: true
+      clinical_optimized: true
+    cpu_phi3_mini_medical:
+      repo: microsoft/Phi-3-mini-4k-instruct
+      filename: phi-3-mini-4k-instruct.Q4_K_M.gguf
+      max_system_gb: 3.0
+      optimize_for_speed: true
+      fast_mode: true
+      clinical_optimized: true
+    cpu_gemma_2b_fact_checker:
+      repo: google/gemma-2b-it
+      filename: gemma-2b-it.Q4_K_M.gguf
+      max_system_gb: 2.5
+      optimize_for_speed: true
+      fast_mode: true
+      clinical_optimized: true
+    # Standard Models (if more RAM available)
+    cpu_llama32_q4:
+      repo: meta-llama/Llama-3.2-3B-Instruct
+      filename: llama-3.2-3b-instruct.Q4_K_M.gguf
+      max_system_gb: 8.0
+      optimize_for_speed: true
+      fast_mode: true
+    cpu_qwen25_q4:
+      repo: Qwen/Qwen2.5-3B-Instruct
+      filename: qwen2.5-3b-instruct.Q4_K_M.gguf
+      max_system_gb: 8.0
+      optimize_for_speed: true
+      fast_mode: true
+    cpu_phi35_q4:
+      repo: microsoft/Phi-3.5-mini-instruct
+      filename: phi-3.5-mini-instruct.Q4_K_M.gguf
+      max_system_gb: 8.0
+      optimize_for_speed: true
+      fast_mode: true
+    cpu_mistral_q4:
+      repo: mistralai/Mistral-7B-Instruct-v0.3
+      filename: mistral-7b-instruct-v0.3.Q4_K_M.gguf
+      max_system_gb: 12.0
+      optimize_for_speed: true
+      fast_mode: false
   ner_ensemble:
   - OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
   - d4data/biomedical-ner-all
@@ -99,6 +147,219 @@ models:
     use_flash_attention: true
   reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
   retriever: pritamdeka/S-PubMedBert-MS-MARCO
+
+# Advanced Accuracy Enhancement Systems
+accuracy_enhancement:
+  enabled: true
+  ultra_lightweight_mode: true
+  max_ram_gb: 10.0
+
+  # Ultra-Lightweight Clinical Model System (<10GB RAM)
+  ultra_lightweight_clinical_system:
+    enabled: true
+    primary_model: "tinylama_clinical"
+    secondary_model: "qwen25_05b_clinical"
+    specialized_model: "phi3_mini_medical"
+    fact_checker_model: "gemma_2b_fact_checker"
+    ensemble_weights:
+      primary: 0.4
+      secondary: 0.3
+      specialized: 0.2
+      fact_checker: 0.1
+    fallback_enabled: true
+    adaptive_weighting: true
+    clinical_focus: true
+    medical_accuracy_preserved: true
+
+  # Standard Hybrid Model System (if more RAM available)
+  hybrid_model_system:
+    enabled: false  # Disabled for <10GB RAM
+    primary_model: "llama32_3b"
+    secondary_model: "qwen25_3b"
+    specialized_model: "phi35_mini"
+    fact_checker_model: "mistral_7b"
+    ensemble_weights:
+      primary: 0.4
+      secondary: 0.3
+      specialized: 0.2
+      fact_checker: 0.1
+    fallback_enabled: true
+    adaptive_weighting: true
+
+  # Memory-Optimized RAG System (<10GB RAM)
+  memory_optimized_rag_system:
+    enabled: true
+    optimization_level: "optimized"
+    memory_limit_mb: 2048
+    stages:
+      - stage_id: "lightweight_semantic_retrieval"
+        enabled: true
+        max_results: 20
+        similarity_threshold: 0.7
+        memory_efficient: true
+      - stage_id: "lightweight_medical_retrieval"
+        enabled: true
+        max_results: 10
+        similarity_threshold: 0.8
+        memory_efficient: true
+        conditional: true  # Only if enough memory
+    fusion_strategy: "late_fusion"
+    cache_enabled: true
+    cache_size_mb: 600
+    cache_ttl_hours: 12
+    clinical_focus: true
+
+  # Standard Advanced RAG System (if more RAM available)
+  advanced_rag_system:
+    enabled: false  # Disabled for <10GB RAM
+    stages:
+      - stage_id: "stage1_broad_retrieval"
+        enabled: true
+        max_results: 100
+        similarity_threshold: 0.6
+      - stage_id: "stage2_medical_retrieval"
+        enabled: true
+        max_results: 50
+        similarity_threshold: 0.7
+      - stage_id: "stage3_compliance_retrieval"
+        enabled: true
+        max_results: 30
+        similarity_threshold: 0.8
+      - stage_id: "stage4_final_refinement"
+        enabled: true
+        max_results: 20
+        similarity_threshold: 0.85
+    fusion_strategy: "attention_fusion"
+    cache_enabled: true
+    cache_ttl_hours: 24
+
+  # Memory-Optimized Chain of Verification (<10GB RAM)
+  memory_optimized_verification:
+    enabled: true
+    optimization_level: "optimized"
+    max_questions: 3
+    consistency_threshold: 0.7
+    verification_types: ["factual", "consistency", "accuracy"]
+    memory_limit_mb: 200
+    clinical_focus: true
+
+  # Standard Chain of Verification (if more RAM available)
+  chain_of_verification:
+    enabled: false  # Disabled for <10GB RAM
+    max_questions: 5
+    consistency_threshold: 0.8
+    verification_types:
+      - "factual"
+      - "logical"
+      - "consistency"
+      - "completeness"
+      - "accuracy"
+      - "relevance"
+    refinement_enabled: true
+    confidence_boost_threshold: 0.1
+
+  rlhf_system:
+    enabled: true
+    learning_rate: 0.001
+    batch_size: 32
+    update_frequency: 100
+    min_feedback_for_update: 50
+    reward_models:
+      general:
+        enabled: true
+        confidence_threshold: 0.8
+      accuracy:
+        enabled: true
+        confidence_threshold: 0.8
+      relevance:
+        enabled: true
+        confidence_threshold: 0.75
+      completeness:
+        enabled: true
+        confidence_threshold: 0.7
+    online_learning_enabled: true
+    batch_learning_enabled: true
+
+  # Memory-Optimized Dynamic Prompt System (<10GB RAM)
+  memory_optimized_prompt_system:
+    enabled: true
+    optimization_level: "optimized"
+    max_templates: 5
+    template_cache_size: 10
+    memory_limit_mb: 120
+    clinical_templates: true
+    adaptive_prompting: true
+    complexity_analysis: true
+    strategy_selection: "automatic"
+    template_optimization: true
+    performance_tracking: true
+
+  # Standard Dynamic Prompt System (if more RAM available)
+  dynamic_prompt_system:
+    enabled: false  # Disabled for <10GB RAM
+    adaptive_prompting: true
+    complexity_analysis: true
+    strategy_selection: "automatic"
+    template_optimization: true
+    performance_tracking: true
+    max_templates_per_type: 10
+
+  # Memory-Optimized Multimodal Analysis (<10GB RAM)
+  memory_optimized_multimodal:
+    enabled: true
+    optimization_level: "optimized"
+    supported_modalities: ["text"]
+    ocr_enabled: false  # Disabled for memory efficiency
+    layout_analysis_enabled: false  # Disabled for memory efficiency
+    table_recognition_enabled: false  # Disabled for memory efficiency
+    fusion_strategies: ["late_fusion"]
+    consistency_checking: true
+    cross_modal_validation: false  # Disabled for memory efficiency
+    memory_limit_mb: 300
+    clinical_focus: true
+
+  # Standard Multimodal Analysis (if more RAM available)
+  multimodal_analysis:
+    enabled: false  # Disabled for <10GB RAM
+    supported_modalities:
+      - "text"
+      - "image"
+      - "table"
+      - "structured_data"
+    ocr_enabled: true
+    layout_analysis_enabled: true
+    table_recognition_enabled: true
+    fusion_strategies:
+      - "late_fusion"
+      - "intermediate_fusion"
+      - "attention_fusion"
+    consistency_checking: true
+    cross_modal_validation: true
+
+  # Memory-Optimized Causal Reasoning (<10GB RAM)
+  memory_optimized_causal_reasoning:
+    enabled: true
+    optimization_level: "optimized"
+    causal_pattern_detection: true
+    intervention_analysis: false  # Disabled for memory efficiency
+    outcome_prediction: false  # Disabled for memory efficiency
+    causal_chain_identification: true
+    evidence_based_reasoning: true
+    confidence_calibration: true
+    graph_construction: false  # Disabled for memory efficiency
+    memory_limit_mb: 150
+    clinical_focus: true
+
+  # Standard Causal Reasoning (if more RAM available)
+  causal_reasoning:
+    enabled: false  # Disabled for <10GB RAM
+    causal_pattern_detection: true
+    intervention_analysis: true
+    outcome_prediction: true
+    causal_chain_identification: true
+    evidence_based_reasoning: true
+    confidence_calibration: true
+    graph_construction: true
 paths:
   api_url: http://127.0.0.1:8001
   cache_dir: .cache
@@ -107,15 +368,33 @@ paths:
   rule_dir: ./src/resources
   temp_upload_dir: ./temp
 performance:
+  # Ultra-Lightweight Performance Settings (<10GB RAM)
+  ultra_lightweight_mode: true
+  max_ram_gb: 10.0
+
+  # Memory-Optimized Settings
   batch_processing: true
-  batch_size: 4
+  batch_size: 2  # Reduced for memory efficiency
   context_optimization: true
   enable_caching: true
   fast_mode: true
   gpu_acceleration: false
   gradient_checkpointing: false
   inference_optimization: true
-  max_chunk_size: 2000
+  max_chunk_size: 1000  # Reduced for memory efficiency
+  memory_efficient_processing: true
+  clinical_accuracy_preserved: true
+
+  # Standard Performance Settings (if more RAM available)
+  # batch_processing: true
+  # batch_size: 4
+  # context_optimization: true
+  # enable_caching: true
+  # fast_mode: true
+  # gpu_acceleration: false
+  # gradient_checkpointing: false
+  # inference_optimization: true
+  # max_chunk_size: 2000
   max_workers: 1
   memory_efficient_mode: true
   memory_optimization: true
