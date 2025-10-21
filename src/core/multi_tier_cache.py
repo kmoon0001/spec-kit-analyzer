@@ -143,22 +143,21 @@ class MultiTierCacheSystem:
             'cleanup_interval': 300  # 5 minutes
         }
 
-        # Start background tasks
-        self._start_background_tasks()
+        # Background tasks will be started when needed
+        self._background_tasks_started = False
 
         logger.info("Multi-tier cache system initialized: L1=%dMB, L2=%s, L3=%s, Policy=%s",
                    l1_size_mb, l2_enabled, l3_enabled, eviction_policy.value)
 
+    async def _ensure_background_tasks_started(self):
+        """Start background tasks if not already started."""
+        if not self._background_tasks_started:
+            self._start_background_tasks()
+            self._background_tasks_started = True
+
     async def get(self, key: str, default: Any = None) -> Any:
-        """Get value from cache.
-
-        Args:
-            key: Cache key
-            default: Default value if not found
-
-        Returns:
-            Cached value or default
-        """
+        """Get value from cache with automatic background task startup."""
+        await self._ensure_background_tasks_started()
         start_time = time.time()
 
         try:
@@ -682,4 +681,12 @@ class MultiTierCacheSystem:
 
 
 # Global instance for backward compatibility
-multi_tier_cache = MultiTierCacheSystem()
+# Global instance - lazy initialization
+multi_tier_cache = None
+
+def get_multi_tier_cache():
+    """Get the global multi-tier cache instance with lazy initialization."""
+    global multi_tier_cache
+    if multi_tier_cache is None:
+        multi_tier_cache = MultiTierCacheSystem()
+    return multi_tier_cache

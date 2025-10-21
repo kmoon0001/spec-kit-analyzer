@@ -56,9 +56,9 @@ class FeedbackPriority(Enum):
 @dataclass
 class FeedbackItem:
     """Individual feedback item."""
-    feedback_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: int
     analysis_id: str
+    feedback_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     finding_id: Optional[str] = None
     feedback_type: FeedbackType = FeedbackType.CORRECTION
     priority: FeedbackPriority = FeedbackPriority.MEDIUM
@@ -76,9 +76,9 @@ class FeedbackItem:
 @dataclass
 class FeedbackBatch:
     """Batch of feedback items for processing."""
-    batch_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: int
     analysis_id: str
+    batch_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     feedback_items: List[FeedbackItem] = field(default_factory=list)
     batch_timestamp: datetime = field(default_factory=datetime.now)
     status: FeedbackStatus = FeedbackStatus.PENDING

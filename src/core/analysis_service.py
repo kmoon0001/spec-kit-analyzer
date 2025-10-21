@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import inspect
 import json
@@ -7,7 +7,7 @@ import logging
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Dict
 
 from src.config import get_settings as _get_settings
 from src.core.analysis_utils import enrich_analysis_result, trim_document_text
@@ -208,6 +208,9 @@ class AnalysisService:
             self.report_generator = kwargs.get("report_generator") or ReportGenerator(
                 llm_service=self.llm_service
             )
+
+            # Register models with ensemble optimizer (will be done in async context)
+            self._models_registered = False
             return
 
         repo_id, filename, revision = select_generator_profile(
@@ -277,8 +280,8 @@ class AnalysisService:
             llm_service=self.llm_service
         )
 
-        # Register models with ensemble optimizer
-        await self._register_ensemble_models()
+        # Register models with ensemble optimizer (will be done in async context)
+        self._models_registered = False
 
     async def _register_ensemble_models(self):
         """Register all models with the ensemble optimizer."""
@@ -350,6 +353,10 @@ class AnalysisService:
         original_filename: str | None = None,
         progress_callback: Callable[[int, str | None], None] | None = None,
     ) -> Any:
+        # Ensure models are registered
+        if not self._models_registered:
+            await self._register_ensemble_models()
+            self._models_registered = True
         """Analyzes document content for compliance, using a content-aware cache."""
 
         def _update_progress(percentage: int, message: str | None) -> None:
@@ -856,7 +863,8 @@ class AnalysisService:
                         list(analysis_result.keys())
                         if isinstance(analysis_result, dict)
                         else "Not a dict"
-                    ),
+                    )
+                )
                 logger.info(
                     "Compliance score in result: %s",
                     (
@@ -1074,7 +1082,7 @@ class AnalysisService:
             "Ensure plan of care references functional goals explicitly.",
         ]
 
-        generated_at = datetime.datetime.now(datetime.UTC).isoformat()
+        generated_at = datetime.now(timezone.utc).isoformat()
 
         # Add 7 Habits integration to mock findings
         if self.habits_framework and findings:

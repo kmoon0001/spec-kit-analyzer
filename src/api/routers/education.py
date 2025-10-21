@@ -19,7 +19,7 @@ from src.core.clinical_education_engine import (
     CompetencyArea,
     clinical_education_engine
 )
-from src import models
+from src.database import models
 
 logger = logging.getLogger(__name__)
 

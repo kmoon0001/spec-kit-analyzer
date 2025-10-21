@@ -91,8 +91,8 @@ class EducationalContent:
 @dataclass
 class LearningPath:
     """Personalized learning path."""
-    path_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: int
+    path_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     description: str = ""
     competency_focus: CompetencyArea = CompetencyArea.DOCUMENTATION
@@ -107,9 +107,9 @@ class LearningPath:
 @dataclass
 class LearningProgress:
     """Individual learning progress tracking."""
-    progress_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: int
     content_id: str
+    progress_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     learning_path_id: Optional[str] = None
     started_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
@@ -123,9 +123,9 @@ class LearningProgress:
 @dataclass
 class CompetencyAssessment:
     """Competency assessment result."""
-    assessment_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: int
     competency_area: CompetencyArea
+    assessment_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     assessment_date: datetime = field(default_factory=datetime.now)
     score: float = 0.0
     level_achieved: LearningLevel = LearningLevel.BEGINNER

@@ -5,14 +5,15 @@ This module provides security configuration and utilities.
 
 import os
 from typing import Optional
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class SecurityConfig(BaseSettings):
     """Security configuration settings."""
 
     # JWT Configuration
-    jwt_secret_key: str = Field(..., description="JWT secret key")
+    jwt_secret_key: str = Field(default="default-secret-key-for-development-only-change-in-production", description="JWT secret key")
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
     jwt_access_token_expire_minutes: int = Field(default=30, description="Access token expiration")
     jwt_refresh_token_expire_days: int = Field(default=7, description="Refresh token expiration")

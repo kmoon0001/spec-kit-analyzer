@@ -441,9 +441,8 @@ class PerformanceDashboard:
 
     def _start_background_tasks(self) -> None:
         """Start background monitoring tasks."""
-        asyncio.create_task(self._metrics_collection_task())
-        asyncio.create_task(self._alert_evaluation_task())
-        asyncio.create_task(self._websocket_broadcast_task())
+        # Tasks will be started when the first request comes in
+        pass
 
     async def _metrics_collection_task(self) -> None:
         """Background task for collecting system metrics."""

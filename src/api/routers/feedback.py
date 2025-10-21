@@ -19,7 +19,7 @@ from src.core.human_feedback_system import (
     FeedbackItem,
     human_feedback_system
 )
-from src import models
+from src.database import models
 
 logger = logging.getLogger(__name__)
 
