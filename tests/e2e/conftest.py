@@ -4,7 +4,6 @@ E2E Test Configuration and Fixtures
 Provides shared fixtures and configuration for end-to-end testing.
 """
 
-import asyncio
 import shutil
 import tempfile
 from collections.abc import Generator
@@ -21,14 +20,6 @@ from fastapi.testclient import TestClient
 # Import application components
 from src.api.main import app
 from src.config import get_settings
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="session")

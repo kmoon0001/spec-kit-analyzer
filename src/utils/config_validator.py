@@ -1,9 +1,9 @@
 """Configuration validation utilities for the Therapy Compliance Analyzer.
-import requests
 
 This module provides validation and health checks for the application configuration.
 """
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -74,6 +74,28 @@ class ConfigValidator:
 
         is_valid = len(self.validation_errors) == 0
         return is_valid, self.validation_errors, self.validation_warnings
+
+    def load_saved_health_report(
+        self, report_path: str = "config_health_report.json"
+    ) -> dict[str, Any]:
+        """Load a previously saved health report if it exists.
+
+        Args:
+            report_path: Path to the stored JSON health report.
+
+        Returns:
+            Parsed health report dictionary, or an empty dict when missing/invalid.
+        """
+
+        try:
+            with open(report_path, encoding="utf-8") as report_file:
+                return json.load(report_file)
+        except FileNotFoundError:
+            logger.info("Health report not found; skipping load", extra={"path": report_path})
+            return {}
+        except (PermissionError, OSError, json.JSONDecodeError) as exc:  # pragma: no cover - defensive
+            logger.warning("Failed to read health report", extra={"path": report_path, "error": str(exc)})
+            return {}
 
     def _validate_structure(self, config: dict[str, Any]) -> None:
         """Validate the basic structure of the configuration."""
@@ -401,23 +423,33 @@ def validate_configuration() -> bool:
         for warning in health_report["config_validation"]["warnings"]:
             logger.warning("  - %s", warning)
 
-    # Save health report
-    try:
-        import json
-
-        with open("config_health_report.json", "w") as f:
-            json.dump(health_report, f, indent=2)
-        logger.info("Health report saved to config_health_report.json")
-    except (FileNotFoundError, PermissionError, OSError) as e:
-        logger.warning("Failed to save health report: %s", e)
+    save_health_report(health_report)
 
     return status in ["healthy", "warning"]
 
 
-if __name__ == "__main__":
-    pass
-if __name__ == "__main__":
-    pass
+def save_health_report(
+    health_report: dict[str, Any], report_path: str = "config_health_report.json"
+) -> bool:
+    """Persist a health report to disk, creating parent directories if needed."""
+
+    try:
+        report_file = Path(report_path)
+        if report_file.parent and not report_file.parent.exists():
+            report_file.parent.mkdir(parents=True, exist_ok=True)
+
+        report_file.write_text(json.dumps(health_report, indent=2), encoding="utf-8")
+        logger.info(
+            "Health report saved", extra={"path": str(report_file.resolve())}
+        )
+        return True
+    except (FileNotFoundError, PermissionError, OSError) as exc:
+        logger.warning(
+            "Failed to save health report", extra={"path": report_path, "error": str(exc)}
+        )
+        return False
+
+
 if __name__ == "__main__":
     # Run validation when script is executed directly
     logging.basicConfig(level=logging.INFO)

@@ -531,15 +531,6 @@ class TestBenchmarks:
         assert get_time < 1.0, f"Get operations took {get_time:.3f}s"
 
 
-# Test configuration
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
 # Test markers
 pytestmark = [
     pytest.mark.asyncio,

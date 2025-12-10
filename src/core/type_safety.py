@@ -16,6 +16,7 @@ Features:
 import asyncio
 import functools
 import logging
+import re
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

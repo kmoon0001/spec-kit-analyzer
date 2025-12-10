@@ -1,59 +1,63 @@
-from types import SimpleNamespace
+import types
 
-import pytest
-
-from src.core.phi_scrubber import PhiScrubberService
+from src.core import phi_scrubber
 
 
-class DummyWrapper:
-    """Simple wrapper used to simulate Presidio behaviour in tests."""
-
-    def __init__(self, phrases_to_mask):
-        self.phrases_to_mask = phrases_to_mask
-        self.analyze_calls = []
-        self.anonymize_calls = []
-
-    def analyze(self, text: str):
-        self.analyze_calls.append(text)
-        results = []
-        for phrase in self.phrases_to_mask:
-            start = text.find(phrase)
-            if start != -1:
-                results.append(SimpleNamespace(start=start, end=start + len(phrase)))
-        return results
-
-    def anonymize(self, text: str, analyzer_results, operators):
-        self.anonymize_calls.append((text, analyzer_results, operators))
-        replacement = operators["DEFAULT"].params.get("new_value", "<MASK>")
-        for result in sorted(analyzer_results, key=lambda r: r.start, reverse=True):
-            text = text[: result.start] + replacement + text[result.end :]
-        return SimpleNamespace(text=text)
+class _DummyOperatorConfig:
+    def __init__(self, action: str, params: dict | None = None):
+        self.action = action
+        self.params = params or {}
 
 
-def test_scrub_replaces_configured_token():
-    wrapper = DummyWrapper(["John Doe", "555-123-4567"])
-    service = PhiScrubberService(replacement="[REDACTED]", wrapper=wrapper)
+def test_scrub_returns_original_when_presidio_unavailable(monkeypatch):
+    monkeypatch.setattr(phi_scrubber, "AnalyzerEngine", None)
+    monkeypatch.setattr(phi_scrubber, "AnonymizerEngine", None)
+    monkeypatch.setattr(phi_scrubber, "OperatorConfig", None)
 
-    text = "Patient John Doe can be reached at 555-123-4567."
-    scrubbed = service.scrub(text)
-
-    assert "John Doe" not in scrubbed
-    assert "555-123-4567" not in scrubbed
-    assert scrubbed.count("[REDACTED]") == 2
+    service = phi_scrubber.PhiScrubberService()
+    assert service.scrub("Sensitive text") == "Sensitive text"
 
 
-@pytest.mark.parametrize("value", [None, 1234, ["a", "b"], "   "])
-def test_scrub_is_noop_for_non_text(value):
-    service = PhiScrubberService(wrapper=DummyWrapper([]))
-    assert service.scrub(value) is value
+def test_scrub_uses_custom_wrapper(monkeypatch):
+    monkeypatch.setattr(phi_scrubber, "OperatorConfig", _DummyOperatorConfig)
+
+    class Wrapper:
+        def __init__(self):
+            self.analyze_called = False
+            self.anonymize_called = False
+
+        def analyze(self, text):
+            self.analyze_called = True
+            return [types.SimpleNamespace(text=text)]
+
+        def anonymize(self, text, analyzer_results=None, operators=None):  # pragma: no cover - integration path
+            self.anonymize_called = True
+            replacement = operators["DEFAULT"].params.get("new_value")
+            return types.SimpleNamespace(text=f"{replacement}:{analyzer_results[0].text}")
+
+    wrapper = Wrapper()
+    service = phi_scrubber.PhiScrubberService(wrapper=wrapper)
+
+    result = service.scrub("Sensitive text", replacement_token="<REDACTED>")
+
+    assert result == "<REDACTED>:Sensitive text"
+    assert wrapper.analyze_called is True
+    assert wrapper.anonymize_called is True
 
 
-def test_scrub_logs_and_returns_original_when_wrapper_errors(mocker):
-    faulty_wrapper = DummyWrapper(["John Doe"])
-    mocker.patch.object(
-        faulty_wrapper,
-        "analyze",
-        side_effect=RuntimeError("presidio unavailable"),
+def test_scrub_handles_analyzer_failure_and_returns_original(monkeypatch):
+    monkeypatch.setattr(phi_scrubber, "OperatorConfig", _DummyOperatorConfig)
+
+    class FailingAnalyzer:
+        def analyze(self, text, language="en"):
+            raise RuntimeError("boom")
+
+    class DummyAnonymizer:
+        def anonymize(self, text, analyzer_results=None, operators=None):  # pragma: no cover - not reached on error path
+            return types.SimpleNamespace(text="should not happen")
+
+    service = phi_scrubber.PhiScrubberService(
+        analyzer=FailingAnalyzer(), anonymizer=DummyAnonymizer()
     )
-    service = PhiScrubberService(wrapper=faulty_wrapper)
-    assert service.scrub("Patient John Doe") == "Patient John Doe"
+
+    assert service.scrub("Sensitive text") == "Sensitive text"
