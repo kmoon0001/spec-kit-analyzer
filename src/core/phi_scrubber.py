@@ -22,8 +22,8 @@ class PhiScrubberService:
         self,
         replacement: str = "<PHI>",
         wrapper: object | None = None,
-        analyzer: AnalyzerEngine | None = None,
-        anonymizer: AnonymizerEngine | None = None,
+        analyzer: object | None = None,
+        anonymizer: object | None = None,
     ) -> None:
         """Initialise Presidio-based scrubbing service with injectable components."""
         self.default_replacement = replacement

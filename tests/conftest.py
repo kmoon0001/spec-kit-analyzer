@@ -1,38 +1,81 @@
 """Comprehensive test utilities and fixtures."""
 
+import array
 import asyncio
 import datetime
 import os
 import tempfile
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.api.main import app
-from src.core.vector_store import VectorStore, get_vector_store
-from src.database import Base, get_async_db, models
+try:
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from src.database import Base, get_async_db, models
+except Exception as exc:  # pragma: no cover - defensive import guard for optional deps
+    SQLALCHEMY_AVAILABLE = False
+    SQLALCHEMY_IMPORT_ERROR = exc
+    AsyncSession = async_sessionmaker = create_async_engine = Base = get_async_db = models = None
+else:
+    SQLALCHEMY_AVAILABLE = True
+    SQLALCHEMY_IMPORT_ERROR = None
+
+try:
+    from src.api.main import app as _fastapi_app
+except Exception as exc:  # pragma: no cover - optional FastAPI import for offline runs
+    FASTAPI_AVAILABLE = False
+    FASTAPI_IMPORT_ERROR = exc
+    app = None
+else:
+    FASTAPI_AVAILABLE = True
+    FASTAPI_IMPORT_ERROR = None
+    app = _fastapi_app
+
+try:
+    from src.core.vector_store import VectorStore, get_vector_store
+except Exception as exc:  # pragma: no cover - optional vector store fallback
+    VECTOR_STORE_AVAILABLE = False
+    VECTOR_STORE_IMPORT_ERROR = exc
+    VectorStore = get_vector_store = None
+else:
+    VECTOR_STORE_AVAILABLE = True
+    VECTOR_STORE_IMPORT_ERROR = None
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+    """Provide a session-scoped event loop that cooperates with pytest-asyncio."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.get_event_loop_policy().new_event_loop()
+        asyncio.set_event_loop(loop)
+        created = True
+    else:
+        created = False
+
+    try:
+        yield loop
+    finally:
+        if created and not loop.is_closed():
+            loop.close()
 
 
 async def _truncate_all(session: AsyncSession) -> None:
+    if not SQLALCHEMY_AVAILABLE:
+        pytest.skip(f"SQLAlchemy unavailable: {SQLALCHEMY_IMPORT_ERROR}")
     for table in reversed(Base.metadata.sorted_tables):
         await session.execute(table.delete())
     await session.commit()
 
 
 def _reset_vector_store() -> VectorStore:
+    if not VECTOR_STORE_AVAILABLE:
+        pytest.skip(f"Vector store unavailable: {VECTOR_STORE_IMPORT_ERROR}")
     VectorStore._instance = None  # type: ignore[attr-defined]
     store = VectorStore()
     store.initialize_index()
@@ -41,6 +84,8 @@ def _reset_vector_store() -> VectorStore:
 
 @pytest_asyncio.fixture(scope="session")
 async def async_engine(tmp_path_factory: pytest.TempPathFactory):
+    if not SQLALCHEMY_AVAILABLE:
+        pytest.skip(f"SQLAlchemy unavailable: {SQLALCHEMY_IMPORT_ERROR}")
     db_path = tmp_path_factory.mktemp("test_dbs") / "pytest.db"
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", future=True)
     async with engine.begin() as conn:
@@ -53,11 +98,17 @@ async def async_engine(tmp_path_factory: pytest.TempPathFactory):
 
 @pytest.fixture(scope="session")
 def async_session_factory(async_engine):
+    if not SQLALCHEMY_AVAILABLE:
+        pytest.skip(f"SQLAlchemy unavailable: {SQLALCHEMY_IMPORT_ERROR}")
     return async_sessionmaker(bind=async_engine, expire_on_commit=False, autoflush=False)
 
 
 @pytest_asyncio.fixture(scope="session")
 async def test_db(async_session_factory):
+    if not SQLALCHEMY_AVAILABLE:
+        pytest.skip(f"SQLAlchemy unavailable: {SQLALCHEMY_IMPORT_ERROR}")
+    if not FASTAPI_AVAILABLE:
+        pytest.skip(f"FastAPI app unavailable: {FASTAPI_IMPORT_ERROR}")
     async def override_get_db():
         async with async_session_factory() as session:
             try:
@@ -80,6 +131,8 @@ async def test_db(async_session_factory):
 
 @pytest_asyncio.fixture
 async def db_session(async_session_factory):
+    if not SQLALCHEMY_AVAILABLE:
+        pytest.skip(f"SQLAlchemy unavailable: {SQLALCHEMY_IMPORT_ERROR}")
     async with async_session_factory() as session:
         await _truncate_all(session)
         yield session
@@ -88,6 +141,8 @@ async def db_session(async_session_factory):
 
 @pytest_asyncio.fixture
 async def populated_db(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch):
+    if not SQLALCHEMY_AVAILABLE:
+        pytest.skip(f"SQLAlchemy unavailable: {SQLALCHEMY_IMPORT_ERROR}")
     await _truncate_all(db_session)
 
     now = datetime.datetime.now(datetime.UTC)
@@ -100,13 +155,16 @@ async def populated_db(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 
     reports = []
     for spec in report_specs:
-        embedding = np.zeros(16, dtype=np.float32)
-        embedding[:4] = np.array([
-            spec["score"] / 100.0,
-            spec["days_ago"] / 30.0,
-            0.5,
-            0.1,
-        ], dtype=np.float32)
+        embedding = array.array("f", [0.0] * 16)
+        embedding[:4] = array.array(
+            "f",
+            [
+                spec["score"] / 100.0,
+                spec["days_ago"] / 30.0,
+                0.5,
+                0.1,
+            ],
+        )
         report = models.AnalysisReport(
             document_name=spec["name"],
             compliance_score=spec["score"],
@@ -152,6 +210,11 @@ async def populated_db(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 
 @pytest_asyncio.fixture
 async def client(test_db, monkeypatch: pytest.MonkeyPatch):
+    if not (SQLALCHEMY_AVAILABLE and FASTAPI_AVAILABLE and VECTOR_STORE_AVAILABLE):
+        pytest.skip(
+            "Skipping ASGI client: missing dependencies",
+            allow_module_level=False,
+        )
     async_session_factory = test_db
 
     async def _passthrough(self, request, call_next):

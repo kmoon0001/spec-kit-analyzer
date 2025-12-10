@@ -1,8 +1,7 @@
-- Dont change the design or look or feel or remove any features or enhancmeents.
-- Just fix bugs and clean code.
-- ask if you need to change things other than that.
-- always use best practices as and industry expert.
-- always use the more advanced or enahnced like code if you need to consider it.- Maintain PySide-equivalent features while transitioning to Electron/React; preserve functionality and interactivity.
-- Document milestones and persist progress after each major step.
-- Re-read relevant modules frequently to keep full-codebase context active.
-- Gradually retire PySide frontend assets once Electron/React reaches parity.
+- Keep the existing design, look, feel, and features intact; focus on bug fixes and code cleanliness unless explicitly approved otherwise.
+- Use industry best practices and advanced, maintainable patterns where they add value.
+- Maintain PySide-equivalent features while transitioning to Electron/React, preserving full functionality and interactivity; retire PySide assets only once parity is achieved.
+- Document milestones and persist progress after each major step while re-reading relevant modules to keep full-codebase context active.
+- Consolidate and deduplicate rules or logic when possible, simplifying imports and helpers without altering behavior.
+- Keep pytest markers intact and prevent test collection from environments or build artifacts (virtualenvs, caches, coverage outputs, frontend builds, etc.).
+- Harden code and tests defensively as you go, ensuring resilience across the entire codebase.

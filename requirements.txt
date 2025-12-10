@@ -1,3 +1,6 @@
+# Use the CPU PyTorch wheels by default to avoid unavailable CUDA dependencies
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 # Core Web & API
 fastapi==0.118.0
 uvicorn==0.37.0
@@ -23,7 +26,8 @@ pyyaml==6.0.3
 markdown==3.9
 
 # AI & Machine Learning
-torch==2.8.0
+# CPU builds avoid the NVIDIA CUFILE dependency that is not published for Windows
+torch==2.8.0+cpu
 transformers==4.49.0
 sentence-transformers==5.1.1
 ctransformers==0.2.27
