@@ -37,7 +37,7 @@
     "eject": "react-scripts eject",
     "electron:dev": "wait-on http://127.0.0.1:3001 && npx electron . > electron.log 2>&1",
     "electron:build": "electron-builder",
-    "start:renderer": "cross-env BROWSER=none PORT=3001 REACT_APP_API_URL=http://127.0.0.1:8001 react-scripts start",
+    "start:renderer": "cross-env BROWSER=none react-scripts start",
     "start:electron": "concurrently \"npm run start:renderer\" \"npm run electron:dev\"",
     "build:electron": "npm run build && electron-builder",
     "lint": "eslint ./src --ext .ts,.tsx",

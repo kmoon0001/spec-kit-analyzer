@@ -8,6 +8,7 @@ import logging
 import os
 import socket
 import subprocess
+import sys
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -115,12 +116,7 @@ class ServiceManager:
         stdout_text = ""
         stderr_text = ""
         if process.poll() is None:
-            process.terminate()
-            try:
-                await asyncio.to_thread(process.wait, 5)
-            except Exception:
-                process.kill()
-                await asyncio.to_thread(process.wait, 5)
+            await asyncio.to_thread(self._terminate_process_tree, process, 5.0)
         try:
             stdout_bytes, stderr_bytes = process.communicate(timeout=0.5)
             if stdout_bytes:
@@ -140,6 +136,37 @@ class ServiceManager:
         self.processes.pop(service_name, None)
         self.status[service_name] = ServiceStatus.FAILED
         return stdout_text, stderr_text
+
+    def _terminate_process_tree(
+        self, process: subprocess.Popen, timeout: float
+    ) -> None:
+        """Terminate a process tree safely."""
+        if process.poll() is not None:
+            return
+        try:
+            proc = psutil.Process(process.pid)
+        except psutil.NoSuchProcess:
+            return
+
+        children = proc.children(recursive=True)
+        for child in children:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                continue
+
+        try:
+            proc.terminate()
+        except psutil.NoSuchProcess:
+            return
+
+        _, alive = psutil.wait_procs([proc, *children], timeout=timeout)
+        for remaining in alive:
+            try:
+                remaining.kill()
+            except psutil.NoSuchProcess:
+                continue
+        psutil.wait_procs(alive, timeout=timeout)
 
     def _handle_start_failure(
         self, service_name: str, port: int, stderr_output: str
@@ -234,6 +261,13 @@ class ServiceManager:
                     env.setdefault("UVICORN_PORT", str(actual_port))
                     env.setdefault("FASTAPI_PORT", str(actual_port))
 
+                if service_name == "frontend":
+                    api_config = self.services.get("api")
+                    if api_config and api_config.port:
+                        env["REACT_APP_API_URL"] = (
+                            f"http://127.0.0.1:{api_config.port}"
+                        )
+
                 prepared_command = self._prepare_command_with_port(command, actual_port)
 
                 process = subprocess.Popen(
@@ -283,16 +317,11 @@ class ServiceManager:
                 process = self.processes[service_name]
 
                 # Try graceful shutdown first
-                process.terminate()
-
-                # Wait for graceful shutdown
-                try:
-                    process.wait(timeout=self.services[service_name].shutdown_timeout)
-                except subprocess.TimeoutExpired:
-                    # Force kill if graceful shutdown fails
-                    logger.warning("Force killing service", service=service_name)
-                    process.kill()
-                    process.wait()
+                await asyncio.to_thread(
+                    self._terminate_process_tree,
+                    process,
+                    self.services[service_name].shutdown_timeout,
+                )
 
                 del self.processes[service_name]
                 self.status[service_name] = ServiceStatus.STOPPED
@@ -427,7 +456,7 @@ def create_default_services() -> ServiceManager:
             name="api",
             port=8001,
             command=[
-                "python",
+                sys.executable,
                 "-m",
                 "uvicorn",
                 "src.api.main:app",
@@ -447,11 +476,23 @@ def create_default_services() -> ServiceManager:
         ServiceConfig(
             name="frontend",
             port=3001,
-            command=["cmd", "/c", "npm", "run", "start:renderer"],
+            command=[
+                "cmd",
+                "/c",
+                "npm",
+                "run",
+                "start:renderer",
+            ]
+            if sys.platform.startswith("win")
+            else ["npm", "run", "start:renderer"],
             working_dir=str(
                 Path(__file__).parent.parent.parent / "frontend" / "electron-react-app"
             ),
-            env_vars={"PORT": "3001", "BROWSER": "none"},
+            env_vars={
+                "PORT": "3001",
+                "BROWSER": "none",
+                "REACT_APP_API_URL": "http://127.0.0.1:8001",
+            },
             startup_timeout=60,
         )
     )

@@ -103,6 +103,15 @@ DOUBLE_CLICK_TO_START.bat
 - [ ] Report HTML can be opened
 - [ ] No errors in console
 
+### Test 4: Generate Synthetic Large PDFs
+Use this script to generate large, synthetic PDFs for ingestion testing:
+
+```bash
+python scripts/generate_synthetic_pdfs.py --files 2 --pages 200 --paragraphs 45 --words 35
+```
+
+The PDFs will be saved under `synthetic-pdfs/` by default. Upload them through the UI or API to validate large-file processing.
+
 ## 🐛 Troubleshooting
 
 ### Progress Still Stuck at 5%?

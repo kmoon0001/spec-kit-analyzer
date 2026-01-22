@@ -66,6 +66,7 @@ scipy==1.16.2
 psutil==7.1.0
 onnxruntime==1.23.0
 optimum==1.27.0
+redis==5.2.1  # 5.2.2 is not available on some indexes
 
 # Enhanced Features (Optional)
 reportlab==4.4.4
