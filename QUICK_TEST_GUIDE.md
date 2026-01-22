@@ -103,6 +103,15 @@ DOUBLE_CLICK_TO_START.bat
 - [ ] Report HTML can be opened
 - [ ] No errors in console
 
+### Test 4: Generate Synthetic Large PDFs
+Use this script to generate large, synthetic PDFs for ingestion testing:
+
+```bash
+python scripts/generate_synthetic_pdfs.py --files 2 --pages 200 --paragraphs 45 --words 35
+```
+
+The PDFs will be saved under `synthetic-pdfs/` by default. Upload them through the UI or API to validate large-file processing.
+
 ## 🐛 Troubleshooting
 
 ### Progress Still Stuck at 5%?
@@ -125,6 +134,12 @@ DOUBLE_CLICK_TO_START.bat
 1. **Check Node version** - Need 18+
 2. **Install dependencies** - Run `npm install` in frontend/electron-react-app
 3. **Try clean build** - Delete build folder and rebuild
+
+### NPM Lockfile Merge Conflicts?
+If you hit a conflict in `package-lock.json` for `electron-builder-squirrel-windows`,
+keep the newer `26.4.0` entry (it is compatible with `electron-builder`'s `^26.x`
+range) and rerun `npm install` in `frontend/electron-react-app` to regenerate the
+lockfile cleanly.
 
 ## 📊 Success Criteria
 

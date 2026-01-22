@@ -10,6 +10,7 @@ import sys
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional, Tuple
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -22,11 +23,12 @@ from src.logging_config import configure_logging
 from src.config import get_settings
 
 import structlog
+import psutil
 
 logger = structlog.get_logger(__name__)
 
 
-def find_available_port(start_port: int, max_attempts: int = 10) -> int:
+def find_available_port(start_port: int, max_attempts: int = 10) -> Optional[int]:
     """Find an available port starting from start_port."""
     import socket
 
@@ -42,38 +44,60 @@ def find_available_port(start_port: int, max_attempts: int = 10) -> int:
     return None
 
 
+def _terminate_process_tree(pid: int, timeout: float = 5.0) -> bool:
+    """Terminate a process tree safely."""
+    try:
+        process = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return True
+
+    children = process.children(recursive=True)
+    for child in children:
+        try:
+            child.terminate()
+        except psutil.NoSuchProcess:
+            continue
+
+    try:
+        process.terminate()
+    except psutil.NoSuchProcess:
+        return True
+
+    gone, alive = psutil.wait_procs([process, *children], timeout=timeout)
+    for proc in alive:
+        try:
+            proc.kill()
+        except psutil.NoSuchProcess:
+            continue
+
+    psutil.wait_procs(alive, timeout=timeout)
+    return True
+
+
 def kill_process_on_port(port: int) -> bool:
     """Kill any process using the specified port."""
     try:
-        # Find process using the port
-        result = subprocess.run(
-            f'netstat -ano | findstr ":{port}"',
-            shell=True,
-            capture_output=True,
-            text=True
-        )
-
-        if result.stdout:
-            lines = result.stdout.strip().split('\n')
-            for line in lines:
-                if 'LISTENING' in line:
-                    parts = line.split()
-                    if len(parts) >= 5:
-                        pid = parts[-1]
-                        try:
-                            subprocess.run(f'taskkill /PID {pid} /F', shell=True, check=True)
-                            logger.info(f"Killed process {pid} on port {port}")
-                            time.sleep(1)  # Wait for port to be released
-                            return True
-                        except subprocess.CalledProcessError:
-                            continue
+        killed = False
+        for conn in psutil.net_connections(kind="inet"):
+            if not conn.laddr or conn.laddr.port != port:
+                continue
+            if conn.pid is None:
+                continue
+            if _terminate_process_tree(conn.pid):
+                logger.info("Killed process on port", port=port, pid=conn.pid)
+                killed = True
+        if killed:
+            time.sleep(1)
+        return killed
+    except (psutil.AccessDenied, psutil.ZombieProcess, NotImplementedError) as e:
+        logger.warning("Failed to inspect processes on port", port=port, error=str(e))
         return False
     except Exception as e:
-        logger.error(f"Failed to kill process on port {port}: {e}")
+        logger.error("Failed to kill process on port", port=port, error=str(e))
         return False
 
 
-async def start_api_server(port: int = 8001) -> subprocess.Popen:
+async def start_api_server(port: int = 8001) -> Tuple[subprocess.Popen, int]:
     """Start the API server on the specified port."""
     # Kill any existing process on the port
     kill_process_on_port(port)
@@ -93,7 +117,6 @@ async def start_api_server(port: int = 8001) -> subprocess.Popen:
         "src.api.main:app",
         "--host", "127.0.0.1",
         "--port", str(port),
-        "--reload"
     ]
 
     logger.info(f"Starting API server on port {port}")
@@ -112,7 +135,7 @@ async def start_api_server(port: int = 8001) -> subprocess.Popen:
             response = requests.get(f"http://localhost:{port}/health", timeout=2)
             if response.status_code == 200:
                 logger.info(f"API server started successfully on port {port}")
-                return process
+                return process, port
         except Exception:
             pass
 
@@ -127,7 +150,7 @@ async def start_api_server(port: int = 8001) -> subprocess.Popen:
     raise RuntimeError(f"API server failed to start within {max_wait} seconds")
 
 
-def start_frontend_server(port: int = 3001) -> subprocess.Popen:
+def start_frontend_server(port: int = 3001, api_port: int = 8001) -> Tuple[subprocess.Popen, int]:
     """Start the frontend server on the specified port."""
     # Kill any existing process on the port
     kill_process_on_port(port)
@@ -145,14 +168,15 @@ def start_frontend_server(port: int = 3001) -> subprocess.Popen:
     frontend_dir = Path(__file__).parent / "frontend" / "electron-react-app"
 
     # Start the frontend server
-    cmd = [
-        "cmd", "/c", "npm", "run", "start:renderer"
-    ]
+    if sys.platform.startswith("win"):
+        cmd = ["cmd", "/c", "npm", "run", "start:renderer"]
+    else:
+        cmd = ["npm", "run", "start:renderer"]
 
     env = {
         "PORT": str(port),
         "BROWSER": "none",
-        "REACT_APP_API_URL": f"http://127.0.0.1:8001"
+        "REACT_APP_API_URL": f"http://127.0.0.1:{api_port}",
     }
 
     logger.info(f"Starting frontend server on port {port}")
@@ -173,7 +197,7 @@ def start_frontend_server(port: int = 3001) -> subprocess.Popen:
             response = requests.get(f"http://localhost:{port}", timeout=2)
             if response.status_code == 200:
                 logger.info(f"Frontend server started successfully on port {port}")
-                return process
+                return process, port
         except Exception:
             pass
 
@@ -218,15 +242,15 @@ async def main():
         logger.info("Enhanced core services started successfully!")
 
         # Start API server
-        api_process = await start_api_server(8001)
+        api_process, api_port = await start_api_server(8001)
 
         # Start frontend server
-        frontend_process = start_frontend_server(3001)
+        frontend_process, frontend_port = start_frontend_server(3001, api_port=api_port)
 
         logger.info("All services started successfully!")
-        logger.info("API Server: http://localhost:8001")
-        logger.info("Frontend Server: http://localhost:3001")
-        logger.info("API Documentation: http://localhost:8001/docs")
+        logger.info("API Server: http://localhost:%s", api_port)
+        logger.info("Frontend Server: http://localhost:%s", frontend_port)
+        logger.info("API Documentation: http://localhost:%s/docs", api_port)
 
         # Keep running until interrupted
         try:
@@ -250,18 +274,10 @@ async def main():
             logger.info("Shutting down services...")
 
             if api_process.poll() is None:
-                api_process.terminate()
-                try:
-                    api_process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    api_process.kill()
+                _terminate_process_tree(api_process.pid, timeout=10.0)
 
             if frontend_process.poll() is None:
-                frontend_process.terminate()
-                try:
-                    frontend_process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    frontend_process.kill()
+                _terminate_process_tree(frontend_process.pid, timeout=10.0)
 
             await enhanced_worker_manager.stop()
             await persistent_task_registry.close()

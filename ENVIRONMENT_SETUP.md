@@ -18,7 +18,13 @@ setup_env.bat
    python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32))"
    ```
 
-2. Set environment variables:
+2. Install dependencies (note: `redis==5.2.1` is pinned because `5.2.2` is not
+   published on some package indexes):
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Set environment variables:
    ```bash
    export SECRET_KEY="your-generated-key-here"
    export USE_AI_MOCKS=false
